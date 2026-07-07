@@ -1,0 +1,149 @@
+{
+  "app_name": "WORKLY",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A premium, hyper-efficient workforce management tool that feels as fast and native as Uber, prioritizing cognitive accessibility and stark monochrome contrast.",
+  "color": {
+    "surface": { "light": "#FFFFFF", "dark": "#000000" },
+    "onSurface": { "light": "#000000", "dark": "#FFFFFF" },
+    "surfaceSecondary": { "light": "#F2F2F7", "dark": "#1C1C1E" },
+    "onSurfaceSecondary": { "light": "#3A3A3C", "dark": "#EBEBF5" },
+    "surfaceTertiary": { "light": "#E5E5EA", "dark": "#2C2C2E" },
+    "onSurfaceTertiary": { "light": "#8E8E93", "dark": "#98989D" },
+    "surfaceInverse": { "light": "#000000", "dark": "#FFFFFF" },
+    "onSurfaceInverse": { "light": "#FFFFFF", "dark": "#000000" },
+    "brand": { "light": "#000000", "dark": "#FFFFFF" },
+    "brandPrimary": { "light": "#000000", "dark": "#FFFFFF" },
+    "onBrandPrimary": { "light": "#FFFFFF", "dark": "#000000" },
+    "brandSecondary": { "light": "#3A3A3C", "dark": "#EBEBF5" },
+    "onBrandSecondary": { "light": "#FFFFFF", "dark": "#000000" },
+    "brandTertiary": { "light": "#E5E5EA", "dark": "#2C2C2E" },
+    "onBrandTertiary": { "light": "#000000", "dark": "#FFFFFF" },
+    "success": { "light": "#166534", "dark": "#4ADE80" },
+    "onSuccess": { "light": "#FFFFFF", "dark": "#000000" },
+    "warning": { "light": "#B45309", "dark": "#FBBF24" },
+    "onWarning": { "light": "#FFFFFF", "dark": "#000000" },
+    "error": { "light": "#DC2626", "dark": "#F87171" },
+    "onError": { "light": "#FFFFFF", "dark": "#000000" },
+    "info": { "light": "#F2F2F7", "dark": "#2C2C2E" },
+    "onInfo": { "light": "#000000", "dark": "#FFFFFF" },
+    "border": { "light": "#E5E5EA", "dark": "#38383A" },
+    "borderStrong": { "light": "#C7C7CC", "dark": "#48484A" },
+    "divider": { "light": "#E5E5EA", "dark": "#38383A" }
+  },
+  "typography": {
+    "displayFontFamily": "Geist",
+    "textFontFamily": "Geist",
+    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+  },
+  "spacing": { 
+    "rule": "Generous vertical rhythm. Always account for Safe Area at the root. Use `md` or `lg` padding inside cards. Never cramp lists; give them at least 56pt height.", 
+    "xs": 4, 
+    "sm": 8, 
+    "md": 12, 
+    "lg": 16, 
+    "xl": 24, 
+    "2xl": 32, 
+    "3xl": 48 
+  },
+  "radius_tokens": { "sm": 6, "md": 12, "lg": 20, "pill": 999 },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use `expo-blur` over `surfaceTertiary` tint for Bottom Tab Bar and sticky headers.",
+      "Apply frosted glass to the Floating Action Button and featured cards on the Home Dashboard.",
+      "Use glass heavily for sheet handles and profile headers."
+    ],
+    "dont's": [
+      "Do not apply glass to body content, form fields, or dense list rows.",
+      "Do not blur without ensuring minimum tint opacity (≥70% of surface) for text readability."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-blur",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "events": {
+      "tab_press": "light",
+      "button_primary": "medium",
+      "check_in": "success",
+      "signature_complete": "success",
+      "role_switch": "medium"
+    }
+  },
+  "screens": [
+    {
+      "name": "Role Selector / Login",
+      "purpose": "Minimalist gateway to select Worker or Company path with FaceID/Fingerprint support.",
+      "states": { "loading": "Centered brand spinner.", "empty": "", "error": "Readable toast message + Retry button." },
+      "layout": "Two massive `lg` radius cards (Worker vs Company) centered on screen. Pure black and white. Large typography with subtle border outlines."
+    },
+    {
+      "name": "Home Dashboard (Worker)",
+      "purpose": "0–3 visible widgets offering total operational clarity: Trust Score, Today's Jobs, Quick Check-in.",
+      "states": { "loading": "Skeleton loaders matching card shapes.", "empty": "Icon + short text ('No jobs today') + 'Find Jobs' primary CTA.", "error": "Clear error message + Retry." },
+      "layout": "Apple's Liquid Glass translucent header. Profile greeting at top. Large Trust Score widget with Sage Green accent. A 'Smart Stack' style card for Today's Jobs. Sticky Check-in FAB."
+    },
+    {
+      "name": "Search",
+      "purpose": "Find jobs, workers, or teams quickly.",
+      "states": { "loading": "Spinner centered.", "empty": "Illustration + 'Search for opportunities' CTA.", "error": "Error message + Retry." },
+      "layout": "Prominent search bar at top. Horizontal scrolling pill chips (`brandTertiary` bg) for filters. List view with generous spacing."
+    },
+    {
+      "name": "Messages",
+      "purpose": "Modern chat hub for contracts and team communication.",
+      "states": { "loading": "List skeleton.", "empty": "Illustration + 'No messages yet'.", "error": "Error message + Retry." },
+      "layout": "Standard iOS clean chat list with large avatars. Inside: modern chat bubbles (`surfaceSecondary` vs `brandPrimary`), voice message support, document previews."
+    },
+    {
+      "name": "Contracts",
+      "purpose": "List and digital signature flow for worker/company agreements.",
+      "states": { "loading": "List skeleton.", "empty": "Contract SVG + 'No active contracts'.", "error": "Error + Retry." },
+      "layout": "Minimalist list. Detail view uses whitespace instead of dividers. Bottom section uses progressive disclosure for the Digital Signature canvas (native Markup style)."
+    },
+    {
+      "name": "Profile / Career",
+      "purpose": "Showcase identity, trust score, timeline, and achievements.",
+      "states": { "loading": "Spinner.", "empty": "Prompt to complete profile.", "error": "Error + Retry." },
+      "layout": "Centered top layout. Profile cover uses a glass banner. Vertical career timeline using a left border and dots. Progress charts for skills/reputation."
+    }
+  ],
+  "images": {
+    "home_hero_bg": {
+      "url": "https://images.unsplash.com/photo-1673551799304-b81cce68c308?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHxFdXJvcGVhbiUyMG1vZGVybiUyMG9mZmljZSUyMGludGVyaW9yJTIwd29ya3NwYWNlfGVufDB8fHx8MTc4MzQwODY5MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern European office interior"
+    },
+    "worker_avatar": {
+      "url": "https://images.pexels.com/photos/37556452/pexels-photo-37556452.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Professional construction worker portrait"
+    },
+    "company_avatar": {
+      "url": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwxfHxjb3Jwb3JhdGUlMjBtYW5hZ2VyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzgzNDA4NjkxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Corporate manager portrait"
+    },
+    "contract_empty": {
+      "url": "https://images.pexels.com/photos/7876037/pexels-photo-7876037.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Contract signature document"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the 1 iOS-Native Clean personality. The app should feel as fast, minimal, and premium as Uber or Airbnb.",
+    "Do NOT use any blue, indigo, or purple. The entire app uses a strict Monochrome palette (Black/White) with a Sage Green accent (`#166534` light / `#4ADE80` dark) for success, progress, and Trust Scores.",
+    "Ensure all text rendered on top of imagery uses the MANDATORY gradient-to-dark scrim pattern: a vertical linear gradient from transparent to at least 70% opacity `surfaceInverse` at the bottom, with text placed in the darkest area.",
+    "For the Contracts feature, use a minimalist approach: remove unnecessary lines/dividers and use whitespace. Implement a touch-friendly drawing area for the digital signature.",
+    "The Home Dashboard must avoid clutter. Stick to '0-3 visible widgets' or a Smart Stack approach. Prioritize operational clarity over decoration.",
+    "Include subtle haptic feedback for all major interactions (check-in, tab switch, signature commit). Ensure these are explicitly wired to buttons and actions."
+  ]
+}
