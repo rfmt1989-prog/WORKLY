@@ -91,9 +91,24 @@ class LoginInput(BaseModel):
     password: str
 
 
+class TeamInput(BaseModel):
+    name: str
+    description: Optional[str] = None
+    specialty: Optional[str] = None
+    status: str = "available"  # available | in_project | inactive
+    country: Optional[str] = None
+    city: Optional[str] = None
+    project_id: Optional[str] = None
+    leader_id: Optional[str] = None
+
+
+class TeamMemberInput(BaseModel):
+    email: EmailStr
+
+
 class MessageInput(BaseModel):
     text: Optional[str] = None
-    type: str = "text"  # text | voice | image | document
+    type: str = "text"
     meta: Optional[dict] = None
 
 
@@ -214,7 +229,723 @@ async def dashboard(current=Depends(get_current_user)):
     }
 
 
-# ----------------------------- Search -----------------------------
+## ----------------------------- Teams -----------------------------
+
+def worker_card(worker: dict) -> dict:
+    """Dados públicos usados nos cartões visuais dos trabalhadores."""
+    public = public_user(worker)
+
+    trust = float(worker.get("trust_score", worker.get("confidence_score", 0)) or 0)
+    productivity = float(worker.get("productivity_score", 0) or 0)
+    quality = float(worker.get("quality_score", 0) or 0)
+    punctuality = float(worker.get("punctuality_score", 0) or 0)
+
+    scores = [trust, productivity, quality, punctuality]
+    valid_scores = [score for score in scores if score > 0]
+
+    overall_score = (
+        round(sum(valid_scores) / len(valid_scores), 1)
+        if valid_scores
+        else 0
+    )
+
+    public.update({
+        "age": worker.get("age"),
+        "country": worker.get("country"),
+        "country_code": worker.get("country_code"),
+        "flag": worker.get("flag"),
+        "avatar": worker.get("avatar"),
+        "specialty": worker.get("specialty", worker.get("title")),
+        "available": worker.get("available", True),
+        "trust_score": trust,
+        "productivity_score": productivity,
+        "quality_score": quality,
+        "punctuality_score": punctuality,
+        "overall_score": overall_score,
+    })
+
+    return public
+
+
+async def build_team_response(team: dict) -> dict:
+    result = dict(team)
+    result.pop("_id", None)
+
+    members = []
+
+    for worker_id in result.get("member_ids", []):
+        worker = await db.users.find_one({
+            "id": worker_id,
+            "role": "worker"
+        })
+
+        if worker:
+            members.append(worker_card(worker))
+
+    leader = None
+    leader_id = result.get("leader_id")
+
+    if leader_id:
+        leader_worker = await db.users.find_one({
+            "id": leader_id,
+            "role": "worker"
+        })
+
+        if leader_worker:
+            leader = worker_card(leader_worker)
+
+    project = None
+    project_id = result.get("project_id")
+
+    if project_id:
+        project = await db.projects.find_one({"id": project_id})
+
+        if project:
+            project.pop("_id", None)
+
+    member_scores = [
+        member.get("overall_score", 0)
+        for member in members
+        if member.get("overall_score", 0) > 0
+    ]
+
+    trust_scores = [
+        member.get("trust_score", 0)
+        for member in members
+        if member.get("trust_score", 0) > 0
+    ]
+
+    productivity_scores = [
+        member.get("productivity_score", 0)
+        for member in members
+        if member.get("productivity_score", 0) > 0
+    ]
+
+    result["members"] = members
+    result["member_count"] = len(members)
+    result["leader"] = leader
+    result["project"] = project
+    result["team_score"] = (
+        round(sum(member_scores) / len(member_scores), 1)
+        if member_scores
+        else 0
+    )
+    result["average_trust"] = (
+        round(sum(trust_scores) / len(trust_scores), 1)
+        if trust_scores
+        else 0
+    )
+    result["average_productivity"] = (
+        round(sum(productivity_scores) / len(productivity_scores), 1)
+        if productivity_scores
+        else 0
+    )
+
+    return result
+
+
+@api_router.post("/teams")
+async def create_team(
+    data: TeamInput,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can create teams"
+        )
+
+    team = {
+        "id": str(uuid.uuid4()),
+        "name": data.name,
+        "description": data.description,
+        "specialty": data.specialty,
+        "status": data.status or "available",
+        "country": data.country,
+        "city": data.city,
+        "company_id": current["id"],
+        "member_ids": [],
+        "leader_id": data.leader_id,
+        "project_id": data.project_id,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+
+    await db.teams.insert_one(team.copy())
+
+    return await build_team_response(team)
+
+
+@api_router.get("/teams")
+async def list_teams(current=Depends(get_current_user)):
+    if current["role"] == "company":
+        query = {"company_id": current["id"]}
+    else:
+        query = {"member_ids": current["id"]}
+
+    teams = await db.teams.find(query).to_list(100)
+
+    result = []
+
+    for team in teams:
+        result.append(await build_team_response(team))
+
+    return result
+
+
+@api_router.get("/teams/available-workers")
+async def available_workers(
+    q: str = "",
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can view available workers"
+        )
+
+    query = {
+        "role": "worker",
+        "available": {"$ne": False}
+    }
+
+    if q:
+        query["$or"] = [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"email": {"$regex": q, "$options": "i"}},
+            {"title": {"$regex": q, "$options": "i"}},
+            {"specialty": {"$regex": q, "$options": "i"}},
+            {"skills": {"$regex": q, "$options": "i"}},
+            {"country": {"$regex": q, "$options": "i"}},
+        ]
+
+    workers = await db.users.find(query).to_list(100)
+
+    return [worker_card(worker) for worker in workers]
+
+
+@api_router.get("/teams/{team_id}")
+async def get_team_details(
+    team_id: str,
+    current=Depends(get_current_user)
+):
+    team = await db.teams.find_one({"id": team_id})
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    if current["role"] == "company":
+        if team.get("company_id") != current["id"]:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have access to this team"
+            )
+    elif current["id"] not in team.get("member_ids", []):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have access to this team"
+        )
+
+    return await build_team_response(team)
+
+
+@api_router.post("/teams/{team_id}/update")
+async def update_team(
+    team_id: str,
+    data: TeamInput,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can edit teams"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    updates = {
+        "name": data.name,
+        "description": data.description,
+        "specialty": data.specialty,
+        "status": data.status,
+        "country": data.country,
+        "city": data.city,
+        "project_id": data.project_id,
+        "updated_at": now_iso(),
+    }
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {"$set": updates}
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/members")
+async def add_team_member(
+    team_id: str,
+    data: TeamMemberInput,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can add team members"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    worker = await db.users.find_one({
+        "email": data.email.lower(),
+        "role": "worker"
+    })
+
+    if not worker:
+        raise HTTPException(
+            status_code=404,
+            detail="Worker not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$addToSet": {"member_ids": worker["id"]},
+            "$set": {"updated_at": now_iso()}
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/members/{worker_id}")
+async def add_team_member_by_id(
+    team_id: str,
+    worker_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can add team members"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    worker = await db.users.find_one({
+        "id": worker_id,
+        "role": "worker"
+    })
+
+    if not worker:
+        raise HTTPException(
+            status_code=404,
+            detail="Worker not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$addToSet": {"member_ids": worker_id},
+            "$set": {"updated_at": now_iso()}
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.delete("/teams/{team_id}/members/{worker_id}")
+async def remove_team_member(
+    team_id: str,
+    worker_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can remove team members"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    updates = {
+        "$pull": {"member_ids": worker_id},
+        "$set": {"updated_at": now_iso()}
+    }
+
+    if team.get("leader_id") == worker_id:
+        updates["$set"]["leader_id"] = None
+
+    await db.teams.update_one(
+        {"id": team_id},
+        updates
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/remove-member/{worker_id}")
+async def remove_team_member_post(
+    team_id: str,
+    worker_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can remove team members"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    updates = {
+        "$pull": {"member_ids": worker_id},
+        "$set": {"updated_at": now_iso()}
+    }
+
+    if team.get("leader_id") == worker_id:
+        updates["$set"]["leader_id"] = None
+
+    await db.teams.update_one(
+        {"id": team_id},
+        updates
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/leader/{worker_id}")
+async def set_team_leader(
+    team_id: str,
+    worker_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can set team leaders"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    worker = await db.users.find_one({
+        "id": worker_id,
+        "role": "worker"
+    })
+
+    if not worker:
+        raise HTTPException(
+            status_code=404,
+            detail="Worker not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$set": {
+                "leader_id": worker_id,
+                "updated_at": now_iso()
+            },
+            "$addToSet": {"member_ids": worker_id}
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/clear-leader")
+async def clear_team_leader(
+    team_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can change team leaders"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$set": {
+                "leader_id": None,
+                "updated_at": now_iso()
+            }
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/project/{project_id}")
+async def assign_team_project(
+    team_id: str,
+    project_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can assign projects"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    project = await db.projects.find_one({
+        "id": project_id,
+        "company_id": current["id"]
+    })
+
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$set": {
+                "project_id": project_id,
+                "status": "in_project",
+                "updated_at": now_iso()
+            }
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/remove-project")
+async def remove_team_project(
+    team_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can change team projects"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$set": {
+                "project_id": None,
+                "status": "available",
+                "updated_at": now_iso()
+            }
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.post("/teams/{team_id}/status/{status}")
+async def update_team_status(
+    team_id: str,
+    status: str,
+    current=Depends(get_current_user)
+):
+    allowed_statuses = ["available", "in_project", "inactive"]
+
+    if status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid team status"
+        )
+
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can change team status"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    await db.teams.update_one(
+        {"id": team_id},
+        {
+            "$set": {
+                "status": status,
+                "updated_at": now_iso()
+            }
+        }
+    )
+
+    updated_team = await db.teams.find_one({"id": team_id})
+
+    return await build_team_response(updated_team)
+
+
+@api_router.delete("/teams/{team_id}")
+async def delete_team(
+    team_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can delete teams"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    await db.teams.delete_one({"id": team_id})
+
+    return {"message": "Team deleted successfully"}
+
+
+@api_router.post("/teams/{team_id}/delete")
+async def delete_team_post(
+    team_id: str,
+    current=Depends(get_current_user)
+):
+    if current["role"] != "company":
+        raise HTTPException(
+            status_code=403,
+            detail="Only companies can delete teams"
+        )
+
+    team = await db.teams.find_one({
+        "id": team_id,
+        "company_id": current["id"]
+    })
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    await db.teams.delete_one({"id": team_id})
+
+    return {"message": "Team deleted successfully"} 
+# ------------------------- Search -------------------------
 @api_router.get("/search")
 async def search(q: str = "", current=Depends(get_current_user)):
     if current["role"] == "company":

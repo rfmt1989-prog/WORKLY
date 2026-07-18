@@ -1,84 +1,197 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { storage } from "@/src/utils/storage";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import { api, setAuthToken } from "@/src/api/client";
+import { storage } from "@/src/utils/storage";
+
+export type UserRole = "worker" | "company";
 
 export type User = {
   id: string;
   name: string;
   email: string;
-  role: "worker" | "company";
+  role: UserRole;
+  company_id?: number | null;
   avatar?: string;
   title?: string;
-  trust_score?: number;
-  reputation?: number;
-  level?: string;
-  level_progress?: number;
-  location?: string;
-  available?: boolean;
-  skills?: { name: string; level: number }[];
-  certificates?: any[];
-  languages?: string[];
-  countries?: string[];
-  portfolio?: any[];
-  timeline?: any[];
-  achievements?: any[];
-  training?: any[];
-  industry?: string;
+};
+
+type LoginResponse = {
+  access_token: string;
+  token_type?: string;
+  user_id: number;
+  user_type: UserRole;
+  company_id: number | null;
 };
 
 type AuthState = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: "worker" | "company") => Promise<void>;
+
+  login: (
+    email: string,
+    password: string,
+    role: UserRole
+  ) => Promise<User>;
+
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole
+  ) => Promise<void>;
+
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
-  setUser: (u: User) => void;
+  setUser: (user: User | null) => void;
 };
 
-const AuthCtx = createContext<AuthState>({} as AuthState);
+const AuthContext = createContext<AuthState>(
+  {} as AuthState
+);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [user, setUserState] =
+    useState<User | null>(null);
+
+  const [token, setToken] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   useEffect(() => {
-    (async () => {
-      const saved = await storage.secureGet<string>("workly_token", "");
-      if (saved) {
-        setAuthToken(saved);
-        setToken(saved);
-        try {
-          const me = await api.get<User>("/auth/me");
-          setUserState(me);
-        } catch {
-          await storage.secureRemove("workly_token");
-          setAuthToken(null);
+    const restoreSession = async () => {
+      try {
+        const savedToken =
+          await storage.secureGet<string>(
+            "workly_token",
+            ""
+          );
+
+        const savedUserJson =
+          await storage.getItem<string>(
+            "workly_user",
+            ""
+          );
+
+        if (savedToken && savedUserJson) {
+          const savedUser =
+            JSON.parse(savedUserJson) as User;
+
+          setAuthToken(savedToken);
+          setToken(savedToken);
+          setUserState(savedUser);
         }
+      } catch (error) {
+        console.error(
+          "Erro ao restaurar sessão:",
+          error
+        );
+
+        await storage.secureRemove(
+          "workly_token"
+        );
+
+        await storage.removeItem(
+          "workly_user"
+        );
+
+        setAuthToken(null);
+        setToken(null);
+        setUserState(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+
+    void restoreSession();
   }, []);
 
-  const persist = async (tok: string, u: User) => {
-    setAuthToken(tok);
-    setToken(tok);
-    setUserState(u);
-    await storage.secureSet("workly_token", tok);
-    await storage.setItem("workly_last_email", u.email);
+  const persistSession = async (
+    nextToken: string,
+    nextUser: User
+  ) => {
+    setAuthToken(nextToken);
+    setToken(nextToken);
+    setUserState(nextUser);
+
+    await storage.secureSet(
+      "workly_token",
+      nextToken
+    );
+
+    await storage.setItem(
+      "workly_user",
+      JSON.stringify(nextUser)
+    );
+
+    await storage.setItem(
+      "workly_last_email",
+      nextUser.email
+    );
   };
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ token: string; user: User }>("/auth/login", { email, password });
-    await persist(res.token, res.user);
-  }, []);
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+      role: UserRole
+    ): Promise<User> => {
+      const cleanEmail =
+        email.trim().toLowerCase();
+
+      const response =
+        await api.post<LoginResponse>(
+          "/auth/login",
+          {
+            email: cleanEmail,
+            password,
+            user_type: role,
+          }
+        );
+
+      const nextUser: User = {
+        id: String(response.user_id),
+        name:
+          response.user_type === "worker"
+            ? "Demo Worker"
+            : "Demo Company",
+        email: cleanEmail,
+        role: response.user_type,
+        company_id: response.company_id,
+      };
+
+      await persistSession(
+        response.access_token,
+        nextUser
+      );
+
+      return nextUser;
+    },
+    []
+  );
 
   const register = useCallback(
-    async (name: string, email: string, password: string, role: "worker" | "company") => {
-      const res = await api.post<{ token: string; user: User }>("/auth/register", { name, email, password, role });
-      await persist(res.token, res.user);
+    async (
+      _name: string,
+      _email: string,
+      _password: string,
+      _role: UserRole
+    ) => {
+      throw new Error(
+        "O registo ainda não está disponível no novo backend."
+      );
     },
     []
   );
@@ -87,21 +200,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setToken(null);
     setUserState(null);
-    await storage.secureRemove("workly_token");
+
+    await storage.secureRemove(
+      "workly_token"
+    );
+
+    await storage.removeItem(
+      "workly_user"
+    );
   }, []);
 
   const refresh = useCallback(async () => {
-    try {
-      const me = await api.get<User>("/auth/me");
-      setUserState(me);
-    } catch {}
+    // Será ligado ao endpoint /auth/me posteriormente.
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, token, loading, login, register, logout, refresh, setUser: setUserState }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        register,
+        logout,
+        refresh,
+        setUser: setUserState,
+      }}
+    >
       {children}
-    </AuthCtx.Provider>
+    </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthCtx);
+export function useAuth() {
+  return useContext(AuthContext);
+}

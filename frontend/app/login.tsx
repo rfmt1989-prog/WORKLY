@@ -1,184 +1,603 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
-  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
-import { useRouter } from "expo-router";
-import { useAuth } from "@/src/context/AuthContext";
-import { useThemeMode } from "@/src/context/ThemeContext";
-import { useColors, spacing, radius } from "@/src/theme/theme";
-import { Button } from "@/src/components/ui";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type Role = "worker" | "company";
+import { Button } from "@/src/components/ui";
+import {
+  UserRole,
+  useAuth,
+} from "@/src/context/AuthContext";
+import {
+  useThemeMode,
+} from "@/src/context/ThemeContext";
+import {
+  radius,
+  spacing,
+  useColors,
+} from "@/src/theme/theme";
+
+type ScreenMode = "login" | "register";
 
 export default function Login() {
-  const c = useColors();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { login, register } = useAuth();
-  const { cycle, mode } = useThemeMode();
 
-  const [role, setRole] = useState<Role>("worker");
-  const [mode2, setMode2] = useState<"login" | "register">("login");
+  const {
+    login,
+    register,
+  } = useAuth();
+
+  const {
+    cycle,
+    mode: themeMode,
+  } = useThemeMode();
+
+  const [role, setRole] =
+    useState<UserRole>("worker");
+
+  const [screenMode, setScreenMode] =
+    useState<ScreenMode>("login");
+
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [bioAvailable, setBioAvailable] = useState(false);
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [
+    biometricsAvailable,
+    setBiometricsAvailable,
+  ] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const hw = await LocalAuthentication.hasHardwareAsync();
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      setBioAvailable(hw && enrolled);
-    })();
+    const checkBiometrics = async () => {
+      try {
+        const hasHardware =
+          await LocalAuthentication
+            .hasHardwareAsync();
+
+        const enrolled =
+          await LocalAuthentication
+            .isEnrolledAsync();
+
+        setBiometricsAvailable(
+          hasHardware && enrolled
+        );
+      } catch {
+        setBiometricsAvailable(false);
+      }
+    };
+
+    void checkBiometrics();
   }, []);
 
+  const navigateAfterLogin = (
+  authenticatedRole: UserRole
+) => {
+  if (authenticatedRole === "worker") {
+    router.replace("/(worker)" as any);
+    return;
+  }
+
+  router.replace("/(company)" as any);
+};
   const submit = async () => {
     Keyboard.dismiss();
     setError("");
-    if (!email || !password || (mode2 === "register" && !name)) {
-      setError("Preenche todos os campos");
+
+    const cleanName = name.trim();
+    const cleanEmail =
+      email.trim().toLowerCase();
+
+    if (
+      !cleanEmail ||
+      !password ||
+      (screenMode === "register" &&
+        !cleanName)
+    ) {
+      setError(
+        "Preenche todos os campos."
+      );
+
       return;
     }
-    setLoading(true);
+
     try {
-      if (mode2 === "login") await login(email.trim(), password);
-      else await register(name.trim(), email.trim(), password, role);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)");
-    } catch (e: any) {
-      setError(e.message || "Erro ao autenticar");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setLoading(true);
+
+      if (screenMode === "login") {
+        const authenticatedUser =
+          await login(
+            cleanEmail,
+            password,
+            role
+          );
+
+        await Haptics
+          .notificationAsync(
+            Haptics
+              .NotificationFeedbackType
+              .Success
+          );
+
+        navigateAfterLogin(
+          authenticatedUser.role
+        );
+
+        return;
+      }
+
+      await register(
+        cleanName,
+        cleanEmail,
+        password,
+        role
+      );
+
+      await Haptics
+        .notificationAsync(
+          Haptics
+            .NotificationFeedbackType
+            .Success
+        );
+    } catch (
+      caughtError: unknown
+    ) {
+      console.error(
+        "Erro de autenticação:",
+        caughtError
+      );
+
+      const message =
+        caughtError instanceof Error
+          ? getReadableError(
+              caughtError.message
+            )
+          : "Não foi possível autenticar.";
+
+      setError(message);
+
+      await Haptics
+        .notificationAsync(
+          Haptics
+            .NotificationFeedbackType
+            .Error
+        );
     } finally {
       setLoading(false);
     }
   };
 
   const biometricLogin = async () => {
-    const res = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Entrar no WORKLY",
-      fallbackLabel: "Usar password",
-    });
-    if (res.success) {
-      const demoEmail = role === "worker" ? "worker@workly.com" : "company@workly.com";
-      setLoading(true);
-      try {
-        await login(demoEmail, "password123");
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace("/(tabs)");
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
+    setError("");
+
+    try {
+      const authenticationResult =
+        await LocalAuthentication
+          .authenticateAsync({
+            promptMessage:
+              "Entrar no WORKLY",
+            fallbackLabel:
+              "Usar palavra-passe",
+            cancelLabel: "Cancelar",
+          });
+
+      if (
+        !authenticationResult.success
+      ) {
+        return;
       }
+
+      setLoading(true);
+
+      const authenticatedUser =
+        await login(
+          "demo@workly.pt",
+          "123456",
+          role
+        );
+
+      await Haptics
+        .notificationAsync(
+          Haptics
+            .NotificationFeedbackType
+            .Success
+        );
+
+      navigateAfterLogin(
+        authenticatedUser.role
+      );
+    } catch (
+      caughtError: unknown
+    ) {
+      console.error(
+        "Erro no login biométrico:",
+        caughtError
+      );
+
+      setError(
+        caughtError instanceof Error
+          ? getReadableError(
+              caughtError.message
+            )
+          : "Não foi possível utilizar a autenticação biométrica."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   const fillDemo = () => {
-    setEmail(role === "worker" ? "worker@workly.com" : "company@workly.com");
-    setPassword("password123");
-    setMode2("login");
+    setScreenMode("login");
+    setEmail("demo@workly.pt");
+    setPassword("123456");
+    setError("");
   };
 
+  const changeRole = (
+    nextRole: UserRole
+  ) => {
+    void Haptics.selectionAsync();
+
+    setRole(nextRole);
+    setError("");
+  };
+
+  const workerActive =
+    role === "worker";
+
+  const accentColor =
+    workerActive
+      ? "#27A7FF"
+      : "#FF2D2D";
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor:
+          colors.surface,
+      }}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={
+          Platform.OS === "ios"
+            ? "padding"
+            : undefined
+        }
+      >
         <ScrollView
-          contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl, paddingHorizontal: spacing.xl }}
+          contentContainerStyle={{
+            paddingTop:
+              insets.top + spacing.xl,
+            paddingBottom:
+              insets.bottom +
+              spacing.xl,
+            paddingHorizontal:
+              spacing.xl,
+          }}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
         >
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ color: c.onSurface, fontSize: 38, fontWeight: "800", letterSpacing: -1.5 }}>WORKLY</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: accentColor,
+                  fontSize: 38,
+                  fontWeight: "900",
+                  textShadowColor:
+                    accentColor,
+                  textShadowRadius: 9,
+                }}
+              >
+                W
+              </Text>
+
+              <Text
+                style={{
+                  color:
+                    colors.onSurface,
+                  fontSize: 38,
+                  fontWeight: "800",
+                  letterSpacing: -1.5,
+                }}
+              >
+                ORKLY
+              </Text>
+            </View>
+
             <Pressable
               testID="theme-toggle-button"
               onPress={cycle}
-              style={{ width: 44, height: 44, borderRadius: radius.pill, backgroundColor: c.surfaceSecondary, alignItems: "center", justifyContent: "center" }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius:
+                  radius.pill,
+                backgroundColor:
+                  colors
+                    .surfaceSecondary,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Ionicons name={mode === "dark" ? "moon" : mode === "light" ? "sunny" : "contrast"} size={20} color={c.onSurface} />
+              <Ionicons
+                name={
+                  themeMode === "dark"
+                    ? "moon"
+                    : themeMode ===
+                        "light"
+                      ? "sunny"
+                      : "contrast"
+                }
+                size={20}
+                color={
+                  colors.onSurface
+                }
+              />
             </Pressable>
           </View>
-          <Text style={{ color: c.muted, fontSize: 16, marginTop: spacing.xs, marginBottom: spacing["2xl"] }}>
-            Workforce management, elevated.
+
+          <Text
+            style={{
+              color: colors.muted,
+              fontSize: 16,
+              marginTop: spacing.xs,
+              marginBottom:
+                spacing["2xl"],
+            }}
+          >
+            Uma plataforma. Toda a operação.
           </Text>
 
-          {/* Role selector */}
-          <Text style={{ color: c.onSurface, fontSize: 13, fontWeight: "700", marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <Text
+            style={{
+              color:
+                colors.onSurface,
+              fontSize: 13,
+              fontWeight: "700",
+              marginBottom:
+                spacing.sm,
+              textTransform:
+                "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
             Escolhe o teu perfil
           </Text>
-          <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.xl }}>
-            {(["worker", "company"] as Role[]).map((r) => {
-              const active = role === r;
+
+          <View
+            style={{
+              flexDirection: "row",
+              gap: spacing.md,
+              marginBottom:
+                spacing.xl,
+            }}
+          >
+            {(
+              [
+                "worker",
+                "company",
+              ] as UserRole[]
+            ).map((currentRole) => {
+              const active =
+                role === currentRole;
+
+              const roleColor =
+                currentRole === "worker"
+                  ? "#27A7FF"
+                  : "#FF2D2D";
+
               return (
                 <Pressable
-                  key={r}
-                  testID={`role-${r}-card`}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setRole(r);
-                  }}
+                  key={currentRole}
+                  testID={`role-${currentRole}-card`}
+                  onPress={() =>
+                    changeRole(
+                      currentRole
+                    )
+                  }
                   style={{
                     flex: 1,
-                    borderRadius: radius.lg,
-                    padding: spacing.lg,
-                    backgroundColor: active ? c.brand : c.surfaceSecondary,
-                    borderWidth: 1.5,
-                    borderColor: active ? c.brand : c.border,
+                    borderRadius:
+                      radius.lg,
+                    padding:
+                      spacing.lg,
+                    backgroundColor:
+                      colors
+                        .surfaceSecondary,
+                    borderWidth:
+                      active ? 1.5 : 1,
+                    borderColor:
+                      active
+                        ? roleColor
+                        : colors.border,
                     gap: spacing.sm,
+                    shadowColor:
+                      roleColor,
+                    shadowOpacity:
+                      active ? 0.35 : 0,
+                    shadowRadius: 10,
+                    shadowOffset: {
+                      width: 0,
+                      height: 0,
+                    },
                   }}
                 >
                   <Ionicons
-                    name={r === "worker" ? "construct" : "business"}
+                    name={
+                      currentRole ===
+                      "worker"
+                        ? "construct-outline"
+                        : "business-outline"
+                    }
                     size={26}
-                    color={active ? c.onBrand : c.onSurface}
+                    color={
+                      active
+                        ? roleColor
+                        : colors
+                            .onSurface
+                    }
                   />
-                  <Text style={{ color: active ? c.onBrand : c.onSurface, fontSize: 17, fontWeight: "700" }}>
-                    {r === "worker" ? "Worker" : "Company"}
+
+                  <Text
+                    style={{
+                      color:
+                        colors
+                          .onSurface,
+                      fontSize: 17,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {currentRole ===
+                    "worker"
+                      ? "Worker"
+                      : "Company"}
                   </Text>
-                  <Text style={{ color: active ? c.onBrand : c.muted, fontSize: 12 }}>
-                    {r === "worker" ? "Encontra trabalho" : "Contrata talento"}
+
+                  <Text
+                    style={{
+                      color:
+                        colors.muted,
+                      fontSize: 12,
+                    }}
+                  >
+                    {currentRole ===
+                    "worker"
+                      ? "A tua área de trabalho"
+                      : "Gere toda a operação"}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {/* Segmented control */}
-          <View style={{ flexDirection: "row", backgroundColor: c.surfaceSecondary, borderRadius: radius.md, padding: 4, marginBottom: spacing.lg }}>
-            {(["login", "register"] as const).map((m) => {
-              const active = mode2 === m;
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor:
+                colors
+                  .surfaceSecondary,
+              borderRadius:
+                radius.md,
+              padding: 4,
+              marginBottom:
+                spacing.lg,
+            }}
+          >
+            {(
+              [
+                "login",
+                "register",
+              ] as ScreenMode[]
+            ).map((currentMode) => {
+              const active =
+                screenMode ===
+                currentMode;
+
               return (
                 <Pressable
-                  key={m}
-                  testID={`segment-${m}`}
-                  onPress={() => setMode2(m)}
-                  style={{ flex: 1, paddingVertical: 10, borderRadius: radius.sm, backgroundColor: active ? c.surface : "transparent", alignItems: "center" }}
+                  key={currentMode}
+                  testID={`segment-${currentMode}`}
+                  onPress={() => {
+                    setScreenMode(
+                      currentMode
+                    );
+
+                    setError("");
+                  }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius:
+                      radius.sm,
+                    backgroundColor:
+                      active
+                        ? colors.surface
+                        : "transparent",
+                    alignItems:
+                      "center",
+                  }}
                 >
-                  <Text style={{ color: active ? c.onSurface : c.muted, fontWeight: "700", fontSize: 15 }}>
-                    {m === "login" ? "Entrar" : "Registar"}
+                  <Text
+                    style={{
+                      color: active
+                        ? colors
+                            .onSurface
+                        : colors.muted,
+                      fontWeight: "700",
+                      fontSize: 15,
+                    }}
+                  >
+                    {currentMode ===
+                    "login"
+                      ? "Entrar"
+                      : "Registar"}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {mode2 === "register" && (
-            <Input testID="name-input" icon="person-outline" placeholder="Nome completo" value={name} onChangeText={setName} c={c} />
-          )}
-          <Input
+          {screenMode ===
+          "register" ? (
+            <LoginInput
+              testID="name-input"
+              icon="person-outline"
+              placeholder="Nome completo"
+              value={name}
+              onChangeText={setName}
+              colors={colors}
+              accentColor={
+                accentColor
+              }
+            />
+          ) : null}
+
+          <LoginInput
             testID="email-input"
             icon="mail-outline"
             placeholder="Email"
@@ -186,45 +605,84 @@ export default function Login() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            c={c}
+            autoCorrect={false}
+            colors={colors}
+            accentColor={accentColor}
           />
-          <Input
+
+          <LoginInput
             testID="password-input"
             icon="lock-closed-outline"
-            placeholder="Password"
+            placeholder="Palavra-passe"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            c={c}
+            colors={colors}
+            accentColor={accentColor}
           />
 
           {error ? (
-            <Text testID="auth-error" style={{ color: c.error, marginBottom: spacing.md, fontSize: 14, fontWeight: "600" }}>
+            <Text
+              testID="auth-error"
+              style={{
+                color: colors.error,
+                marginBottom:
+                  spacing.md,
+                fontSize: 14,
+                fontWeight: "600",
+              }}
+            >
               {error}
             </Text>
           ) : null}
 
           <Button
             testID="auth-submit-button"
-            label={mode2 === "login" ? "Entrar" : "Criar conta"}
+            label={
+              screenMode === "login"
+                ? "Entrar"
+                : "Criar conta"
+            }
             onPress={submit}
             loading={loading}
-            style={{ marginTop: spacing.xs }}
+            style={{
+              marginTop:
+                spacing.xs,
+              borderColor:
+                accentColor,
+            }}
           />
 
-          {bioAvailable && mode2 === "login" && (
+          {biometricsAvailable &&
+          screenMode === "login" ? (
             <Button
               testID="biometric-login-button"
               label="Face ID / Impressão digital"
               icon="finger-print"
               variant="secondary"
               onPress={biometricLogin}
-              style={{ marginTop: spacing.md }}
+              style={{
+                marginTop:
+                  spacing.md,
+              }}
             />
-          )}
+          ) : null}
 
-          <Pressable testID="demo-fill-button" onPress={fillDemo} style={{ marginTop: spacing.xl, alignItems: "center" }}>
-            <Text style={{ color: c.muted, fontSize: 14 }}>
+          <Pressable
+            testID="demo-fill-button"
+            onPress={fillDemo}
+            style={{
+              marginTop:
+                spacing.xl,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: colors.muted,
+                fontSize: 14,
+              }}
+            >
               Usar conta demo ({role}) →
             </Text>
           </Pressable>
@@ -234,29 +692,94 @@ export default function Login() {
   );
 }
 
-function Input({ icon, c, testID, ...props }: any) {
+function LoginInput({
+  icon,
+  colors,
+  accentColor,
+  testID,
+  ...props
+}: any) {
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: c.surfaceSecondary,
+        backgroundColor:
+          colors.surfaceSecondary,
         borderRadius: radius.md,
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal:
+          spacing.lg,
         height: 54,
-        marginBottom: spacing.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: c.border,
+        marginBottom:
+          spacing.md,
+        borderWidth:
+          StyleSheet.hairlineWidth,
+        borderColor:
+          colors.border,
         gap: spacing.md,
       }}
     >
-      <Ionicons name={icon} size={20} color={c.muted} />
+      <Ionicons
+        name={icon}
+        size={20}
+        color={accentColor}
+      />
+
       <TextInput
         testID={testID}
-        placeholderTextColor={c.muted}
-        style={{ flex: 1, color: c.onSurface, fontSize: 16, height: "100%" }}
+        placeholderTextColor={
+          colors.muted
+        }
+        selectionColor={
+          accentColor
+        }
+        style={{
+          flex: 1,
+          color:
+            colors.onSurface,
+          fontSize: 16,
+          height: "100%",
+        }}
         {...props}
       />
     </View>
   );
+}
+
+function getReadableError(
+  rawMessage: string
+) {
+  const lowerMessage =
+    rawMessage.toLowerCase();
+
+  if (
+    rawMessage.includes("401") ||
+    lowerMessage.includes(
+      "invalid credentials"
+    )
+  ) {
+    return "Email ou palavra-passe incorretos.";
+  }
+
+  if (
+    lowerMessage.includes(
+      "failed to fetch"
+    ) ||
+    lowerMessage.includes(
+      "network request failed"
+    )
+  ) {
+    return "Não foi possível ligar ao servidor na porta 8000.";
+  }
+
+  if (
+    lowerMessage.includes(
+      "registo ainda não está disponível"
+    )
+  ) {
+    return "O registo será disponibilizado na próxima etapa.";
+  }
+
+  return rawMessage ||
+    "Não foi possível iniciar sessão.";
 }
