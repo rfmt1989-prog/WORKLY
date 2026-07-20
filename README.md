@@ -1,1 +1,52 @@
-# Here are your Instructions
+# WORKLY
+
+Aplicação de gestão de trabalho e equipas com experiências próprias para trabalhador e empresa. O projeto funciona localmente em web, Android e iOS através de Expo, com uma API FastAPI autónoma e dados de demonstração.
+
+## Preparação
+
+Na raiz do repositório:
+
+```bash
+make install
+```
+
+## Arrancar a aplicação
+
+Terminal 1 — API:
+
+```bash
+make backend
+```
+
+Terminal 2 — aplicação web:
+
+```bash
+make frontend
+```
+
+Abrir `http://localhost:8081`. A documentação da API fica em `http://localhost:8000/docs`.
+
+## Contas de demonstração
+
+| Perfil | Email | Palavra-passe |
+| --- | --- | --- |
+| Trabalhador | `demo@workly.pt` | `123456` |
+| Empresa | `company@workly.pt` | `123456` |
+
+Também é possível criar uma conta a partir do ecrã de autenticação. Os dados deste MVP são mantidos em memória e reiniciam quando a API é desligada.
+
+## Comandos úteis
+
+```bash
+make test   # testes da API
+make check  # lint, TypeScript e testes
+```
+
+Para abrir em Android ou iOS, usar respetivamente `npm run android` ou `npm run ios` dentro de `frontend/`, com a API já iniciada.
+
+## Estrutura
+
+- `frontend/` — Expo SDK 54, React Native, Expo Router e TypeScript.
+- `backend/` — FastAPI, serviços modulares e API REST em `/api`.
+- `docs/` — visão, estratégia, produto e arquitetura.
+- `design_guidelines.json` — princípios visuais do produto.

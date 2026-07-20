@@ -86,3 +86,6 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+frontend/dist-check/
+pip-metadata-*/
+pip-unpack-*/

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, PanResponder, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,13 +24,13 @@ export default function ContractDetail() {
   const [paths, setPaths] = useState<string[]>([]);
   const current = useRef("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get<any>(`/contracts/${id}`);
       setContract(res);
     } catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, [id]);
+  }, [id]);
+  useEffect(() => { void load(); }, [load]);
 
   const pan = useRef(
     PanResponder.create({
@@ -68,7 +68,12 @@ export default function ContractDetail() {
   }
 
   const mySigned = user?.role === "worker" ? contract.signed_worker : contract.signed_company;
-  const statusLabel = { active: "Ativo", pending: "Pendente", expired: "Expirado" }[contract.status] || contract.status;
+  const statusLabels: Record<string, string> = {
+    active: "Ativo",
+    pending: "Pendente",
+    expired: "Expirado",
+  };
+  const statusLabel = statusLabels[String(contract.status)] || contract.status;
   const statusTone = contract.status === "active" ? "success" : contract.status === "pending" ? "warning" : "neutral";
 
   return (

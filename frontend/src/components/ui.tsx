@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
-  TextStyle,
   StyleProp,
 } from "react-native";
 import * as Haptics from "expo-haptics";
