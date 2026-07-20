@@ -59,6 +59,12 @@ Abrir `http://localhost:8081`. A documentação da API fica em `http://localhost
 
 Também é possível criar uma conta a partir do ecrã de autenticação. Os dados deste MVP são mantidos em memória e reiniciam quando a API é desligada.
 
+## Dashboards unificados
+
+- **Worker:** um único perfil profissional com as áreas Início, Info, Skills, Obras, Docs e Chat. A fotografia do trabalhador é um recorte transparente e o ambiente visual muda com a área selecionada.
+- **Company:** um único centro de operações com Início, Obras, Pessoas, Equipas, Chat e Empresa. As listas permitem selecionar registos, consultar detalhes e abrir conversas sem menus duplicados.
+- Notificações, logout, conversas, seleção de obras, trabalhadores e equipas estão ligados. Se a API ainda estiver a iniciar, os dashboards e o chat mantêm dados de demonstração funcionais.
+
 ## Comandos úteis
 
 ```bash

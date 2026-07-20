@@ -65,3 +65,49 @@ def test_worker_supporting_pages(client):
     for path in ("documents", "jobs", "messages", "profile"):
         response = client.get(f"/api/worker/{path}")
         assert response.status_code == 200, path
+
+
+def test_worker_conversation_round_trip(client):
+    session = login(client, "worker")
+    headers = {"Authorization": f"Bearer {session['token']}"}
+
+    conversation = client.get("/api/conversations/1", headers=headers)
+    assert conversation.status_code == 200
+    assert conversation.json()["conversation"]["other"]["name"] == "Carlos Ferreira"
+
+    sent = client.post(
+        "/api/conversations/1/messages",
+        headers=headers,
+        json={"text": "Confirmado para as 08:00.", "type": "text"},
+    )
+    assert sent.status_code == 200
+    assert sent.json()["message"]["sender_id"] == "worker-demo"
+
+    document = client.post(
+        "/api/conversations/1/messages",
+        headers=headers,
+        json={"text": None, "type": "document", "meta": {"name": "documento.pdf"}},
+    )
+    assert document.status_code == 200
+    assert document.json()["message"]["meta"]["name"] == "documento.pdf"
+
+    voice = client.post(
+        "/api/conversations/1/messages",
+        headers=headers,
+        json={"text": None, "type": "voice", "meta": {"duration": "0:08"}},
+    )
+    assert voice.status_code == 200
+    assert voice.json()["message"]["type"] == "voice"
+
+    refreshed = client.get("/api/conversations/1", headers=headers)
+    assert refreshed.json()["messages"][-3]["text"] == "Confirmado para as 08:00."
+    assert refreshed.json()["messages"][-1]["type"] == "voice"
+
+
+def test_company_conversation_uses_company_contacts(client):
+    session = login(client, "company")
+    headers = {"Authorization": f"Bearer {session['token']}"}
+
+    conversation = client.get("/api/conversations/1", headers=headers)
+    assert conversation.status_code == 200
+    assert conversation.json()["conversation"]["other"]["name"] == "Rodolfo Maia"

@@ -6,7 +6,7 @@ from app.schemas.auth_schema import (
     RegisterRequest,
     UserResponse,
 )
-from app.services.auth_service import AuthService
+from app.services.auth_service import auth_service
 
 
 router = APIRouter(
@@ -14,7 +14,7 @@ router = APIRouter(
     tags=["Authentication"],
 )
 
-service = AuthService()
+service = auth_service
 
 
 @router.post(

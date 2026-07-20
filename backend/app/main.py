@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.auth import router as auth_router
 from app.routers.company import router as company_router
+from app.routers.conversations import router as conversations_router
 from app.routers.worker import router as worker_router
 from app.routers.worker_checkin import router as worker_checkin_router
 from app.routers.worker_documents import router as worker_documents_router
@@ -43,6 +44,7 @@ for router in (
     worker_checkin_router,
     worker_jobs_router,
     company_router,
+    conversations_router,
 ):
     app.include_router(router, prefix="/api")
 

@@ -11,7 +11,7 @@ import {
   type DimensionValue,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Image, type ImageSource } from "expo-image";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -85,13 +85,53 @@ type WorkerMessagesData = {
   }[];
 };
 
-const PROFILE_BACKGROUNDS: Record<ProfileSection, ImageSource> = {
-  home: require("../../assets/images/worker-profile/dashboard-home.jpg"),
-  info: require("../../assets/images/worker-profile/profile-info.jpg"),
-  skills: require("../../assets/images/worker-profile/profile-skills.jpg"),
-  projects: require("../../assets/images/worker-profile/profile-projects.jpg"),
-  documents: require("../../assets/images/worker-profile/profile-documents.jpg"),
-  messages: require("../../assets/images/worker-profile/profile-messages.jpg"),
+const WORKER_CUTOUT = require("../../assets/images/worker-profile/worker-cutout.png");
+
+const SECTION_THEMES: Record<
+  ProfileSection,
+  {
+    accent: string;
+    glow: string;
+    gradient: readonly [string, string, string];
+    code: string;
+  }
+> = {
+  home: {
+    accent: "#59B8FF",
+    glow: "rgba(36, 146, 255, 0.28)",
+    gradient: ["#02050A", "#07182A", "#03060C"],
+    code: "WORKER // LIVE",
+  },
+  info: {
+    accent: "#5FE0FF",
+    glow: "rgba(39, 201, 255, 0.25)",
+    gradient: ["#02060A", "#06232B", "#03060C"],
+    code: "IDENTITY // 01",
+  },
+  skills: {
+    accent: "#A78BFA",
+    glow: "rgba(139, 92, 246, 0.25)",
+    gradient: ["#05040A", "#17112D", "#03060C"],
+    code: "SKILLS // 91",
+  },
+  projects: {
+    accent: "#FFB55E",
+    glow: "rgba(245, 158, 11, 0.24)",
+    gradient: ["#080501", "#2B1807", "#03060C"],
+    code: "FIELD // INTL",
+  },
+  documents: {
+    accent: "#62E5AD",
+    glow: "rgba(34, 197, 94, 0.23)",
+    gradient: ["#020806", "#09251B", "#03060C"],
+    code: "DOCS // 50%",
+  },
+  messages: {
+    accent: "#FF7CB7",
+    glow: "rgba(236, 72, 153, 0.22)",
+    gradient: ["#080207", "#2A0D20", "#03060C"],
+    code: "COMMS // 03",
+  },
 };
 
 const SECTION_ORDER: ProfileSection[] = [
@@ -459,9 +499,11 @@ function ProjectsSection() {
 function HomeSection({
   dashboard,
   syncing,
+  onOpenProject,
 }: {
   dashboard: WorkerDashboardData;
   syncing: boolean;
+  onOpenProject: () => void;
 }) {
   const project = dashboard.current_project;
 
@@ -549,6 +591,15 @@ function HomeSection({
                 </View>
               </View>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ver experiência em obras"
+              onPress={onOpenProject}
+              style={({ pressed }) => [styles.inlineAction, pressed && styles.pressed]}
+            >
+              <Text style={styles.inlineActionText}>VER EXPERIÊNCIA</Text>
+              <Ionicons name="arrow-forward" size={14} color="#DCEEFF" />
+            </Pressable>
           </>
         ) : (
           <Text style={styles.bodyText}>Sem obra atribuída neste momento.</Text>
@@ -638,7 +689,13 @@ function DocumentsSection({ documents }: { documents: WorkerDocumentsData }) {
   );
 }
 
-function MessagesSection({ messages }: { messages: WorkerMessagesData }) {
+function MessagesSection({
+  messages,
+  onOpenChat,
+}: {
+  messages: WorkerMessagesData;
+  onOpenChat: (id: number) => void;
+}) {
   return (
     <>
       <SectionHeader eyebrow="COMUNICAÇÃO" title="Mensagens" />
@@ -655,7 +712,13 @@ function MessagesSection({ messages }: { messages: WorkerMessagesData }) {
 
       <View style={styles.glassCard}>
         {messages.messages.map((message) => (
-          <View key={message.id} style={styles.messageRow}>
+          <Pressable
+            key={message.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir conversa com ${message.sender}`}
+            onPress={() => onOpenChat(message.id)}
+            style={({ pressed }) => [styles.messageRow, pressed && styles.pressed]}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {message.sender
@@ -686,13 +749,19 @@ function MessagesSection({ messages }: { messages: WorkerMessagesData }) {
                 <Text style={styles.unreadText}>{message.unread}</Text>
               </View>
             ) : null}
-          </View>
+          </Pressable>
         ))}
       </View>
 
       <View style={styles.quickContacts}>
         {["Equipa", "Empresa", "Suporte"].map((contact, index) => (
-          <View key={contact} style={styles.quickContact}>
+          <Pressable
+            key={contact}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir conversa com ${contact}`}
+            onPress={() => onOpenChat(index + 1)}
+            style={({ pressed }) => [styles.quickContact, pressed && styles.pressed]}
+          >
             <Ionicons
               name={
                 (["people-outline", "business-outline", "headset-outline"] as IoniconName[])[index]
@@ -701,7 +770,7 @@ function MessagesSection({ messages }: { messages: WorkerMessagesData }) {
               color="#59B8FF"
             />
             <Text style={styles.quickContactText}>{contact}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </>
@@ -714,20 +783,32 @@ function SectionContent({
   documents,
   messages,
   syncing,
+  onSelectSection,
+  onOpenChat,
 }: {
   section: ProfileSection;
   dashboard: WorkerDashboardData;
   documents: WorkerDocumentsData;
   messages: WorkerMessagesData;
   syncing: boolean;
+  onSelectSection: (section: ProfileSection) => void;
+  onOpenChat: (id: number) => void;
 }) {
   if (section === "home") {
-    return <HomeSection dashboard={dashboard} syncing={syncing} />;
+    return (
+      <HomeSection
+        dashboard={dashboard}
+        syncing={syncing}
+        onOpenProject={() => onSelectSection("projects")}
+      />
+    );
   }
   if (section === "skills") return <SkillsSection />;
   if (section === "projects") return <ProjectsSection />;
   if (section === "documents") return <DocumentsSection documents={documents} />;
-  if (section === "messages") return <MessagesSection messages={messages} />;
+  if (section === "messages") {
+    return <MessagesSection messages={messages} onOpenChat={onOpenChat} />;
+  }
   return <InfoSection />;
 }
 
@@ -746,6 +827,7 @@ export default function WorkerDashboardScreen() {
   const [transitioning, setTransitioning] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
+  const theme = SECTION_THEMES[section];
 
   useEffect(() => {
     let active = true;
@@ -826,6 +908,10 @@ export default function WorkerDashboardScreen() {
     router.replace("/login");
   };
 
+  const openChat = (id: number) => {
+    router.push(`/chat/${id}` as never);
+  };
+
   return (
     <View style={styles.screen}>
       <Animated.View
@@ -837,24 +923,41 @@ export default function WorkerDashboardScreen() {
           },
         ]}
       >
-        <View style={[styles.photoLayer, compact && styles.photoLayerCompact]}>
+        <LinearGradient
+          colors={theme.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+
+        <View style={[styles.ambientGlow, { backgroundColor: theme.glow }]} />
+        <View style={styles.gridLines} pointerEvents="none">
+          {[0, 1, 2, 3, 4].map((line) => (
+            <View
+              key={line}
+              style={[styles.gridLine, { left: `${line * 25}%` as DimensionValue }]}
+            />
+          ))}
+        </View>
+
+        <View style={[styles.visualLayer, compact && styles.visualLayerCompact]}>
+          <Text style={[styles.visualCode, { color: theme.accent }]}>{theme.code}</Text>
           <Image
-            source={PROFILE_BACKGROUNDS[section]}
-            style={styles.photo}
-            contentFit={compact ? "cover" : "contain"}
-            contentPosition={compact ? "center" : "left"}
-            transition={0}
-            accessibilityLabel={`Fotografia profissional de Rodolfo Maia - ${section}`}
+            source={WORKER_CUTOUT}
+            style={styles.workerCutout}
+            contentFit="contain"
+            contentPosition="bottom left"
+            accessibilityLabel="Rodolfo Maia, trabalhador eletromecânico"
           />
         </View>
 
         <LinearGradient
           colors={
             compact
-              ? ["rgba(0,0,0,0.04)", "rgba(3,6,12,0.72)", "#03060C"]
-              : ["rgba(0,0,0,0.01)", "rgba(3,6,12,0.54)", "#03060C"]
+              ? ["rgba(3,6,12,0.12)", "rgba(3,6,12,0.7)", "#03060C"]
+              : ["rgba(3,6,12,0.01)", "rgba(3,6,12,0.44)", "#03060C"]
           }
-          locations={[0, compact ? 0.38 : 0.44, 0.72]}
+          locations={[0, compact ? 0.4 : 0.48, 0.76]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           pointerEvents="none"
@@ -876,6 +979,7 @@ export default function WorkerDashboardScreen() {
               right: compact ? 9 : Math.max(width * 0.04, 28),
               bottom: Math.max(insets.bottom, 8) + 94,
               width: panelWidth,
+              borderColor: theme.glow,
             },
             compact && styles.contentPanelCompact,
           ]}
@@ -893,6 +997,8 @@ export default function WorkerDashboardScreen() {
               documents={documents}
               messages={messages}
               syncing={syncing}
+              onSelectSection={selectSection}
+              onOpenChat={openChat}
             />
           </ScrollView>
         </View>
@@ -907,23 +1013,30 @@ export default function WorkerDashboardScreen() {
         ]}
       >
         <View style={styles.worklyBrand}>
-          <Ionicons name="pulse-outline" size={17} color="#59B8FF" />
-          {!compact && <Text style={styles.worklyBrandText}>WORKLY</Text>}
+          <Ionicons name="pulse-outline" size={17} color={theme.accent} />
+          {!compact && <Text style={styles.worklyBrandText}>WORKLY / WORKER</Text>}
         </View>
 
-        <View style={styles.topIdentity}>
-          <Text style={styles.topIdentityName}>RODOLFO MAIA</Text>
-          <Text style={styles.topIdentityRole}>DASHBOARD PROFISSIONAL</Text>
-        </View>
+        <View style={styles.topActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir notificações"
+            onPress={() => router.push("/notifications")}
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="notifications-outline" size={18} color="#F5F8FF" />
+            {dashboard.stats.unread_messages > 0 ? <View style={styles.headerBadge} /> : null}
+          </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Terminar sessão"
-          onPress={() => void handleLogout()}
-          style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="log-out-outline" size={19} color="#F5F8FF" />
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Terminar sessão"
+            onPress={() => void handleLogout()}
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="log-out-outline" size={19} color="#F5F8FF" />
+          </Pressable>
+        </View>
       </View>
 
       <View
@@ -954,7 +1067,7 @@ export default function WorkerDashboardScreen() {
                 <Ionicons
                   name={item.icon}
                   size={compact ? 17 : 19}
-                  color={active ? "#59B8FF" : "#728096"}
+                  color={active ? theme.accent : "#728096"}
                 />
                 <Text
                   style={[
@@ -965,7 +1078,13 @@ export default function WorkerDashboardScreen() {
                 >
                   {item.label}
                 </Text>
-                <View style={[styles.menuIndicator, active && styles.menuIndicatorActive]} />
+                <View
+                  style={[
+                    styles.menuIndicator,
+                    active && styles.menuIndicatorActive,
+                    active && { backgroundColor: theme.accent, shadowColor: theme.accent },
+                  ]}
+                />
               </Pressable>
             );
           })}
@@ -986,20 +1105,56 @@ const styles = StyleSheet.create({
   stage: {
     ...StyleSheet.absoluteFillObject,
   },
-  photoLayer: {
+  ambientGlow: {
+    position: "absolute",
+    top: "10%",
+    left: "4%",
+    width: "46%",
+    height: "62%",
+    borderRadius: 999,
+    transform: [{ scaleX: 1.2 }],
+  },
+  gridLines: {
+    position: "absolute",
+    top: 78,
+    bottom: 88,
+    left: 18,
+    width: "52%",
+    overflow: "hidden",
+    opacity: 0.18,
+  },
+  gridLine: {
     position: "absolute",
     top: 0,
     bottom: 0,
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: "#A6D9FF",
+  },
+  visualLayer: {
+    position: "absolute",
+    top: 64,
+    bottom: 82,
     left: 0,
-    width: "66%",
-    backgroundColor: "#000000",
+    width: "58%",
   },
-  photoLayerCompact: {
-    width: "100%",
+  visualLayerCompact: {
+    width: "50%",
+    opacity: 0.9,
   },
-  photo: {
+  workerCutout: {
     width: "100%",
     height: "100%",
+  },
+  visualCode: {
+    position: "absolute",
+    top: 18,
+    left: 24,
+    zIndex: 2,
+    fontFamily: monoFont,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.8,
+    opacity: 0.82,
   },
   topBar: {
     position: "absolute",
@@ -1030,24 +1185,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.4,
   },
-  topIdentity: {
+  topActions: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
-  topIdentityName: {
-    color: "#F4F8FF",
-    fontFamily: monoFont,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 2.2,
-  },
-  topIdentityRole: {
-    marginTop: 2,
-    color: "#359FFF",
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 1.7,
-  },
-  logoutButton: {
+  headerButton: {
     width: 40,
     height: 40,
     alignItems: "center",
@@ -1056,6 +1199,17 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.24)",
     backgroundColor: "rgba(3,8,16,0.72)",
+  },
+  headerBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#07111E",
+    backgroundColor: "#FF7B9D",
   },
   contentPanel: {
     position: "absolute",
@@ -1495,6 +1649,26 @@ const styles = StyleSheet.create({
     color: "#DCE5F1",
     fontSize: 9,
     fontWeight: "700",
+  },
+  inlineAction: {
+    alignSelf: "flex-start",
+    minHeight: 36,
+    marginTop: 2,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(89,184,255,0.38)",
+    backgroundColor: "rgba(49,159,255,0.12)",
+  },
+  inlineActionText: {
+    color: "#DCEEFF",
+    fontFamily: monoFont,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.1,
   },
   syncRow: {
     alignSelf: "flex-start",

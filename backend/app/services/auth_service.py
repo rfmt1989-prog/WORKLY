@@ -81,3 +81,6 @@ class AuthService:
             return None
         user = self.repository.get_user_by_id(user_id)
         return self.public_user(user) if user else None
+
+
+auth_service = AuthService()
