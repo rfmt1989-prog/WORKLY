@@ -13,8 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { usePathname, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/src/api/client";
@@ -24,6 +23,8 @@ type CompanySection =
   | "home"
   | "projects"
   | "workers"
+  | "schedule"
+  | "documents"
   | "teams"
   | "messages"
   | "company";
@@ -87,62 +88,41 @@ type Message = {
   online: boolean;
 };
 
+type Shift = {
+  id: number;
+  start: string;
+  end: string;
+  title: string;
+  project: string;
+  team: string;
+  checkedIn: number;
+  expected: number;
+  status: "Em curso" | "Confirmado" | "A iniciar";
+};
+
+type CompanyDocument = {
+  id: number;
+  title: string;
+  category: string;
+  owner: string;
+  updated: string;
+  status: "Válido" | "A expirar" | "Pendente";
+  completion: number;
+};
+
 const COMPANY_CUTOUT = require("../../assets/images/company-profile/company-cutout.png");
+const COMPANY_ACCENT = "#59B8FF";
+const COMPANY_BACKGROUND = "#02060B";
 
-const SECTION_ORDER: CompanySection[] = [
-  "home",
-  "projects",
-  "workers",
-  "teams",
-  "messages",
-  "company",
-];
-
-const SECTION_THEMES: Record<
-  CompanySection,
-  {
-    accent: string;
-    glow: string;
-    gradient: readonly [string, string, string];
-    code: string;
-  }
-> = {
-  home: {
-    accent: "#FF705C",
-    glow: "rgba(255, 83, 64, 0.25)",
-    gradient: ["#070303", "#2A0D0B", "#05070A"],
-    code: "OPS // LIVE",
-  },
-  projects: {
-    accent: "#FFB353",
-    glow: "rgba(245, 158, 11, 0.24)",
-    gradient: ["#080501", "#2B1907", "#05070A"],
-    code: "PROJECTS // 04",
-  },
-  workers: {
-    accent: "#5FD4FF",
-    glow: "rgba(14, 165, 233, 0.24)",
-    gradient: ["#020609", "#082535", "#05070A"],
-    code: "PEOPLE // 18",
-  },
-  teams: {
-    accent: "#A995FF",
-    glow: "rgba(139, 92, 246, 0.24)",
-    gradient: ["#050309", "#1C1237", "#05070A"],
-    code: "TEAMS // 03",
-  },
-  messages: {
-    accent: "#FF78B5",
-    glow: "rgba(236, 72, 153, 0.22)",
-    gradient: ["#080207", "#2A0D20", "#05070A"],
-    code: "COMMS // 07",
-  },
-  company: {
-    accent: "#62E5AD",
-    glow: "rgba(34, 197, 94, 0.22)",
-    gradient: ["#020806", "#0A281C", "#05070A"],
-    code: "COMPANY // VERIFIED",
-  },
+const SECTION_META: Record<CompanySection, { code: string }> = {
+  home: { code: "COMMAND // LIVE" },
+  projects: { code: "PROJECTS // 04 ACTIVE" },
+  workers: { code: "WORKFORCE // 18 LIVE" },
+  schedule: { code: "SCHEDULE // TODAY" },
+  documents: { code: "DOCS // COMPLIANCE" },
+  teams: { code: "TEAMS // 03 NETWORKS" },
+  messages: { code: "COMMS // SECURE" },
+  company: { code: "COMPANY // VERIFIED" },
 };
 
 const MENU_ITEMS: {
@@ -151,9 +131,11 @@ const MENU_ITEMS: {
   icon: IoniconName;
   accessibilityLabel: string;
 }[] = [
-  { id: "home", label: "INÍCIO", icon: "grid-outline", accessibilityLabel: "Centro de operações" },
+  { id: "home", label: "CENTRO", icon: "grid-outline", accessibilityLabel: "Centro de operações" },
   { id: "projects", label: "OBRAS", icon: "business-outline", accessibilityLabel: "Obras da empresa" },
-  { id: "workers", label: "PESSOAS", icon: "people-outline", accessibilityLabel: "Trabalhadores" },
+  { id: "workers", label: "WORKERS", icon: "people-outline", accessibilityLabel: "Trabalhadores" },
+  { id: "schedule", label: "TURNOS", icon: "calendar-outline", accessibilityLabel: "Horários e turnos" },
+  { id: "documents", label: "DOCS", icon: "documents-outline", accessibilityLabel: "Documentação da empresa" },
   { id: "teams", label: "EQUIPAS", icon: "git-network-outline", accessibilityLabel: "Equipas" },
   { id: "messages", label: "CHAT", icon: "chatbubble-outline", accessibilityLabel: "Mensagens" },
   { id: "company", label: "EMPRESA", icon: "shield-checkmark-outline", accessibilityLabel: "Perfil da empresa" },
@@ -205,16 +187,21 @@ const MESSAGES: Message[] = [
   { id: 4, sender: "Suporte WORKLY", role: "Suporte", preview: "A sincronização foi concluída.", time: "Seg", unread: 1, online: true },
 ];
 
-const monoFont = Platform.select({ web: "monospace", default: undefined });
+const SHIFTS: Shift[] = [
+  { id: 301, start: "07:30", end: "08:00", title: "Briefing de segurança", project: "Hospital Lisboa", team: "Equipa Lisboa", checkedIn: 6, expected: 6, status: "Confirmado" },
+  { id: 302, start: "08:00", end: "17:00", title: "Instalação eletromecânica", project: "Hospital Lisboa", team: "Equipa Lisboa", checkedIn: 5, expected: 6, status: "Em curso" },
+  { id: 303, start: "08:30", end: "17:30", title: "Montagem de infraestrutura", project: "Centro Logístico Sines", team: "Equipa Norte", checkedIn: 8, expected: 8, status: "Em curso" },
+  { id: 304, start: "18:00", end: "22:00", title: "Janela de manutenção", project: "Rennes Métropole", team: "Internacional", checkedIn: 0, expected: 5, status: "A iniciar" },
+];
 
-function sectionFromPath(pathname: string): CompanySection {
-  if (pathname.endsWith("/projects")) return "projects";
-  if (pathname.endsWith("/workers")) return "workers";
-  if (pathname.endsWith("/teams")) return "teams";
-  if (pathname.endsWith("/messages")) return "messages";
-  if (pathname.endsWith("/profile")) return "company";
-  return "home";
-}
+const COMPANY_DOCUMENTS: CompanyDocument[] = [
+  { id: 401, title: "Seguro de responsabilidade civil", category: "Seguro", owner: "Administração", updated: "18 Jul 2026", status: "Válido", completion: 100 },
+  { id: 402, title: "Dossier Hospital Lisboa", category: "Obra", owner: "Carlos Ferreira", updated: "Hoje, 09:12", status: "Válido", completion: 92 },
+  { id: 403, title: "Certificados de segurança", category: "Compliance", owner: "Recursos Humanos", updated: "Ontem, 16:40", status: "A expirar", completion: 76 },
+  { id: 404, title: "Relatórios de horas — julho", category: "Operação", owner: "Equipas", updated: "Hoje, 10:05", status: "Pendente", completion: 64 },
+];
+
+const monoFont = Platform.select({ web: "monospace", default: undefined });
 
 function SectionHeader({
   eyebrow,
@@ -277,7 +264,9 @@ function HomeSection({
 
   const actions: { section: CompanySection; label: string; icon: IoniconName }[] = [
     { section: "projects", label: "Gerir obras", icon: "construct-outline" },
-    { section: "workers", label: "Ver pessoas", icon: "person-add-outline" },
+    { section: "workers", label: "Monitorizar workers", icon: "people-outline" },
+    { section: "schedule", label: "Controlar turnos", icon: "calendar-outline" },
+    { section: "documents", label: "Validar documentos", icon: "documents-outline" },
     { section: "teams", label: "Organizar equipas", icon: "git-network-outline" },
     { section: "messages", label: "Abrir mensagens", icon: "chatbubbles-outline" },
   ];
@@ -286,8 +275,8 @@ function HomeSection({
     <>
       <SectionHeader
         eyebrow="CENTRO DE OPERAÇÕES"
-        title="Visão geral"
-        subtitle="Estado da operação em tempo real, sem ruído nem informação repetida."
+        title="Command Center"
+        subtitle="Obras, pessoas, horários e conformidade numa única leitura operacional."
         accent={accent}
       />
 
@@ -496,6 +485,192 @@ function WorkersSection({
                     <Ionicons name="chatbubble-outline" size={14} color={accent} />
                     <Text style={[styles.secondaryActionText, { color: accent }]}>ABRIR CHAT</Text>
                   </Pressable>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+function ScheduleSection({
+  accent,
+  selectedId,
+  onSelect,
+}: {
+  accent: string;
+  selectedId: number;
+  onSelect: (id: number) => void;
+}) {
+  return (
+    <>
+      <SectionHeader
+        eyebrow="PLANEAMENTO EM TEMPO REAL"
+        title="Turnos e horários"
+        subtitle="Presenças, equipas e janelas operacionais numa linha temporal única."
+        accent={accent}
+      />
+      <View style={styles.summaryStrip}>
+        <Text style={styles.summaryValue}>19</Text>
+        <Text style={styles.summaryLabel}>CHECK-INS CONFIRMADOS</Text>
+        <View style={styles.summaryDivider} />
+        <Text style={styles.summaryValue}>1</Text>
+        <Text style={styles.summaryLabel}>PRESENÇA EM FALTA</Text>
+      </View>
+      <View style={styles.listStack}>
+        {SHIFTS.map((shift) => {
+          const active = selectedId === shift.id;
+          const attendance = Math.round((shift.checkedIn / shift.expected) * 100);
+
+          return (
+            <View
+              key={shift.id}
+              style={[
+                styles.selectableCard,
+                active && {
+                  borderColor: accent,
+                  backgroundColor: "rgba(89,184,255,0.055)",
+                },
+              ]}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Selecionar turno ${shift.title}`}
+                accessibilityState={{ selected: active }}
+                onPress={() => onSelect(shift.id)}
+                style={({ pressed }) => [styles.selectableHeading, pressed && styles.pressed]}
+              >
+                <View style={styles.timeBlock}>
+                  <Text style={[styles.timeStart, { color: accent }]}>{shift.start}</Text>
+                  <Text style={styles.timeEnd}>{shift.end}</Text>
+                </View>
+                <View style={styles.selectableCopy}>
+                  <Text style={styles.selectableTitle}>{shift.title}</Text>
+                  <Text style={styles.selectableSubtitle}>{shift.project} · {shift.team}</Text>
+                </View>
+                <Text style={[styles.statusText, { color: accent }]}>{shift.status}</Text>
+              </Pressable>
+              {active ? (
+                <View style={styles.expandedColumn}>
+                  <View style={styles.attendanceRow}>
+                    <Text style={styles.attendanceLabel}>PRESENÇAS</Text>
+                    <Text style={[styles.attendanceValue, { color: accent }]}>
+                      {shift.checkedIn}/{shift.expected} · {attendance}%
+                    </Text>
+                  </View>
+                  <View style={styles.progressTrackWide}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${attendance}%` as DimensionValue,
+                          backgroundColor: accent,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.expandedDetailsFlat}>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="people-outline" size={14} color={accent} />
+                      <Text style={styles.metaText}>{shift.team}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="business-outline" size={14} color={accent} />
+                      <Text style={styles.metaText}>{shift.project}</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+function DocumentsSection({
+  accent,
+  selectedId,
+  onSelect,
+}: {
+  accent: string;
+  selectedId: number;
+  onSelect: (id: number) => void;
+}) {
+  return (
+    <>
+      <SectionHeader
+        eyebrow="CONTROLO DOCUMENTAL"
+        title="Documentação"
+        subtitle="Validade, responsáveis e progresso documental de toda a operação."
+        accent={accent}
+      />
+      <View style={styles.documentControlCard}>
+        <View>
+          <Text style={styles.cardLabel}>COMPLIANCE GLOBAL</Text>
+          <Text style={styles.documentControlCopy}>Operação pronta para auditoria</Text>
+        </View>
+        <Text style={[styles.documentControlValue, { color: accent }]}>92%</Text>
+      </View>
+      <View style={styles.listStack}>
+        {COMPANY_DOCUMENTS.map((document) => {
+          const active = selectedId === document.id;
+
+          return (
+            <View
+              key={document.id}
+              style={[
+                styles.selectableCard,
+                active && {
+                  borderColor: accent,
+                  backgroundColor: "rgba(89,184,255,0.055)",
+                },
+              ]}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Selecionar documento ${document.title}`}
+                accessibilityState={{ selected: active }}
+                onPress={() => onSelect(document.id)}
+                style={({ pressed }) => [styles.selectableHeading, pressed && styles.pressed]}
+              >
+                <View style={[styles.documentModuleIcon, { borderColor: accent }]}>
+                  <Ionicons name="document-text-outline" size={19} color={accent} />
+                </View>
+                <View style={styles.selectableCopy}>
+                  <Text style={styles.selectableTitle}>{document.title}</Text>
+                  <Text style={styles.selectableSubtitle}>{document.category} · {document.owner}</Text>
+                </View>
+                <Text style={[styles.statusText, { color: accent }]}>{document.status}</Text>
+              </Pressable>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${document.completion}%` as DimensionValue,
+                      backgroundColor: accent,
+                    },
+                  ]}
+                />
+              </View>
+              {active ? (
+                <View style={styles.expandedDetails}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="person-outline" size={14} color={accent} />
+                    <Text style={styles.metaText}>{document.owner}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="sync-outline" size={14} color={accent} />
+                    <Text style={styles.metaText}>{document.updated}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="analytics-outline" size={14} color={accent} />
+                    <Text style={styles.metaText}>{document.completion}% completo</Text>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -717,10 +892,14 @@ function DashboardContent({
   accent,
   selectedProject,
   selectedWorker,
+  selectedShift,
+  selectedDocument,
   selectedTeam,
   onSelectSection,
   onSelectProject,
   onSelectWorker,
+  onSelectShift,
+  onSelectDocument,
   onSelectTeam,
   onOpenChat,
   onOpenNotifications,
@@ -731,10 +910,14 @@ function DashboardContent({
   accent: string;
   selectedProject: number;
   selectedWorker: number;
+  selectedShift: number;
+  selectedDocument: number;
   selectedTeam: number;
   onSelectSection: (section: CompanySection) => void;
   onSelectProject: (id: number) => void;
   onSelectWorker: (id: number) => void;
+  onSelectShift: (id: number) => void;
+  onSelectDocument: (id: number) => void;
   onSelectTeam: (id: number) => void;
   onOpenChat: (id: number) => void;
   onOpenNotifications: () => void;
@@ -748,6 +931,12 @@ function DashboardContent({
   if (section === "workers") {
     return <WorkersSection accent={accent} selectedId={selectedWorker} onSelect={onSelectWorker} onOpenChat={onOpenChat} />;
   }
+  if (section === "schedule") {
+    return <ScheduleSection accent={accent} selectedId={selectedShift} onSelect={onSelectShift} />;
+  }
+  if (section === "documents") {
+    return <DocumentsSection accent={accent} selectedId={selectedDocument} onSelect={onSelectDocument} />;
+  }
   if (section === "teams") {
     return <TeamsSection accent={accent} selectedId={selectedTeam} onSelect={onSelectTeam} onOpenChat={onOpenChat} />;
   }
@@ -759,23 +948,24 @@ function DashboardContent({
 
 export default function CompanyDashboardScreen() {
   const router = useRouter();
-  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { logout } = useAuth();
   const phone = width < 520;
   const compact = width < 820;
   const panelWidth = phone ? width - 24 : compact ? width * 0.62 : Math.min(width * 0.46, 680);
-  const [section, setSection] = useState<CompanySection>(() => sectionFromPath(pathname));
+  const [section, setSection] = useState<CompanySection | null>(null);
   const [dashboard, setDashboard] = useState<CompanyDashboardData>(DEMO_DASHBOARD);
   const [syncing, setSyncing] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const [selectedProject, setSelectedProject] = useState(PROJECTS[0].id);
   const [selectedWorker, setSelectedWorker] = useState(WORKERS[0].id);
+  const [selectedShift, setSelectedShift] = useState(SHIFTS[1].id);
+  const [selectedDocument, setSelectedDocument] = useState(COMPANY_DOCUMENTS[0].id);
   const [selectedTeam, setSelectedTeam] = useState(TEAMS[0].id);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const theme = SECTION_THEMES[section];
+  const panelProgress = useRef(new Animated.Value(0)).current;
+  const breath = useRef(new Animated.Value(0)).current;
+  const scan = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let active = true;
@@ -795,22 +985,63 @@ export default function CompanyDashboardScreen() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    const breathing = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, { toValue: 1, duration: 3600, useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0, duration: 3600, useNativeDriver: true }),
+      ]),
+    );
+    const scanning = Animated.loop(
+      Animated.timing(scan, { toValue: 1, duration: 10000, useNativeDriver: true }),
+    );
+
+    breathing.start();
+    scanning.start();
+    return () => {
+      breathing.stop();
+      scanning.stop();
+    };
+  }, [breath, scan]);
+
   const selectSection = (nextSection: CompanySection) => {
-    if (nextSection === section || transitioning) return;
-    const direction = SECTION_ORDER.indexOf(nextSection) > SECTION_ORDER.indexOf(section) ? 1 : -1;
+    if (transitioning) return;
     setTransitioning(true);
 
-    Animated.parallel([
-      Animated.timing(translateX, { toValue: -direction * Math.min(width * 0.08, 70), duration: 160, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 135, useNativeDriver: true }),
-    ]).start(() => {
+    if (nextSection === section) {
+      Animated.timing(panelProgress, {
+        toValue: 0,
+        duration: 240,
+        useNativeDriver: true,
+      }).start(() => {
+        setSection(null);
+        setTransitioning(false);
+      });
+      return;
+    }
+
+    const reveal = () => {
       setSection(nextSection);
-      translateX.setValue(direction * Math.min(width * 0.08, 70));
-      Animated.parallel([
-        Animated.spring(translateX, { toValue: 0, damping: 22, stiffness: 210, mass: 0.72, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 210, useNativeDriver: true }),
-      ]).start(() => setTransitioning(false));
-    });
+      panelProgress.setValue(0);
+      Animated.spring(panelProgress, {
+        toValue: 1,
+        damping: 24,
+        stiffness: 180,
+        mass: 0.82,
+        useNativeDriver: true,
+      }).start(() => setTransitioning(false));
+    };
+
+    if (section === null) {
+      reveal();
+      return;
+    }
+
+    Animated.timing(panelProgress, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(reveal);
   };
 
   const handleLogout = async () => {
@@ -820,74 +1051,147 @@ export default function CompanyDashboardScreen() {
 
   const openChat = (id: number) => router.push(`/chat/${id}` as never);
   const openNotifications = () => router.push("/notifications");
+  const panelTranslateX = panelProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Math.min(width * 0.18, 210), 0],
+  });
+  const photoTranslateX = panelProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -Math.min(width * 0.045, 54)],
+  });
+  const photoTranslateY = breath.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, -5],
+  });
+  const photoScale = breath.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.01],
+  });
+  const scanTranslateX = scan.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-Math.max(width * 0.35, 240), Math.max(width, 720)],
+  });
 
   return (
     <View style={styles.screen}>
-      <Animated.View style={[styles.stage, { opacity, transform: [{ translateX }] }]}>
-        <LinearGradient colors={theme.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
-        <View style={[styles.ambientGlow, { backgroundColor: theme.glow }]} />
+      <View style={styles.stage}>
         <View style={styles.gridLines} pointerEvents="none">
           {[0, 1, 2, 3, 4].map((line) => (
             <View key={line} style={[styles.gridLine, { left: `${line * 25}%` as DimensionValue }]} />
           ))}
+          {[0, 1, 2, 3].map((line) => (
+            <View
+              key={`horizontal-${line}`}
+              style={[styles.gridLineHorizontal, { top: `${line * 33.33}%` as DimensionValue }]}
+            />
+          ))}
         </View>
 
-        <View style={[styles.visualLayer, compact && styles.visualLayerCompact, phone && styles.visualLayerPhone]}>
-          <Text style={[styles.visualCode, { color: theme.accent }]}>{theme.code}</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scanLine, { transform: [{ translateX: scanTranslateX }] }]}
+        />
+
+        <Animated.View
+          style={[
+            styles.visualLayer,
+            compact && styles.visualLayerCompact,
+            phone && styles.visualLayerPhone,
+            {
+              opacity: phone
+                ? panelProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.14] })
+                : 1,
+              transform: [
+                { translateX: photoTranslateX },
+                { translateY: photoTranslateY },
+                { scale: photoScale },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.visualCode}>
+            {section ? SECTION_META[section].code : "OPERATIONS // READY"}
+          </Text>
           <Image
             source={COMPANY_CUTOUT}
             style={styles.companyCutout}
             contentFit="contain"
-            contentPosition="bottom left"
+            contentPosition="bottom center"
             accessibilityLabel="Complexo industrial moderno da empresa"
           />
-        </View>
+        </Animated.View>
 
-        <LinearGradient
-          colors={phone ? ["rgba(5,7,10,0.4)", "rgba(5,7,10,0.76)", "#05070A"] : ["rgba(5,7,10,0.01)", "rgba(5,7,10,0.46)", "#05070A"]}
-          locations={[0, phone ? 0.28 : 0.48, 0.78]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
+        <Animated.View
           pointerEvents="none"
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <View
           style={[
-            styles.contentPanel,
+            styles.idlePrompt,
+            phone && styles.idlePromptPhone,
             {
-              top: Math.max(insets.top, 10) + 70,
-              right: phone ? 12 : compact ? 10 : Math.max(width * 0.04, 28),
-              bottom: Math.max(insets.bottom, 8) + 94,
-              width: panelWidth,
-              borderColor: theme.glow,
+              opacity: panelProgress.interpolate({
+                inputRange: [0, 0.18, 1],
+                outputRange: [1, 0, 0],
+              }),
+              transform: [{ translateY: photoTranslateY }],
             },
-            phone && styles.contentPanelPhone,
           ]}
         >
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, phone && styles.scrollContentPhone]}>
-            <DashboardContent
-              section={section}
-              dashboard={dashboard}
-              syncing={syncing}
-              accent={theme.accent}
-              selectedProject={selectedProject}
-              selectedWorker={selectedWorker}
-              selectedTeam={selectedTeam}
-              onSelectSection={selectSection}
-              onSelectProject={setSelectedProject}
-              onSelectWorker={setSelectedWorker}
-              onSelectTeam={setSelectedTeam}
-              onOpenChat={openChat}
-              onOpenNotifications={openNotifications}
-            />
-          </ScrollView>
-        </View>
-      </Animated.View>
+          <View style={styles.idleSignal}>
+            <View style={styles.idleSignalDot} />
+            <Text style={styles.idleSignalText}>OPERATIONAL TWIN ONLINE</Text>
+          </View>
+          <Text style={styles.idleTitle}>A obra respira. A WORKLY acompanha.</Text>
+          <Text style={styles.idleCopy}>
+            Abra um módulo para monitorizar obras, workers, horários e documentação.
+          </Text>
+          <Ionicons name="arrow-down" size={17} color={COMPANY_ACCENT} />
+        </Animated.View>
+
+        {section ? (
+          <Animated.View
+            style={[
+              styles.contentPanel,
+              {
+                top: Math.max(insets.top, 10) + 70,
+                right: phone ? 12 : compact ? 10 : Math.max(width * 0.04, 28),
+                bottom: Math.max(insets.bottom, 8) + 94,
+                width: panelWidth,
+                opacity: panelProgress,
+                transform: [{ translateX: panelTranslateX }],
+              },
+              phone && styles.contentPanelPhone,
+            ]}
+          >
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[styles.scrollContent, phone && styles.scrollContentPhone]}
+            >
+              <DashboardContent
+                section={section}
+                dashboard={dashboard}
+                syncing={syncing}
+                accent={COMPANY_ACCENT}
+                selectedProject={selectedProject}
+                selectedWorker={selectedWorker}
+                selectedShift={selectedShift}
+                selectedDocument={selectedDocument}
+                selectedTeam={selectedTeam}
+                onSelectSection={selectSection}
+                onSelectProject={setSelectedProject}
+                onSelectWorker={setSelectedWorker}
+                onSelectShift={setSelectedShift}
+                onSelectDocument={setSelectedDocument}
+                onSelectTeam={setSelectedTeam}
+                onOpenChat={openChat}
+                onOpenNotifications={openNotifications}
+              />
+            </ScrollView>
+          </Animated.View>
+        ) : null}
+      </View>
 
       <View style={[styles.topBar, { top: Math.max(insets.top, 10) + 8 }]}>
         <View style={styles.worklyBrand}>
-          <Ionicons name="pulse-outline" size={17} color={theme.accent} />
+          <Ionicons name="pulse-outline" size={17} color={COMPANY_ACCENT} />
           {!phone ? <Text style={styles.worklyBrandText}>WORKLY / COMPANY</Text> : null}
         </View>
         <View style={styles.topActions}>
@@ -924,9 +1228,9 @@ export default function CompanyDashboardScreen() {
                 onPress={() => selectSection(item.id)}
                 style={({ pressed }) => [styles.menuItem, active && styles.menuItemActive, pressed && styles.pressed]}
               >
-                <Ionicons name={item.icon} size={phone ? 17 : 19} color={active ? theme.accent : "#728096"} />
+                <Ionicons name={item.icon} size={phone ? 16 : 18} color={active ? COMPANY_ACCENT : "#728096"} />
                 <Text style={[styles.menuLabel, phone && styles.menuLabelPhone, active && styles.menuLabelActive]}>{item.label}</Text>
-                <View style={[styles.menuIndicator, active && styles.menuIndicatorActive, active && { backgroundColor: theme.accent, shadowColor: theme.accent }]} />
+                <View style={[styles.menuIndicator, active && styles.menuIndicatorActive, active && { backgroundColor: COMPANY_ACCENT, shadowColor: COMPANY_ACCENT }]} />
               </Pressable>
             );
           })}
@@ -937,24 +1241,32 @@ export default function CompanyDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, overflow: "hidden", backgroundColor: "#05070A" },
+  screen: { flex: 1, overflow: "hidden", backgroundColor: COMPANY_BACKGROUND },
   stage: { ...StyleSheet.absoluteFillObject },
-  ambientGlow: { position: "absolute", top: "9%", left: "4%", width: "49%", height: "65%", borderRadius: 999, transform: [{ scaleX: 1.25 }] },
-  gridLines: { position: "absolute", top: 72, bottom: 88, left: 18, width: "55%", overflow: "hidden", opacity: 0.17 },
+  gridLines: { position: "absolute", top: 72, right: 0, bottom: 82, left: 0, overflow: "hidden", opacity: 0.065 },
   gridLine: { position: "absolute", top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: "#E4F1FF" },
-  visualLayer: { position: "absolute", top: 68, bottom: 80, left: 0, width: "62%" },
-  visualLayerCompact: { width: "56%", opacity: 0.88 },
-  visualLayerPhone: { width: "100%", opacity: 0.28 },
+  gridLineHorizontal: { position: "absolute", right: 0, left: 0, height: StyleSheet.hairlineWidth, backgroundColor: "#E4F1FF" },
+  scanLine: { position: "absolute", top: 72, bottom: 82, width: 1, backgroundColor: "rgba(89,184,255,0.12)" },
+  visualLayer: { position: "absolute", top: 82, bottom: 88, left: "2%", width: "58%" },
+  visualLayerCompact: { left: 0, width: "54%" },
+  visualLayerPhone: { left: 0, width: "100%" },
   companyCutout: { width: "100%", height: "100%" },
-  visualCode: { position: "absolute", top: 16, left: 24, zIndex: 2, fontFamily: monoFont, fontSize: 9, fontWeight: "900", letterSpacing: 1.8, opacity: 0.85 },
+  visualCode: { position: "absolute", top: 4, left: 20, zIndex: 2, color: COMPANY_ACCENT, fontFamily: monoFont, fontSize: 9, fontWeight: "900", letterSpacing: 1.8, opacity: 0.84 },
+  idlePrompt: { position: "absolute", top: "37%", right: "7%", width: "34%", maxWidth: 540, alignItems: "flex-start", gap: 10 },
+  idlePromptPhone: { top: "auto", right: 24, bottom: 108, left: 24, width: "auto", alignItems: "center" },
+  idleSignal: { flexDirection: "row", alignItems: "center", gap: 7 },
+  idleSignalDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COMPANY_ACCENT, shadowColor: COMPANY_ACCENT, shadowOpacity: 0.9, shadowRadius: 7 },
+  idleSignalText: { color: COMPANY_ACCENT, fontFamily: monoFont, fontSize: 8, fontWeight: "900", letterSpacing: 1.45 },
+  idleTitle: { color: "#F4F8FD", fontSize: 30, lineHeight: 35, fontWeight: "900", letterSpacing: -1 },
+  idleCopy: { maxWidth: 410, color: "#718096", fontSize: 11, lineHeight: 17, fontWeight: "600" },
   topBar: { position: "absolute", left: 14, right: 14, height: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   worklyBrand: { minWidth: 40, height: 40, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(5,7,10,0.76)" },
-  worklyBrandText: { color: "#F6E6E4", fontFamily: monoFont, fontSize: 10, fontWeight: "800", letterSpacing: 1.25 },
+  worklyBrandText: { color: "#DDEEFF", fontFamily: monoFont, fontSize: 10, fontWeight: "800", letterSpacing: 1.25 },
   topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.22)", backgroundColor: "rgba(5,7,10,0.76)" },
-  headerBadge: { position: "absolute", top: 8, right: 8, width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: "#090B10", backgroundColor: "#FF705C" },
-  contentPanel: { position: "absolute", overflow: "hidden", borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, backgroundColor: "rgba(5,8,13,0.74)", shadowColor: "#000000", shadowOpacity: 0.48, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } },
-  contentPanelPhone: { borderRadius: 17, backgroundColor: "rgba(5,8,13,0.88)" },
+  headerBadge: { position: "absolute", top: 8, right: 8, width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: "#090B10", backgroundColor: COMPANY_ACCENT },
+  contentPanel: { position: "absolute", overflow: "hidden", borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(89,184,255,0.2)", backgroundColor: "rgba(4,9,15,0.96)", shadowColor: "#000000", shadowOpacity: 0.48, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } },
+  contentPanelPhone: { borderRadius: 17, backgroundColor: "rgba(4,9,15,0.98)" },
   scrollContent: { paddingHorizontal: 24, paddingTop: 22, paddingBottom: 26, gap: 14 },
   scrollContentPhone: { paddingHorizontal: 14, paddingTop: 17, paddingBottom: 20, gap: 11 },
   sectionHeader: { gap: 5 },
@@ -966,7 +1278,7 @@ const styles = StyleSheet.create({
   identityCopy: { flex: 1 },
   verifiedRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   companyName: { flexShrink: 1, color: "#F7FAFF", fontSize: 16, fontWeight: "900" },
-  planText: { marginTop: 4, color: "#FF8B7A", fontFamily: monoFont, fontSize: 8, fontWeight: "900", letterSpacing: 1.1 },
+  planText: { marginTop: 4, color: COMPANY_ACCENT, fontFamily: monoFont, fontSize: 8, fontWeight: "900", letterSpacing: 1.1 },
   pulseBadge: { minWidth: 62, paddingHorizontal: 10, paddingVertical: 8, alignItems: "center", borderRadius: 12, backgroundColor: "rgba(2,4,8,0.56)" },
   pulseValue: { color: "#FFFFFF", fontFamily: monoFont, fontSize: 18, fontWeight: "900" },
   pulseLabel: { color: "#718096", fontSize: 7, fontWeight: "900", letterSpacing: 1.1 },
@@ -1005,6 +1317,19 @@ const styles = StyleSheet.create({
   progressTrack: { height: 3, marginHorizontal: 12, marginBottom: 10, overflow: "hidden", borderRadius: 2, backgroundColor: "rgba(255,255,255,0.09)" },
   progressFill: { height: "100%", borderRadius: 2 },
   expandedDetails: { paddingHorizontal: 12, paddingTop: 2, paddingBottom: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
+  timeBlock: { width: 48, alignItems: "center", justifyContent: "center" },
+  timeStart: { fontFamily: monoFont, fontSize: 12, fontWeight: "900" },
+  timeEnd: { marginTop: 2, color: "#6E7D91", fontFamily: monoFont, fontSize: 7, fontWeight: "800" },
+  expandedColumn: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
+  attendanceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  attendanceLabel: { color: "#718096", fontFamily: monoFont, fontSize: 7, fontWeight: "900", letterSpacing: 0.9 },
+  attendanceValue: { fontFamily: monoFont, fontSize: 9, fontWeight: "900" },
+  progressTrackWide: { height: 4, overflow: "hidden", borderRadius: 2, backgroundColor: "rgba(255,255,255,0.09)" },
+  expandedDetailsFlat: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
+  documentControlCard: { padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(89,184,255,0.2)", backgroundColor: "rgba(255,255,255,0.04)" },
+  documentControlCopy: { marginTop: 4, color: "#8998AA", fontSize: 9, fontWeight: "600" },
+  documentControlValue: { fontFamily: monoFont, fontSize: 24, fontWeight: "900" },
+  documentModuleIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 11, borderWidth: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.035)" },
   avatar: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.055)" },
   avatarText: { color: "#EFF4FA", fontFamily: monoFont, fontSize: 10, fontWeight: "900" },
   onlineDot: { position: "absolute", right: 0, bottom: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: "#091019", backgroundColor: "#62E5AD" },
@@ -1041,11 +1366,11 @@ const styles = StyleSheet.create({
   companyAction: { flex: 1, minHeight: 46, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.045)" },
   companyActionText: { color: "#D8E1EC", fontSize: 9, fontWeight: "800" },
   menuDock: { position: "absolute", left: 12, right: 12, alignItems: "center" },
-  sectionMenu: { width: "100%", maxWidth: 940, height: 72, padding: 6, flexDirection: "row", alignItems: "stretch", borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(5,7,10,0.93)", shadowColor: "#000000", shadowOpacity: 0.58, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  sectionMenu: { width: "100%", maxWidth: 1180, height: 72, padding: 6, flexDirection: "row", alignItems: "stretch", borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(89,184,255,0.22)", backgroundColor: "rgba(3,8,14,0.96)", shadowColor: "#000000", shadowOpacity: 0.58, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
   menuItem: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 18 },
   menuItemActive: { backgroundColor: "rgba(255,255,255,0.065)" },
-  menuLabel: { color: "#728096", fontFamily: monoFont, fontSize: 10, fontWeight: "900", letterSpacing: 1.25 },
-  menuLabelPhone: { fontSize: 7, letterSpacing: 0.45 },
+  menuLabel: { color: "#728096", fontFamily: monoFont, fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  menuLabelPhone: { fontSize: 6, letterSpacing: 0.15 },
   menuLabelActive: { color: "#EDF3FA" },
   menuIndicator: { width: 18, height: 2, borderRadius: 1, backgroundColor: "transparent" },
   menuIndicatorActive: { width: 34, shadowOpacity: 0.9, shadowRadius: 7 },

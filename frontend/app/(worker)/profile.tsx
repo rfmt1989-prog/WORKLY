@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -86,62 +85,17 @@ type WorkerMessagesData = {
 };
 
 const WORKER_CUTOUT = require("../../assets/images/worker-profile/worker-cutout.png");
+const WORKER_ACCENT = "#59B8FF";
+const WORKER_BACKGROUND = "#02060B";
 
-const SECTION_THEMES: Record<
-  ProfileSection,
-  {
-    accent: string;
-    glow: string;
-    gradient: readonly [string, string, string];
-    code: string;
-  }
-> = {
-  home: {
-    accent: "#59B8FF",
-    glow: "rgba(36, 146, 255, 0.28)",
-    gradient: ["#02050A", "#07182A", "#03060C"],
-    code: "WORKER // LIVE",
-  },
-  info: {
-    accent: "#5FE0FF",
-    glow: "rgba(39, 201, 255, 0.25)",
-    gradient: ["#02060A", "#06232B", "#03060C"],
-    code: "IDENTITY // 01",
-  },
-  skills: {
-    accent: "#A78BFA",
-    glow: "rgba(139, 92, 246, 0.25)",
-    gradient: ["#05040A", "#17112D", "#03060C"],
-    code: "SKILLS // 91",
-  },
-  projects: {
-    accent: "#FFB55E",
-    glow: "rgba(245, 158, 11, 0.24)",
-    gradient: ["#080501", "#2B1807", "#03060C"],
-    code: "FIELD // INTL",
-  },
-  documents: {
-    accent: "#62E5AD",
-    glow: "rgba(34, 197, 94, 0.23)",
-    gradient: ["#020806", "#09251B", "#03060C"],
-    code: "DOCS // 50%",
-  },
-  messages: {
-    accent: "#FF7CB7",
-    glow: "rgba(236, 72, 153, 0.22)",
-    gradient: ["#080207", "#2A0D20", "#03060C"],
-    code: "COMMS // 03",
-  },
+const SECTION_META: Record<ProfileSection, { code: string }> = {
+  home: { code: "COMMAND // LIVE" },
+  info: { code: "IDENTITY // VERIFIED" },
+  skills: { code: "SKILLS // 91 OVR" },
+  projects: { code: "FIELD // INTERNATIONAL" },
+  documents: { code: "DOCS // CONTROLLED" },
+  messages: { code: "COMMS // SECURE" },
 };
-
-const SECTION_ORDER: ProfileSection[] = [
-  "home",
-  "info",
-  "skills",
-  "projects",
-  "documents",
-  "messages",
-];
 
 const MENU_ITEMS: {
   id: ProfileSection;
@@ -817,17 +771,22 @@ export default function WorkerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { logout } = useAuth();
-  const compact = width < 720;
-  const panelWidth = compact ? width * 0.59 : Math.min(width * 0.45, 650);
-  const [section, setSection] = useState<ProfileSection>("home");
+  const phone = width < 520;
+  const compact = width < 820;
+  const panelWidth = phone
+    ? width - 24
+    : compact
+      ? width * 0.62
+      : Math.min(width * 0.46, 690);
+  const [section, setSection] = useState<ProfileSection | null>(null);
   const [dashboard, setDashboard] = useState<WorkerDashboardData>(DEMO_DASHBOARD);
   const [documents, setDocuments] = useState<WorkerDocumentsData>(DEMO_DOCUMENTS);
   const [messages, setMessages] = useState<WorkerMessagesData>(DEMO_MESSAGES);
   const [syncing, setSyncing] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const theme = SECTION_THEMES[section];
+  const panelProgress = useRef(new Animated.Value(0)).current;
+  const breath = useRef(new Animated.Value(0)).current;
+  const scan = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let active = true;
@@ -864,43 +823,76 @@ export default function WorkerDashboardScreen() {
     };
   }, []);
 
-  const selectSection = (nextSection: ProfileSection) => {
-    if (nextSection === section || transitioning) return;
-
-    const direction =
-      SECTION_ORDER.indexOf(nextSection) > SECTION_ORDER.indexOf(section) ? 1 : -1;
-
-    setTransitioning(true);
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: -direction * Math.min(width * 0.08, 70),
-        duration: 170,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 145,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setSection(nextSection);
-      translateX.setValue(direction * Math.min(width * 0.08, 70));
-
-      Animated.parallel([
-        Animated.spring(translateX, {
-          toValue: 0,
-          damping: 22,
-          stiffness: 210,
-          mass: 0.72,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
+  useEffect(() => {
+    const breathing = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, {
           toValue: 1,
-          duration: 210,
+          duration: 3200,
           useNativeDriver: true,
         }),
-      ]).start(() => setTransitioning(false));
-    });
+        Animated.timing(breath, {
+          toValue: 0,
+          duration: 3200,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    const scanning = Animated.loop(
+      Animated.timing(scan, {
+        toValue: 1,
+        duration: 9000,
+        useNativeDriver: true,
+      }),
+    );
+
+    breathing.start();
+    scanning.start();
+    return () => {
+      breathing.stop();
+      scanning.stop();
+    };
+  }, [breath, scan]);
+
+  const selectSection = (nextSection: ProfileSection) => {
+    if (transitioning) return;
+    setTransitioning(true);
+
+    if (nextSection === section) {
+      Animated.timing(panelProgress, {
+        toValue: 0,
+        duration: 240,
+        useNativeDriver: true,
+      }).start(() => {
+        setSection(null);
+        setTransitioning(false);
+      });
+      return;
+    }
+
+    const reveal = () => {
+      setSection(nextSection);
+      panelProgress.setValue(0);
+
+      Animated.spring(panelProgress, {
+        toValue: 1,
+        damping: 24,
+        stiffness: 180,
+        mass: 0.82,
+        useNativeDriver: true,
+      }).start(() => setTransitioning(false));
+    };
+
+    if (section === null) {
+      reveal();
+      return;
+    }
+
+    Animated.timing(panelProgress, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(reveal);
   };
 
   const handleLogout = async () => {
@@ -912,25 +904,30 @@ export default function WorkerDashboardScreen() {
     router.push(`/chat/${id}` as never);
   };
 
+  const panelTranslateX = panelProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Math.min(width * 0.18, 210), 0],
+  });
+  const photoTranslateX = panelProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -Math.min(width * 0.055, 64)],
+  });
+  const photoTranslateY = breath.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, -5],
+  });
+  const photoScale = breath.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.012],
+  });
+  const scanTranslateX = scan.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-Math.max(width * 0.35, 240), Math.max(width, 720)],
+  });
+
   return (
     <View style={styles.screen}>
-      <Animated.View
-        style={[
-          styles.stage,
-          {
-            opacity,
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={theme.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <View style={[styles.ambientGlow, { backgroundColor: theme.glow }]} />
+      <View style={styles.stage}>
         <View style={styles.gridLines} pointerEvents="none">
           {[0, 1, 2, 3, 4].map((line) => (
             <View
@@ -938,71 +935,108 @@ export default function WorkerDashboardScreen() {
               style={[styles.gridLine, { left: `${line * 25}%` as DimensionValue }]}
             />
           ))}
+          {[0, 1, 2, 3].map((line) => (
+            <View
+              key={`horizontal-${line}`}
+              style={[styles.gridLineHorizontal, { top: `${line * 33.33}%` as DimensionValue }]}
+            />
+          ))}
         </View>
 
-        <View style={[styles.visualLayer, compact && styles.visualLayerCompact]}>
-          <Text style={[styles.visualCode, { color: theme.accent }]}>{theme.code}</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scanLine, { transform: [{ translateX: scanTranslateX }] }]}
+        />
+
+        <Animated.View
+          style={[
+            styles.visualLayer,
+            compact && styles.visualLayerCompact,
+            phone && styles.visualLayerPhone,
+            {
+              opacity: phone
+                ? panelProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.16] })
+                : 1,
+              transform: [
+                { translateX: photoTranslateX },
+                { translateY: photoTranslateY },
+                { scale: photoScale },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.visualCode}>
+            {section ? SECTION_META[section].code : "WORKER // READY"}
+          </Text>
           <Image
             source={WORKER_CUTOUT}
             style={styles.workerCutout}
             contentFit="contain"
-            contentPosition="bottom left"
+            contentPosition="bottom center"
             accessibilityLabel="Rodolfo Maia, trabalhador eletromecânico"
           />
-        </View>
+        </Animated.View>
 
-        <LinearGradient
-          colors={
-            compact
-              ? ["rgba(3,6,12,0.12)", "rgba(3,6,12,0.7)", "#03060C"]
-              : ["rgba(3,6,12,0.01)", "rgba(3,6,12,0.44)", "#03060C"]
-          }
-          locations={[0, compact ? 0.4 : 0.48, 0.76]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
+        <Animated.View
           pointerEvents="none"
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <LinearGradient
-          colors={["rgba(3,6,12,0.82)", "transparent", "rgba(3,6,12,0.9)"]}
-          locations={[0, 0.22, 1]}
-          pointerEvents="none"
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <View
           style={[
-            styles.contentPanel,
+            styles.idlePrompt,
+            phone && styles.idlePromptPhone,
             {
-              top: Math.max(insets.top, 10) + 70,
-              right: compact ? 9 : Math.max(width * 0.04, 28),
-              bottom: Math.max(insets.bottom, 8) + 94,
-              width: panelWidth,
-              borderColor: theme.glow,
+              opacity: panelProgress.interpolate({
+                inputRange: [0, 0.18, 1],
+                outputRange: [1, 0, 0],
+              }),
+              transform: [{ translateY: photoTranslateY }],
             },
-            compact && styles.contentPanelCompact,
           ]}
         >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              compact && styles.scrollContentCompact,
+          <View style={styles.idleSignal}>
+            <View style={styles.idleSignalDot} />
+            <Text style={styles.idleSignalText}>SYSTEM ONLINE</Text>
+          </View>
+          <Text style={styles.idleTitle}>O trabalho, em movimento.</Text>
+          <Text style={styles.idleCopy}>
+            Selecione um módulo no menu para abrir a sua operação profissional.
+          </Text>
+          <Ionicons name="arrow-down" size={17} color={WORKER_ACCENT} />
+        </Animated.View>
+
+        {section ? (
+          <Animated.View
+            style={[
+              styles.contentPanel,
+              {
+                top: Math.max(insets.top, 10) + 70,
+                right: phone ? 12 : compact ? 10 : Math.max(width * 0.04, 28),
+                bottom: Math.max(insets.bottom, 8) + 94,
+                width: panelWidth,
+                opacity: panelProgress,
+                transform: [{ translateX: panelTranslateX }],
+              },
+              phone && styles.contentPanelCompact,
             ]}
           >
-            <SectionContent
-              section={section}
-              dashboard={dashboard}
-              documents={documents}
-              messages={messages}
-              syncing={syncing}
-              onSelectSection={selectSection}
-              onOpenChat={openChat}
-            />
-          </ScrollView>
-        </View>
-      </Animated.View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                phone && styles.scrollContentCompact,
+              ]}
+            >
+              <SectionContent
+                section={section}
+                dashboard={dashboard}
+                documents={documents}
+                messages={messages}
+                syncing={syncing}
+                onSelectSection={selectSection}
+                onOpenChat={openChat}
+              />
+            </ScrollView>
+          </Animated.View>
+        ) : null}
+      </View>
 
       <View
         style={[
@@ -1013,7 +1047,7 @@ export default function WorkerDashboardScreen() {
         ]}
       >
         <View style={styles.worklyBrand}>
-          <Ionicons name="pulse-outline" size={17} color={theme.accent} />
+          <Ionicons name="pulse-outline" size={17} color={WORKER_ACCENT} />
           {!compact && <Text style={styles.worklyBrandText}>WORKLY / WORKER</Text>}
         </View>
 
@@ -1067,7 +1101,7 @@ export default function WorkerDashboardScreen() {
                 <Ionicons
                   name={item.icon}
                   size={compact ? 17 : 19}
-                  color={active ? theme.accent : "#728096"}
+                  color={active ? WORKER_ACCENT : "#728096"}
                 />
                 <Text
                   style={[
@@ -1082,7 +1116,10 @@ export default function WorkerDashboardScreen() {
                   style={[
                     styles.menuIndicator,
                     active && styles.menuIndicatorActive,
-                    active && { backgroundColor: theme.accent, shadowColor: theme.accent },
+                    active && {
+                      backgroundColor: WORKER_ACCENT,
+                      shadowColor: WORKER_ACCENT,
+                    },
                   ]}
                 />
               </Pressable>
@@ -1100,28 +1137,19 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     overflow: "hidden",
-    backgroundColor: "#03060C",
+    backgroundColor: WORKER_BACKGROUND,
   },
   stage: {
     ...StyleSheet.absoluteFillObject,
   },
-  ambientGlow: {
-    position: "absolute",
-    top: "10%",
-    left: "4%",
-    width: "46%",
-    height: "62%",
-    borderRadius: 999,
-    transform: [{ scaleX: 1.2 }],
-  },
   gridLines: {
     position: "absolute",
-    top: 78,
-    bottom: 88,
-    left: 18,
-    width: "52%",
+    top: 72,
+    right: 0,
+    bottom: 82,
+    left: 0,
     overflow: "hidden",
-    opacity: 0.18,
+    opacity: 0.065,
   },
   gridLine: {
     position: "absolute",
@@ -1130,16 +1158,34 @@ const styles = StyleSheet.create({
     width: StyleSheet.hairlineWidth,
     backgroundColor: "#A6D9FF",
   },
+  gridLineHorizontal: {
+    position: "absolute",
+    right: 0,
+    left: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#A6D9FF",
+  },
+  scanLine: {
+    position: "absolute",
+    top: 72,
+    bottom: 82,
+    width: 1,
+    backgroundColor: "rgba(89,184,255,0.12)",
+  },
   visualLayer: {
     position: "absolute",
-    top: 64,
-    bottom: 82,
-    left: 0,
-    width: "58%",
+    top: 68,
+    bottom: 76,
+    left: "6%",
+    width: "45%",
   },
   visualLayerCompact: {
-    width: "50%",
-    opacity: 0.9,
+    left: "2%",
+    width: "44%",
+  },
+  visualLayerPhone: {
+    left: 0,
+    width: "100%",
   },
   workerCutout: {
     width: "100%",
@@ -1154,7 +1200,60 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.8,
+    color: WORKER_ACCENT,
     opacity: 0.82,
+  },
+  idlePrompt: {
+    position: "absolute",
+    top: "37%",
+    right: "7%",
+    width: "34%",
+    maxWidth: 520,
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  idleSignal: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  idleSignalDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: WORKER_ACCENT,
+    shadowColor: WORKER_ACCENT,
+    shadowOpacity: 0.9,
+    shadowRadius: 7,
+  },
+  idleSignalText: {
+    color: WORKER_ACCENT,
+    fontFamily: monoFont,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  idleTitle: {
+    color: "#F4F8FD",
+    fontSize: 30,
+    lineHeight: 35,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  idleCopy: {
+    maxWidth: 390,
+    color: "#718096",
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  idlePromptPhone: {
+    top: "auto",
+    right: 24,
+    bottom: 108,
+    left: 24,
+    width: "auto",
+    alignItems: "center",
   },
   topBar: {
     position: "absolute",
@@ -1209,15 +1308,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: "#07111E",
-    backgroundColor: "#FF7B9D",
+    backgroundColor: WORKER_ACCENT,
   },
   contentPanel: {
     position: "absolute",
     overflow: "hidden",
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(82,171,255,0.24)",
-    backgroundColor: "rgba(3,8,16,0.7)",
+    borderColor: "rgba(82,171,255,0.2)",
+    backgroundColor: "rgba(4,9,15,0.96)",
     shadowColor: "#000000",
     shadowOpacity: 0.42,
     shadowRadius: 26,
@@ -1225,7 +1324,7 @@ const styles = StyleSheet.create({
   },
   contentPanelCompact: {
     borderRadius: 16,
-    backgroundColor: "rgba(3,8,16,0.78)",
+    backgroundColor: "rgba(4,9,15,0.98)",
   },
   scrollContent: {
     paddingHorizontal: 24,
