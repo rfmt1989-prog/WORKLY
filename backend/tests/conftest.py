@@ -1,19 +1,36 @@
 """Shared fixtures for WORKLY backend tests."""
+
 import os
 import time
+from pathlib import Path
+
 import pytest
 import requests
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Load frontend .env to fetch public backend URL used by the app
+
+# Load the public API URL used by the frontend. Keep support for the legacy
+# variable while the repository still contains both backend implementations.
 load_dotenv(Path(__file__).parent.parent.parent / "frontend" / ".env")
 
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "").rstrip("/")
-if not BASE_URL:
-    raise RuntimeError("EXPO_PUBLIC_BACKEND_URL not set in frontend/.env")
+configured_url = (
+    os.environ.get("WORKLY_TEST_API_URL")
+    or os.environ.get("EXPO_PUBLIC_API_URL")
+    or os.environ.get("EXPO_PUBLIC_BACKEND_URL")
+    or ""
+).rstrip("/")
 
-API = f"{BASE_URL}/api"
+if not configured_url:
+    raise RuntimeError(
+        "Set WORKLY_TEST_API_URL or EXPO_PUBLIC_API_URL in frontend/.env"
+    )
+
+# EXPO_PUBLIC_API_URL already includes /api in the current frontend setup.
+API = (
+    configured_url
+    if configured_url.endswith("/api")
+    else f"{configured_url}/api"
+)
 
 
 @pytest.fixture(scope="session")
@@ -23,34 +40,59 @@ def api():
 
 @pytest.fixture(scope="session")
 def http():
-    s = requests.Session()
-    s.headers.update({"Content-Type": "application/json"})
-    return s
+    session = requests.Session()
+    session.headers.update({"Content-Type": "application/json"})
+    return session
 
 
 @pytest.fixture(scope="session", autouse=True)
 def seeded(http):
     """Seed DB once for the whole session."""
-    r = http.post(f"{API}/seed", timeout=30)
-    assert r.status_code == 200, f"Seed failed: {r.status_code} {r.text}"
-    data = r.json()
+    response = http.post(f"{API}/seed", timeout=30)
+    assert response.status_code == 200, (
+        f"Seed failed: {response.status_code} {response.text}"
+    )
+    data = response.json()
     assert data.get("ok") is True
-    # brief pause for consistency
     time.sleep(0.3)
     return data
 
 
 @pytest.fixture(scope="session")
 def worker_auth(http):
-    r = http.post(f"{API}/auth/login", json={"email": "worker@workly.com", "password": "password123"})
-    assert r.status_code == 200, r.text
-    d = r.json()
-    return {"token": d["token"], "user": d["user"], "headers": {"Authorization": f"Bearer {d['token']}"}}
+    response = http.post(
+        f"{API}/auth/login",
+        json={
+            "email": "worker@workly.com",
+            "password": "password123",
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    return {
+        "token": data["token"],
+        "user": data["user"],
+        "headers": {
+            "Authorization": f"Bearer {data['token']}"
+        },
+    }
 
 
 @pytest.fixture(scope="session")
 def company_auth(http):
-    r = http.post(f"{API}/auth/login", json={"email": "company@workly.com", "password": "password123"})
-    assert r.status_code == 200, r.text
-    d = r.json()
-    return {"token": d["token"], "user": d["user"], "headers": {"Authorization": f"Bearer {d['token']}"}}
+    response = http.post(
+        f"{API}/auth/login",
+        json={
+            "email": "company@workly.com",
+            "password": "password123",
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    return {
+        "token": data["token"],
+        "user": data["user"],
+        "headers": {
+            "Authorization": f"Bearer {data['token']}"
+        },
+    }
