@@ -10,7 +10,8 @@ if ($Python) {
     & python -m venv .venv
 }
 
-& "$Root\.venv\Scripts\python.exe" -m pip install --disable-pip-version-check -r "$Root\backend\requirements.txt"
+& "$Root\.venv\Scripts\python.exe" -m pip install --disable-pip-version-check --upgrade pip
+& "$Root\.venv\Scripts\python.exe" -m pip install --disable-pip-version-check --only-binary=:all: -r "$Root\backend\requirements.txt"
 
 Push-Location "$Root\frontend"
 try {
