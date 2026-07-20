@@ -19,6 +19,17 @@ export type User = {
   company_id?: number | null;
   avatar?: string;
   title?: string;
+  available?: boolean;
+  reputation?: number;
+  location?: string;
+  level?: string;
+  trust_score?: number;
+  level_progress?: number;
+  skills?: { name: string; level?: number }[];
+  certificates?: { name: string; issuer?: string }[];
+  portfolio?: { title: string; image?: string }[];
+  languages?: string[];
+  countries?: string[];
 };
 
 type LoginResponse = {
@@ -143,7 +154,7 @@ export function AuthProvider({
     async (
       email: string,
       password: string,
-      _role: UserRole
+      role: UserRole
     ): Promise<User> => {
       const cleanEmail =
         email.trim().toLowerCase();
@@ -154,6 +165,7 @@ export function AuthProvider({
           {
             email: cleanEmail,
             password,
+            user_type: role,
           }
         );
 
@@ -174,14 +186,24 @@ export function AuthProvider({
 
   const register = useCallback(
     async (
-      _name: string,
-      _email: string,
-      _password: string,
-      _role: UserRole
+      name: string,
+      email: string,
+      password: string,
+      role: UserRole
     ) => {
-      throw new Error(
-        "O registo ainda não está disponível no novo backend."
+      const response = await api.post<LoginResponse>(
+        "/auth/register",
+        {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          role,
+        }
       );
+      await persistSession(response.token, {
+        ...response.user,
+        id: String(response.user.id),
+      });
     },
     []
   );
@@ -201,8 +223,11 @@ export function AuthProvider({
   }, []);
 
   const refresh = useCallback(async () => {
-    // Será ligado ao endpoint /auth/me futuramente.
-  }, []);
+    if (!token) return;
+    const refreshedUser = await api.get<User>("/auth/me");
+    setUserState(refreshedUser);
+    await storage.setItem("workly_user", JSON.stringify(refreshedUser));
+  }, [token]);
 
   return (
     <AuthContext.Provider

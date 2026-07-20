@@ -161,6 +161,8 @@ export default function Login() {
         role
       );
 
+      navigateAfterLogin(role);
+
       await Haptics
         .notificationAsync(
           Haptics
@@ -219,7 +221,9 @@ export default function Login() {
 
       const authenticatedUser =
         await login(
-          "demo@workly.pt",
+          role === "worker"
+            ? "demo@workly.pt"
+            : "company@workly.pt",
           "123456",
           role
         );
@@ -256,7 +260,11 @@ export default function Login() {
 
   const fillDemo = () => {
     setScreenMode("login");
-    setEmail("demo@workly.pt");
+    setEmail(
+      role === "worker"
+        ? "demo@workly.pt"
+        : "company@workly.pt"
+    );
     setPassword("123456");
     setError("");
   };
@@ -267,6 +275,16 @@ export default function Login() {
     void Haptics.selectionAsync();
 
     setRole(nextRole);
+    if (
+      email === "demo@workly.pt" ||
+      email === "company@workly.pt"
+    ) {
+      setEmail(
+        nextRole === "worker"
+          ? "demo@workly.pt"
+          : "company@workly.pt"
+      );
+    }
     setError("");
   };
 

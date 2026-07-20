@@ -7,11 +7,14 @@ export type LoginRequest = {
 };
 
 export type LoginResponse = {
-  access_token: string;
-  token_type?: string;
-  user_id: number;
-  user_type: "worker" | "company";
-  company_id: number | null;
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "worker" | "company";
+    company_id?: number | null;
+  };
 };
 
 export function login(

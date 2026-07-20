@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,22 @@ import { api } from "@/src/api/client";
 import { useAuth } from "@/src/context/AuthContext";
 import { useColors, spacing, radius } from "@/src/theme/theme";
 
+const COMPANY_CONTACTS: Record<string, { name: string; role: string }> = {
+  "1": { name: "Rodolfo Maia", role: "Eletromecânico" },
+  "2": { name: "Carlos Ferreira", role: "Chefe de equipa" },
+  "3": { name: "Sofia Martins", role: "Técnica AVAC" },
+  "4": { name: "Suporte WORKLY", role: "Suporte" },
+  "201": { name: "Equipa Lisboa", role: "Canal de equipa" },
+  "202": { name: "Equipa Norte", role: "Canal de equipa" },
+  "203": { name: "Internacional", role: "Canal de equipa" },
+};
+
+const WORKER_CONTACTS: Record<string, { name: string; role: string }> = {
+  "1": { name: "Carlos Ferreira", role: "Chefe de equipa" },
+  "2": { name: "Workly Demo Company", role: "Empresa" },
+  "3": { name: "Suporte WORKLY", role: "Suporte" },
+};
+
 export default function Chat() {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -31,17 +47,34 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get<any>(`/conversations/${id}`);
       setConv(res.conversation);
       setMessages(res.messages);
-    } catch {} finally {
+    } catch {
+      const contacts = user?.role === "worker" ? WORKER_CONTACTS : COMPANY_CONTACTS;
+      const contact = contacts[id ?? ""] ?? {
+        name: "Canal WORKLY",
+        role: "Operação",
+      };
+
+      setConv({ other: { ...contact, avatar: null } });
+      setMessages([
+        {
+          id: `demo-${id}-1`,
+          sender_id: `contact-${id}`,
+          text: `Olá! Este é o canal ${contact.name}.`,
+          type: "text",
+          created_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+        },
+      ]);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [id, user?.role]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { void load(); }, [load]);
 
   const send = async (type: string = "text", meta?: any) => {
     const body = type === "text" ? text.trim() : null;

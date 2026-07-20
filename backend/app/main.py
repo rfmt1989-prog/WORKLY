@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.auth import router as auth_router
 from app.routers.company import router as company_router
+from app.routers.conversations import router as conversations_router
 from app.routers.worker import router as worker_router
 from app.routers.worker_checkin import router as worker_checkin_router
 from app.routers.worker_documents import router as worker_documents_router
@@ -25,6 +26,8 @@ app.add_middleware(
         "http://127.0.0.1:8081",
         "http://localhost:19006",
         "http://127.0.0.1:19006",
+        "http://localhost:8082",
+        "http://127.0.0.1:8082",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -32,14 +35,18 @@ app.add_middleware(
 )
 
 
-app.include_router(auth_router)
-app.include_router(worker_router)
-app.include_router(worker_profile_router)
-app.include_router(worker_documents_router)
-app.include_router(worker_messages_router)
-app.include_router(worker_checkin_router)
-app.include_router(worker_jobs_router)
-app.include_router(company_router)
+for router in (
+    auth_router,
+    worker_router,
+    worker_profile_router,
+    worker_documents_router,
+    worker_messages_router,
+    worker_checkin_router,
+    worker_jobs_router,
+    company_router,
+    conversations_router,
+):
+    app.include_router(router, prefix="/api")
 
 
 @app.get("/", tags=["System"])
@@ -50,6 +57,11 @@ async def root():
         "version": "0.8.0",
         "docs": "/docs",
     }
+
+
+@app.get("/api", tags=["System"])
+async def api_root():
+    return {"message": "WORKLY API pronta", "status": "running"}
 
 
 @app.get("/health", tags=["System"])

@@ -5,9 +5,9 @@ class WorkerProfileService:
     def get_profile(self, worker_id: int) -> WorkerProfileResponse:
         return WorkerProfileResponse(
             worker_id=worker_id,
-            name="Demo Worker",
+            name="Rodolfo Maia",
             email="demo@workly.pt",
-            role="Eletricista",
+            role="Eletromecânico",
             location="Lisboa",
             pulse=92,
             rating=4.8,
