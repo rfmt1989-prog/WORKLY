@@ -22,16 +22,13 @@ export type User = {
 };
 
 type LoginResponse = {
-  access_token: string;
-  token_type?: string;
-  user_id: number;
-  user_type: UserRole;
-  company_id: number | null;
+  token: string;
+  user: User;
 };
 
 type AuthState = {
   user: User | null;
-  token: string | null;
+  token: string |null;
   loading: boolean;
 
   login: (
@@ -146,7 +143,7 @@ export function AuthProvider({
     async (
       email: string,
       password: string,
-      role: UserRole
+      _role: UserRole
     ): Promise<User> => {
       const cleanEmail =
         email.trim().toLowerCase();
@@ -157,23 +154,16 @@ export function AuthProvider({
           {
             email: cleanEmail,
             password,
-            user_type: role,
           }
         );
 
       const nextUser: User = {
-        id: String(response.user_id),
-        name:
-          response.user_type === "worker"
-            ? "Demo Worker"
-            : "Demo Company",
-        email: cleanEmail,
-        role: response.user_type,
-        company_id: response.company_id,
+        ...response.user,
+        id: String(response.user.id),
       };
 
       await persistSession(
-        response.access_token,
+        response.token,
         nextUser
       );
 
@@ -211,7 +201,7 @@ export function AuthProvider({
   }, []);
 
   const refresh = useCallback(async () => {
-    // Será ligado ao endpoint /auth/me posteriormente.
+    // Será ligado ao endpoint /auth/me futuramente.
   }, []);
 
   return (
