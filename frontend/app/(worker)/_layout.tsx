@@ -85,6 +85,7 @@ export default function WorkerLayout() {
         name="profile"
         options={{
           title: "Perfil",
+          tabBarStyle: { display: "none" },
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="person-outline"
