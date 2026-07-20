@@ -2,7 +2,31 @@
 
 Aplicação de gestão de trabalho e equipas com experiências próprias para trabalhador e empresa. O projeto funciona localmente em web, Android e iOS através de Expo, com uma API FastAPI autónoma e dados de demonstração.
 
-## Preparação
+## Windows — arranque recomendado
+
+No PowerShell, na raiz do repositório:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+```
+
+Terminal 1 — API:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
+```
+
+Terminal 2 — aplicação web:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-frontend.ps1
+```
+
+Abrir `http://localhost:8081`. A documentação da API fica em `http://localhost:8000/docs`.
+
+## macOS e Linux
+
+### Preparação
 
 Na raiz do repositório:
 
@@ -10,7 +34,7 @@ Na raiz do repositório:
 make install
 ```
 
-## Arrancar a aplicação
+### Arrancar a aplicação
 
 Terminal 1 — API:
 
