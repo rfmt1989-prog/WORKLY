@@ -27,8 +27,8 @@ class WorkerService:
 
         return WorkerDashboardResponse(
             worker_id=worker_id,
-            name="Demo Worker",
-            role="Eletricista",
+            name="Rodolfo Maia",
+            role="Eletromecânico",
             pulse=92,
             status="available",
             stats=stats,

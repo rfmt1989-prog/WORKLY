@@ -8,7 +8,7 @@ class UserRepository:
         self.users = [
             User(
                 id="worker-demo",
-                name="Demo Worker",
+                name="Rodolfo Maia",
                 email="demo@workly.pt",
                 password="123456",
                 user_type="worker",

@@ -19,7 +19,7 @@ class AuthService:
             "role": user.user_type,
             "company_id": user.company_id,
             "avatar": None,
-            "title": "Eletricista" if is_worker else "Empresa verificada",
+            "title": "Eletromecânico" if is_worker else "Empresa verificada",
         }
 
     def create_session(self, user: User) -> dict:

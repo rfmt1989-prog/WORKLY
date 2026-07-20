@@ -1,651 +1,305 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Animated,
+  Platform,
   Pressable,
-  ScrollView,
+  StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Image, ImageSource } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { api } from "@/src/api/client";
 import { useAuth } from "@/src/context/AuthContext";
-import {
-  colors,
-  radius,
-  spacing,
-  typography,
-} from "@/src/design";
 
-type WorkerProfile = {
-  worker_id: number;
-  name: string;
-  email: string;
-  role: string;
-  location: string;
-  pulse: number;
-  rating: number;
-  jobs_completed: number;
-  phone: string;
-  language: string;
+type ProfileSection = "cover" | "info" | "skills" | "projects";
+
+const PROFILE_PAGES: Record<ProfileSection, ImageSource> = {
+  cover: require("../../assets/images/worker-profile/cover.jpg"),
+  info: require("../../assets/images/worker-profile/info.jpg"),
+  skills: require("../../assets/images/worker-profile/skills.jpg"),
+  projects: require("../../assets/images/worker-profile/projects.jpg"),
 };
+
+const SECTION_ORDER: ProfileSection[] = [
+  "cover",
+  "info",
+  "skills",
+  "projects",
+];
+
+const MENU_ITEMS: {
+  id: Exclude<ProfileSection, "cover">;
+  label: string;
+  accessibilityLabel: string;
+}[] = [
+  { id: "info", label: "INFO", accessibilityLabel: "Informações pessoais" },
+  { id: "skills", label: "SKIL", accessibilityLabel: "Competências" },
+  { id: "projects", label: "PROJ", accessibilityLabel: "Projetos e certificados" },
+];
 
 export default function WorkerProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const { logout } = useAuth();
+  const [section, setSection] = useState<ProfileSection>("cover");
+  const [transitioning, setTransitioning] = useState(false);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
 
-  const [profile, setProfile] =
-    useState<WorkerProfile | null>(null);
+  const selectSection = (nextSection: ProfileSection) => {
+    if (nextSection === section || transitioning) return;
 
-  const [loading, setLoading] =
-    useState(true);
+    const direction =
+      SECTION_ORDER.indexOf(nextSection) > SECTION_ORDER.indexOf(section)
+        ? 1
+        : -1;
 
-  const [error, setError] =
-    useState("");
+    setTransitioning(true);
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        setError("");
+    Animated.parallel([
+      Animated.timing(translateX, {
+        toValue: -direction * Math.min(width * 0.16, 90),
+        duration: 170,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setSection(nextSection);
+      translateX.setValue(direction * Math.min(width * 0.16, 90));
 
-        const result =
-          await api.get<WorkerProfile>(
-            "/worker/profile"
-          );
-
-        setProfile(result);
-      } catch (caughtError) {
-        console.error(
-          "Erro ao carregar perfil:",
-          caughtError
-        );
-
-        setError(
-          "Não foi possível carregar o perfil."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadProfile();
-  }, []);
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: 0,
+          damping: 20,
+          stiffness: 210,
+          mass: 0.7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 190,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setTransitioning(false));
+    });
+  };
 
   const handleLogout = async () => {
     await logout();
     router.replace("/login");
   };
 
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator
-          size="large"
-          color={colors.worker}
-        />
-
-        <Text
-          style={{
-            color: colors.textMuted,
-            marginTop: spacing[3],
-          }}
-        >
-          A carregar perfil...
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
-      contentContainerStyle={{
-        padding: spacing[5],
-        paddingBottom: spacing[16],
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Header />
+    <View style={styles.screen}>
+      <Animated.View
+        style={[
+          styles.page,
+          {
+            opacity,
+            transform: [{ translateX }],
+          },
+        ]}
+      >
+        <Image
+          source={PROFILE_PAGES[section]}
+          style={styles.image}
+          contentFit="contain"
+          transition={0}
+          accessibilityLabel={`Perfil de Rodolfo Maia - ${section}`}
+        />
+      </Animated.View>
 
-      {error ? (
-        <View
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.danger,
-            borderRadius: radius.medium,
-            padding: spacing[4],
-            marginBottom: spacing[5],
-          }}
-        >
-          <Text
-            style={{
-              color: colors.danger,
-              fontWeight: "700",
-            }}
+      <View
+        style={[
+          styles.topActions,
+          {
+            top: Math.max(insets.top, 12) + 6,
+          },
+        ]}
+      >
+        {section === "cover" ? <View style={styles.actionPlaceholder} /> : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Voltar à capa do perfil"
+            onPress={() => selectSection("cover")}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
           >
-            {error}
-          </Text>
-        </View>
-      ) : null}
+            <Ionicons name="chevron-back" size={22} color="#F5F8FF" />
+            <Text style={styles.iconButtonLabel}>CAPA</Text>
+          </Pressable>
+        )}
 
-      <View
-        style={{
-          alignItems: "center",
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: radius.large,
-          padding: spacing[6],
-        }}
-      >
-        <View
-          style={{
-            width: 82,
-            height: 82,
-            borderRadius: 41,
-            backgroundColor: colors.workerSoft,
-            borderWidth: 1,
-            borderColor: colors.worker,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: colors.worker,
-            shadowOpacity: 0.35,
-            shadowRadius: 12,
-          }}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Terminar sessão"
+          onPress={() => void handleLogout()}
+          style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
         >
-          <Text
-            style={{
-              color: colors.worker,
-              fontSize: 28,
-              fontWeight: "900",
-            }}
-          >
-            {getInitials(
-              profile?.name ??
-                user?.name ??
-                "Demo Worker"
-            )}
-          </Text>
-        </View>
-
-        <Text
-          style={{
-            color: colors.text,
-            fontSize: 24,
-            fontWeight: "800",
-            marginTop: spacing[4],
-          }}
-        >
-          {profile?.name ??
-            user?.name ??
-            "Demo Worker"}
-        </Text>
-
-        <Text
-          style={{
-            color: colors.worker,
-            fontWeight: "700",
-            marginTop: spacing[1],
-          }}
-        >
-          {profile?.role ??
-            user?.title ??
-            "Profissional"}
-        </Text>
-
-        <Text
-          style={{
-            color: colors.textMuted,
-            marginTop: spacing[1],
-          }}
-        >
-          {profile?.email ??
-            user?.email ??
-            "demo@workly.pt"}
-        </Text>
-
-        <Text
-          style={{
-            color: colors.textMuted,
-            marginTop: spacing[1],
-          }}
-        >
-          {profile?.location ?? "Localização não definida"}
-        </Text>
-
-        <View
-          style={{
-            flexDirection: "row",
-            gap: spacing[3],
-            marginTop: spacing[5],
-          }}
-        >
-          <ProfileMetric
-            value={`${profile?.pulse ?? 0}%`}
-            label="Pulse"
-          />
-
-          <ProfileMetric
-            value={String(profile?.rating ?? 0)}
-            label="Avaliação"
-          />
-
-          <ProfileMetric
-            value={String(
-              profile?.jobs_completed ?? 0
-            )}
-            label="Trabalhos"
-          />
-        </View>
+          <Ionicons name="log-out-outline" size={20} color="#F5F8FF" />
+        </Pressable>
       </View>
 
-      <Text
-        style={{
-          color: colors.text,
-          fontSize: typography.heading.fontSize,
-          fontWeight: typography.heading.fontWeight,
-          marginTop: spacing[8],
-          marginBottom: spacing[3],
-        }}
-      >
-        Dados profissionais
-      </Text>
-
-      <InfoCard
-        icon="call-outline"
-        label="Telefone"
-        value={
-          profile?.phone ??
-          "Não definido"
-        }
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.82)", "#000000"]}
+        locations={[0, 0.44, 1]}
+        pointerEvents="none"
+        style={styles.bottomShade}
       />
-
-      <InfoCard
-        icon="language-outline"
-        label="Idioma principal"
-        value={
-          profile?.language ??
-          "Português"
-        }
-      />
-
-      <InfoCard
-        icon="location-outline"
-        label="Localização"
-        value={
-          profile?.location ??
-          "Não definida"
-        }
-      />
-
-      <Text
-        style={{
-          color: colors.text,
-          fontSize: typography.heading.fontSize,
-          fontWeight: typography.heading.fontWeight,
-          marginTop: spacing[8],
-          marginBottom: spacing[3],
-        }}
-      >
-        Conta
-      </Text>
-
-      <MenuItem
-        icon="person-outline"
-        title="Dados pessoais"
-        subtitle="Nome, contacto e morada"
-      />
-
-      <MenuItem
-        icon="construct-outline"
-        title="Perfil profissional"
-        subtitle="Profissão, experiência e competências"
-      />
-
-      <MenuItem
-        icon="shield-checkmark-outline"
-        title="Segurança e privacidade"
-        subtitle="Password, biometria e permissões"
-      />
-
-      <MenuItem
-        icon="notifications-outline"
-        title="Notificações"
-        subtitle="Alertas de obra, documentos e mensagens"
-      />
-
-      <MenuItem
-        icon="language-outline"
-        title="Idioma"
-        subtitle={
-          profile?.language ??
-          "Português"
-        }
-      />
-
-      <Text
-        style={{
-          color: colors.text,
-          fontSize: typography.heading.fontSize,
-          fontWeight: typography.heading.fontWeight,
-          marginTop: spacing[8],
-          marginBottom: spacing[3],
-        }}
-      >
-        WORKLY
-      </Text>
-
-      <MenuItem
-        icon="help-circle-outline"
-        title="Ajuda e suporte"
-        subtitle="Contactar a equipa WORKLY"
-      />
-
-      <MenuItem
-        icon="document-text-outline"
-        title="Termos e privacidade"
-        subtitle="Documentação legal da plataforma"
-      />
-
-      <Pressable
-        onPress={handleLogout}
-        style={{
-          minHeight: 52,
-          borderWidth: 1,
-          borderColor: colors.danger,
-          borderRadius: radius.medium,
-          backgroundColor:
-            "rgba(255, 45, 45, 0.14)",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          marginTop: spacing[6],
-        }}
-      >
-        <Ionicons
-          name="log-out-outline"
-          size={20}
-          color={colors.danger}
-        />
-
-        <Text
-          style={{
-            color: colors.danger,
-            fontWeight: "800",
-            marginLeft: spacing[2],
-          }}
-        >
-          Terminar sessão
-        </Text>
-      </Pressable>
-
-      <Text
-        style={{
-          color: colors.textDisabled,
-          textAlign: "center",
-          fontSize: 11,
-          marginTop: spacing[5],
-        }}
-      >
-        WORKLY versão 0.4.0
-      </Text>
-    </ScrollView>
-  );
-}
-
-function Header() {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: spacing[8],
-      }}
-    >
-      <View>
-        <Text
-          style={{
-            color: colors.text,
-            fontSize: 22,
-            fontWeight: "800",
-          }}
-        >
-          Perfil
-        </Text>
-
-        <Text
-          style={{
-            color: colors.textMuted,
-            marginTop: spacing[1],
-          }}
-        >
-          Conta e preferências
-        </Text>
-      </View>
 
       <View
-        style={{
-          width: 42,
-          height: 42,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: radius.pill,
-          backgroundColor: colors.surface,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        style={[
+          styles.sectionMenu,
+          {
+            paddingBottom: Math.max(insets.bottom, 8) + (Platform.OS === "web" ? 10 : 2),
+          },
+        ]}
       >
-        <Ionicons
-          name="settings-outline"
-          size={20}
-          color={colors.worker}
-        />
+        {MENU_ITEMS.map((item) => {
+          const active = section === item.id;
+
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="tab"
+              accessibilityLabel={item.accessibilityLabel}
+              accessibilityState={{ selected: active }}
+              onPress={() => selectSection(item.id)}
+              style={({ pressed }) => [
+                styles.menuItem,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.menuLabel, active && styles.menuLabelActive]}>
+                {item.label}
+              </Text>
+              <View style={[styles.menuIndicator, active && styles.menuIndicatorActive]} />
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
-function ProfileMetric({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
-  return (
-    <View
-      style={{
-        minWidth: 82,
-        backgroundColor: colors.backgroundElevated,
-        borderRadius: radius.medium,
-        padding: spacing[3],
-        alignItems: "center",
-      }}
-    >
-      <Text
-        style={{
-          color: colors.text,
-          fontSize: 18,
-          fontWeight: "900",
-        }}
-      >
-        {value}
-      </Text>
-
-      <Text
-        style={{
-          color: colors.textMuted,
-          fontSize: 11,
-          marginTop: 3,
-        }}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function InfoCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: radius.large,
-        padding: spacing[4],
-        marginBottom: spacing[3],
-      }}
-    >
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.medium,
-          backgroundColor: colors.workerSoft,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Ionicons
-          name={icon}
-          size={19}
-          color={colors.worker}
-        />
-      </View>
-
-      <View
-        style={{
-          flex: 1,
-          marginLeft: spacing[3],
-        }}
-      >
-        <Text
-          style={{
-            color: colors.textMuted,
-            fontSize: 12,
-          }}
-        >
-          {label}
-        </Text>
-
-        <Text
-          style={{
-            color: colors.text,
-            fontWeight: "800",
-            marginTop: 3,
-          }}
-        >
-          {value}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function MenuItem({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Pressable
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: radius.large,
-        padding: spacing[4],
-        marginBottom: spacing[3],
-      }}
-    >
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.medium,
-          backgroundColor: colors.workerSoft,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Ionicons
-          name={icon}
-          size={19}
-          color={colors.worker}
-        />
-      </View>
-
-      <View
-        style={{
-          flex: 1,
-          marginLeft: spacing[3],
-        }}
-      >
-        <Text
-          style={{
-            color: colors.text,
-            fontWeight: "800",
-          }}
-        >
-          {title}
-        </Text>
-
-        <Text
-          style={{
-            color: colors.textMuted,
-            fontSize: 12,
-            marginTop: 3,
-          }}
-        >
-          {subtitle}
-        </Text>
-      </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={colors.textDisabled}
-      />
-    </Pressable>
-  );
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-}
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    overflow: "hidden",
+    backgroundColor: "#000000",
+  },
+  page: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  topActions: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  actionPlaceholder: {
+    width: 82,
+    height: 40,
+  },
+  iconButton: {
+    minWidth: 82,
+    height: 40,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(45,160,255,0.68)",
+    backgroundColor: "rgba(0,0,0,0.64)",
+  },
+  iconButtonLabel: {
+    color: "#F5F8FF",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(0,0,0,0.64)",
+  },
+  bottomShade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 148,
+  },
+  sectionMenu: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 0,
+    minHeight: 74,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-around",
+  },
+  menuItem: {
+    minWidth: 82,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    gap: 8,
+  },
+  menuLabel: {
+    color: "rgba(223,232,243,0.68)",
+    fontFamily: Platform.select({ web: "monospace", default: undefined }),
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 3.5,
+    textShadowColor: "rgba(37,151,255,0.25)",
+    textShadowRadius: 8,
+  },
+  menuLabelActive: {
+    color: "#28A5FF",
+    textShadowColor: "#007BFF",
+    textShadowRadius: 12,
+  },
+  menuIndicator: {
+    width: 22,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "transparent",
+  },
+  menuIndicatorActive: {
+    width: 46,
+    backgroundColor: "#28A5FF",
+    shadowColor: "#008CFF",
+    shadowOpacity: 0.9,
+    shadowRadius: 9,
+  },
+  pressed: {
+    opacity: 0.64,
+  },
+});
