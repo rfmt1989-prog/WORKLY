@@ -10,6 +10,12 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useColors, spacing, radius } from "@/src/theme/theme";
 import { Button, Badge } from "@/src/components/ui";
 
+const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  active: "Ativo",
+  pending: "Pendente",
+  expired: "Expirado",
+};
+
 export default function ContractDetail() {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -68,7 +74,8 @@ export default function ContractDetail() {
   }
 
   const mySigned = user?.role === "worker" ? contract.signed_worker : contract.signed_company;
-  const statusLabel = { active: "Ativo", pending: "Pendente", expired: "Expirado" }[contract.status] || contract.status;
+  const contractStatus = String(contract.status ?? "");
+  const statusLabel = CONTRACT_STATUS_LABELS[contractStatus] ?? contractStatus;
   const statusTone = contract.status === "active" ? "success" : contract.status === "pending" ? "warning" : "neutral";
 
   return (

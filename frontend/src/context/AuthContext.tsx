@@ -19,6 +19,17 @@ export type User = {
   company_id?: number | null;
   avatar?: string;
   title?: string;
+  available?: boolean;
+  reputation?: number;
+  location?: string;
+  level?: string;
+  trust_score?: number;
+  level_progress?: number;
+  skills?: string[];
+  certificates?: unknown[];
+  portfolio?: unknown[];
+  languages?: string[];
+  countries?: string[];
 };
 
 type LoginResponse = {
@@ -28,7 +39,7 @@ type LoginResponse = {
 
 type AuthState = {
   user: User | null;
-  token: string |null;
+  token: string | null;
   loading: boolean;
 
   login: (
