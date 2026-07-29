@@ -1,56 +1,53 @@
-"""Shared fixtures for WORKLY backend tests."""
-import os
-import time
+"""Shared fixtures for the self-contained WORKLY API."""
+
+from collections.abc import Iterator
+
 import pytest
-import requests
-from pathlib import Path
-from dotenv import load_dotenv
+from fastapi.testclient import TestClient
 
-# Load frontend .env to fetch public backend URL used by the app
-load_dotenv(Path(__file__).parent.parent.parent / "frontend" / ".env")
-
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "").rstrip("/")
-if not BASE_URL:
-    raise RuntimeError("EXPO_PUBLIC_BACKEND_URL not set in frontend/.env")
-
-API = f"{BASE_URL}/api"
+from backend.app import main
+from backend.app.demo_data import fresh_demo_state
 
 
-@pytest.fixture(scope="session")
-def api():
-    return API
+@pytest.fixture(autouse=True)
+def deterministic_demo() -> Iterator[None]:
+    """Every test starts from the same demonstrable state."""
+
+    with main._state_lock:
+        main._state = fresh_demo_state()
+        main._registered_users.clear()
+    yield
 
 
-@pytest.fixture(scope="session")
-def http():
-    s = requests.Session()
-    s.headers.update({"Content-Type": "application/json"})
-    return s
+@pytest.fixture()
+def client() -> Iterator[TestClient]:
+    with TestClient(main.app, raise_server_exceptions=True) as test_client:
+        yield test_client
 
 
-@pytest.fixture(scope="session", autouse=True)
-def seeded(http):
-    """Seed DB once for the whole session."""
-    r = http.post(f"{API}/seed", timeout=30)
-    assert r.status_code == 200, f"Seed failed: {r.status_code} {r.text}"
-    data = r.json()
-    assert data.get("ok") is True
-    # brief pause for consistency
-    time.sleep(0.3)
-    return data
+def _login(client: TestClient, email: str, role: str) -> dict:
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": email,
+            "password": "WorklyDemo!",
+            "user_type": role,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    return {
+        "token": payload["access_token"],
+        "user": payload["user"],
+        "headers": {"Authorization": f"Bearer {payload['access_token']}"},
+    }
 
 
-@pytest.fixture(scope="session")
-def worker_auth(http):
-    r = http.post(f"{API}/auth/login", json={"email": "worker@workly.com", "password": "password123"})
-    assert r.status_code == 200, r.text
-    d = r.json()
-    return {"token": d["token"], "user": d["user"], "headers": {"Authorization": f"Bearer {d['token']}"}}
+@pytest.fixture()
+def worker_auth(client: TestClient) -> dict:
+    return _login(client, "worker.demo@workly.app", "worker")
 
 
-@pytest.fixture(scope="session")
-def company_auth(http):
-    r = http.post(f"{API}/auth/login", json={"email": "company@workly.com", "password": "password123"})
-    assert r.status_code == 200, r.text
-    d = r.json()
-    return {"token": d["token"], "user": d["user"], "headers": {"Authorization": f"Bearer {d['token']}"}}
+@pytest.fixture()
+def company_auth(client: TestClient) -> dict:
+    return _login(client, "company.demo@workly.app", "company")

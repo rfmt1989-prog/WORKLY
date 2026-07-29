@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -9,10 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AuthProvider } from "@/src/context/AuthContext";
-
-// Disable logbox errors etc so that users can see the app
-// and agent works as expected.
-LogBox.ignoreAllLogs(true);
+import { WorklyDataProvider } from "@/src/context/WorklyDataContext";
 
 // Keep the native splash visible from cold start until icon fonts register.
 // Required because @expo/vector-icons' componentDidMount fallback fires
@@ -38,16 +34,25 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="chat/[id]" />
-              <Stack.Screen name="contract/[id]" />
-              <Stack.Screen name="career" options={{ presentation: "card" }} />
-              <Stack.Screen name="notifications" options={{ presentation: "card" }} />
-            </Stack>
+            <WorklyDataProvider>
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: "fade",
+                  contentStyle: { backgroundColor: "#07090E" },
+                }}
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="workspace" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="chat/[id]" />
+                <Stack.Screen name="contract/[id]" />
+                <Stack.Screen name="career" options={{ presentation: "card" }} />
+                <Stack.Screen name="notifications" options={{ presentation: "card" }} />
+              </Stack>
+            </WorklyDataProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>

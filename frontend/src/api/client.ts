@@ -1,6 +1,10 @@
+import { Platform } from "react-native";
+
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000/api";
+  (Platform.OS === "web" && !__DEV__
+    ? "/api"
+    : "http://127.0.0.1:8000/api");
 
 let authToken: string | null = null;
 

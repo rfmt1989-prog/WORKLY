@@ -27,6 +27,7 @@ next-env.d.ts
 
 # Production builds
 /build
+/public/
 dist/
 dist
 
@@ -84,6 +85,7 @@ android-sdk/
 .env
 .env.*
 *.env
+!.env.example
 credentials.json
 *.key
 .credentials

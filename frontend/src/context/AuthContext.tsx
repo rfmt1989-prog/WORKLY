@@ -3,239 +3,208 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
+  getMe,
   login as requestLogin,
+  register as requestRegister,
 } from "@/src/api/auth";
 import { setAuthToken } from "@/src/api/client";
+import type { AuthUser, UserRole } from "@/src/demo/types";
 import { storage } from "@/src/utils/storage";
 
-export type UserRole = "worker" | "company";
+export type { UserRole };
 
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  company_id?: number | null;
-  avatar?: string;
-  title?: string;
-  trust_score?: number;
+export type User = AuthUser & {
+  available?: boolean;
+  availability?: boolean;
   reputation?: number;
   level?: string;
   level_progress?: number;
   location?: string;
-  available?: boolean;
   skills?: { name: string; level: number }[];
-  certificates?: any[];
+  certificates?: unknown[];
   languages?: string[];
   countries?: string[];
-  portfolio?: any[];
-  timeline?: any[];
-  achievements?: any[];
-  training?: any[];
-  industry?: string;
+  portfolio?: unknown[];
+  timeline?: unknown[];
+  achievements?: unknown[];
+  training?: unknown[];
 };
 
 type AuthState = {
   user: User | null;
   token: string | null;
   loading: boolean;
-
-  login: (
-    email: string,
-    password: string,
-    role: UserRole
-  ) => Promise<User>;
-
+  login: (email: string, password: string, role: UserRole) => Promise<User>;
   register: (
     name: string,
     email: string,
     password: string,
-    role: UserRole
-  ) => Promise<void>;
-
+    role: UserRole,
+  ) => Promise<User>;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<User | null>;
   setUser: (user: User | null) => void;
 };
 
-const AuthContext = createContext<AuthState>(
-  {} as AuthState
-);
+const AuthContext = createContext<AuthState | null>(null);
 
-export function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [user, setUserState] =
-    useState<User | null>(null);
+const TOKEN_KEY = "workly_token";
+const USER_KEY = "workly_user";
 
-  const [token, setToken] =
-    useState<string | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUserState] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
+  const persistSession = useCallback(
+    async (nextToken: string, nextUser: User) => {
+      setAuthToken(nextToken);
+      setToken(nextToken);
+      setUserState(nextUser);
+      await Promise.all([
+        storage.secureSet(TOKEN_KEY, nextToken),
+        storage.setItem(USER_KEY, JSON.stringify(nextUser)),
+        storage.setItem("workly_last_email", nextUser.email),
+        storage.setItem("workly_last_role", nextUser.role),
+      ]);
+    },
+    [],
+  );
 
   useEffect(() => {
+    let active = true;
+
     const restoreSession = async () => {
       try {
-        const savedToken =
-          await storage.secureGet<string>(
-            "workly_token",
-            ""
-          );
+        const [savedToken, savedUserJson] = await Promise.all([
+          storage.secureGet<string>(TOKEN_KEY, ""),
+          storage.getItem<string>(USER_KEY, ""),
+        ]);
 
-        const savedUserJson =
-          await storage.getItem<string>(
-            "workly_user",
-            ""
-          );
-
-        if (savedToken && savedUserJson) {
-          const savedUser =
-            JSON.parse(savedUserJson) as User;
-
+        if (savedToken && savedUserJson && active) {
+          const savedUser = JSON.parse(savedUserJson) as User;
           setAuthToken(savedToken);
           setToken(savedToken);
           setUserState(savedUser);
+
+          try {
+            const current = await getMe();
+            if (active) {
+              setUserState(current);
+              await storage.setItem(USER_KEY, JSON.stringify(current));
+            }
+          } catch {
+            // A valid local session keeps the demo usable while offline.
+          }
         }
-      } catch (error) {
-        console.error(
-          "Erro ao restaurar sessão:",
-          error
-        );
-
-        await storage.secureRemove(
-          "workly_token"
-        );
-
-        await storage.removeItem(
-          "workly_user"
-        );
-
+      } catch {
+        await Promise.all([
+          storage.secureRemove(TOKEN_KEY),
+          storage.removeItem(USER_KEY),
+        ]);
         setAuthToken(null);
         setToken(null);
         setUserState(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     void restoreSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const persistSession = async (
-    nextToken: string,
-    nextUser: User
-  ) => {
-    setAuthToken(nextToken);
-    setToken(nextToken);
-    setUserState(nextUser);
-
-    await storage.secureSet(
-      "workly_token",
-      nextToken
-    );
-
-    await storage.setItem(
-      "workly_user",
-      JSON.stringify(nextUser)
-    );
-
-    await storage.setItem(
-      "workly_last_email",
-      nextUser.email
-    );
-  };
-
   const login = useCallback(
-    async (
-      email: string,
-      password: string,
-      role: UserRole
-    ): Promise<User> => {
-      const cleanEmail =
-        email.trim().toLowerCase();
-
-      const response =
-        await requestLogin({
-          email: cleanEmail,
-          password,
-          user_type: role,
-        });
-
-      const nextUser: User = {
-        id: String(response.user_id),
-        name: response.name,
-        email: response.email,
-        role: response.user_type,
-        company_id: response.company_id,
-      };
-
-      await persistSession(
-        response.access_token,
-        nextUser
-      );
-
+    async (email: string, password: string, role: UserRole): Promise<User> => {
+      const response = await requestLogin({
+        email: email.trim().toLowerCase(),
+        password,
+        user_type: role,
+      });
+      const nextUser = response.user as User;
+      await persistSession(response.access_token, nextUser);
       return nextUser;
     },
-    []
+    [persistSession],
   );
 
   const register = useCallback(
     async (
-      _name: string,
-      _email: string,
-      _password: string,
-      _role: UserRole
-    ) => {
-      throw new Error(
-        "O registo ainda não está disponível no novo backend."
-      );
+      name: string,
+      email: string,
+      password: string,
+      role: UserRole,
+    ): Promise<User> => {
+      const response = await requestRegister({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        user_type: role,
+      });
+      const nextUser = response.user as User;
+      await persistSession(response.access_token, nextUser);
+      return nextUser;
     },
-    []
+    [persistSession],
   );
 
   const logout = useCallback(async () => {
     setAuthToken(null);
     setToken(null);
     setUserState(null);
-
-    await storage.secureRemove(
-      "workly_token"
-    );
-
-    await storage.removeItem(
-      "workly_user"
-    );
+    await Promise.all([
+      storage.secureRemove(TOKEN_KEY),
+      storage.removeItem(USER_KEY),
+    ]);
   }, []);
 
   const refresh = useCallback(async () => {
-    // Será ligado ao endpoint /auth/me futuramente.
+    if (!token) return null;
+    try {
+      const current = (await getMe()) as User;
+      setUserState(current);
+      await storage.setItem(USER_KEY, JSON.stringify(current));
+      return current;
+    } catch {
+      return user;
+    }
+  }, [token, user]);
+
+  const setUser = useCallback((nextUser: User | null) => {
+    setUserState(nextUser);
+    if (nextUser) {
+      void storage.setItem(USER_KEY, JSON.stringify(nextUser));
+    }
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        loading,
-        login,
-        register,
-        logout,
-        refresh,
-        setUser: setUserState,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthState>(
+    () => ({
+      user,
+      token,
+      loading,
+      login,
+      register,
+      logout,
+      refresh,
+      setUser,
+    }),
+    [loading, login, logout, refresh, register, setUser, token, user],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+  return context;
 }
