@@ -55,3 +55,17 @@ o Expo.
 | --- | --- | --- |
 | Worker | `worker@workly.pt` | `123456` |
 | Company | `company@workly.pt` | `123456` |
+
+## Demonstração
+
+A versão demo inclui 8 trabalhadores, 2 empresas, 3 obras e 2 equipas.
+O perfil Company permite pesquisar trabalhadores, criar e atualizar obras,
+gerir membros e líderes de equipa e consultar mensagens.
+
+## Vercel
+
+O projeto está preparado para um único deploy Vercel a partir da raiz:
+
+- o Expo Web é exportado para `frontend/dist`;
+- o FastAPI é publicado através de `api/index.py`;
+- no browser, o frontend usa automaticamente a API no mesmo domínio.

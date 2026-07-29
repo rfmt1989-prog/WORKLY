@@ -1,5 +1,11 @@
+const webApiUrl =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : null;
+
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
+  webApiUrl ??
   "http://127.0.0.1:8000/api";
 
 let authToken: string | null = null;
