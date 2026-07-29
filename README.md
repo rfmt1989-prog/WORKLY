@@ -66,6 +66,6 @@ gerir membros e líderes de equipa e consultar mensagens.
 
 O projeto está preparado para um único deploy Vercel a partir da raiz:
 
-- o Expo Web é exportado para `frontend/dist`;
-- o FastAPI é publicado através de `api/index.py`;
+- o Expo Web é exportado para `frontend/web-build`;
+- o FastAPI é publicado através de `main.py`;
 - no browser, o frontend usa automaticamente a API no mesmo domínio.
