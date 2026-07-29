@@ -4,10 +4,15 @@ import type { PropsWithChildren } from "react";
 
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="en" style={{ height: "100%" }}>
+    <html lang="pt" style={{ height: "100%", backgroundColor: "#07090E" }}>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="theme-color" content="#07090E" />
+        <meta
+          name="description"
+          content="WORKLY — gestão de trabalhadores, equipas, obras e presenças."
+        />
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
@@ -22,6 +27,8 @@ export default function Root({ children }: PropsWithChildren) {
           dangerouslySetInnerHTML={{
             __html: `
               body > div:first-child { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; }
+              html, body { background: #07090E; color-scheme: dark; }
+              * { box-sizing: border-box; }
               [role="tablist"] [role="tab"] * { overflow: visible !important; }
               [role="heading"], [role="heading"] * { overflow: visible !important; }
             `,
