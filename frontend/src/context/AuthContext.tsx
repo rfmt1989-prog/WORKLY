@@ -8,6 +8,8 @@ import React, {
 
 import {
   login as requestLogin,
+  me as requestMe,
+  register as requestRegister,
 } from "@/src/api/auth";
 import { setAuthToken } from "@/src/api/client";
 import { storage } from "@/src/utils/storage";
@@ -188,14 +190,25 @@ export function AuthProvider({
 
   const register = useCallback(
     async (
-      _name: string,
-      _email: string,
-      _password: string,
-      _role: UserRole
+      name: string,
+      email: string,
+      password: string,
+      role: UserRole
     ) => {
-      throw new Error(
-        "O registo ainda não está disponível no novo backend."
-      );
+      const response = await requestRegister({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        user_type: role,
+      });
+      const nextUser: User = {
+        id: String(response.user_id),
+        name: response.name,
+        email: response.email,
+        role: response.user_type,
+        company_id: response.company_id,
+      };
+      await persistSession(response.access_token, nextUser);
     },
     []
   );
@@ -215,8 +228,19 @@ export function AuthProvider({
   }, []);
 
   const refresh = useCallback(async () => {
-    // Será ligado ao endpoint /auth/me futuramente.
-  }, []);
+    if (!token) {
+      return;
+    }
+    const response = await requestMe();
+    const nextUser: User = {
+      id: String(response.user_id),
+      name: response.name,
+      email: response.email,
+      role: response.user_type,
+      company_id: response.company_id,
+    };
+    await persistSession(token, nextUser);
+  }, [token]);
 
   return (
     <AuthContext.Provider

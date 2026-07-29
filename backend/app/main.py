@@ -1,8 +1,11 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.auth import router as auth_router
 from app.routers.company import router as company_router
+from app.routers.demo import router as demo_router
 from app.routers.worker import router as worker_router
 from app.routers.worker_checkin import router as worker_checkin_router
 from app.routers.worker_documents import router as worker_documents_router
@@ -24,11 +27,17 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:8081",
-        "http://127.0.0.1:8081",
-        "http://localhost:19006",
-        "http://127.0.0.1:19006",
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            (
+                "http://localhost:8081,http://127.0.0.1:8081,"
+                "http://localhost:19006,http://127.0.0.1:19006"
+            ),
+        ).split(",")
+        if origin.strip()
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,6 +52,7 @@ app.include_router(worker_messages_router, prefix=API_PREFIX)
 app.include_router(worker_checkin_router, prefix=API_PREFIX)
 app.include_router(worker_jobs_router, prefix=API_PREFIX)
 app.include_router(company_router, prefix=API_PREFIX)
+app.include_router(demo_router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["System"])
