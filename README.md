@@ -106,10 +106,12 @@ Endpoints úteis:
 
 ## Deploy
 
-O repositório está preparado para um projeto Vercel na raiz. O build exporta o
-Expo Web para `public/` e o entrypoint `backend.app.main:app` é publicado como
-função FastAPI. O frontend usa `/api` em produção; não é necessária uma URL
-externa nem uma base de dados para executar a demonstração.
+O repositório está preparado para um projeto Vercel na raiz. O export web em
+`public/` é versionado para o preset FastAPI o reconhecer como conteúdo
+estático e é regenerado pelo build de produção. O entrypoint
+`backend.app.main:app` é publicado como função FastAPI. O frontend usa `/api`
+em produção; não é necessária uma URL externa nem uma base de dados para
+executar a demonstração.
 
 Nunca devem ser colocados segredos no repositório. Para uma implementação além
 da demonstração, defina `WORKLY_TOKEN_SECRET` no ambiente do Vercel e substitua
