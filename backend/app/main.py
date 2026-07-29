@@ -11,6 +11,9 @@ from app.routers.worker_messages import router as worker_messages_router
 from app.routers.worker_profile import router as worker_profile_router
 
 
+API_PREFIX = "/api"
+
+
 app = FastAPI(
     title="WORKLY API",
     version="0.8.0",
@@ -32,14 +35,14 @@ app.add_middleware(
 )
 
 
-app.include_router(auth_router)
-app.include_router(worker_router)
-app.include_router(worker_profile_router)
-app.include_router(worker_documents_router)
-app.include_router(worker_messages_router)
-app.include_router(worker_checkin_router)
-app.include_router(worker_jobs_router)
-app.include_router(company_router)
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(worker_router, prefix=API_PREFIX)
+app.include_router(worker_profile_router, prefix=API_PREFIX)
+app.include_router(worker_documents_router, prefix=API_PREFIX)
+app.include_router(worker_messages_router, prefix=API_PREFIX)
+app.include_router(worker_checkin_router, prefix=API_PREFIX)
+app.include_router(worker_jobs_router, prefix=API_PREFIX)
+app.include_router(company_router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["System"])
@@ -52,7 +55,7 @@ async def root():
     }
 
 
-@app.get("/health", tags=["System"])
+@app.get(f"{API_PREFIX}/health", tags=["System"])
 async def health():
     return {
         "status": "ok",

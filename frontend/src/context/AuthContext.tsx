@@ -6,7 +6,10 @@ import React, {
   useState,
 } from "react";
 
-import { api, setAuthToken } from "@/src/api/client";
+import {
+  login as requestLogin,
+} from "@/src/api/auth";
+import { setAuthToken } from "@/src/api/client";
 import { storage } from "@/src/utils/storage";
 
 export type UserRole = "worker" | "company";
@@ -19,16 +22,26 @@ export type User = {
   company_id?: number | null;
   avatar?: string;
   title?: string;
-};
-
-type LoginResponse = {
-  token: string;
-  user: User;
+  trust_score?: number;
+  reputation?: number;
+  level?: string;
+  level_progress?: number;
+  location?: string;
+  available?: boolean;
+  skills?: { name: string; level: number }[];
+  certificates?: any[];
+  languages?: string[];
+  countries?: string[];
+  portfolio?: any[];
+  timeline?: any[];
+  achievements?: any[];
+  training?: any[];
+  industry?: string;
 };
 
 type AuthState = {
   user: User | null;
-  token: string |null;
+  token: string | null;
   loading: boolean;
 
   login: (
@@ -143,27 +156,28 @@ export function AuthProvider({
     async (
       email: string,
       password: string,
-      _role: UserRole
+      role: UserRole
     ): Promise<User> => {
       const cleanEmail =
         email.trim().toLowerCase();
 
       const response =
-        await api.post<LoginResponse>(
-          "/auth/login",
-          {
-            email: cleanEmail,
-            password,
-          }
-        );
+        await requestLogin({
+          email: cleanEmail,
+          password,
+          user_type: role,
+        });
 
       const nextUser: User = {
-        ...response.user,
-        id: String(response.user.id),
+        id: String(response.user_id),
+        name: response.name,
+        email: response.email,
+        role: response.user_type,
+        company_id: response.company_id,
       };
 
       await persistSession(
-        response.token,
+        response.access_token,
         nextUser
       );
 

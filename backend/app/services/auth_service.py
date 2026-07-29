@@ -37,6 +37,8 @@ class AuthService:
             "access_token": "workly_demo_token",
             "token_type": "bearer",
             "user_id": user.id,
+            "name": user.name,
+            "email": user.email,
             "user_type": user.user_type,
             "company_id": user.company_id,
         }

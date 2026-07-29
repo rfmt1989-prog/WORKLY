@@ -11,5 +11,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: int
+    name: str
+    email: EmailStr
     user_type: str
     company_id: int | None = None

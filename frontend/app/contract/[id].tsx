@@ -68,7 +68,12 @@ export default function ContractDetail() {
   }
 
   const mySigned = user?.role === "worker" ? contract.signed_worker : contract.signed_company;
-  const statusLabel = { active: "Ativo", pending: "Pendente", expired: "Expirado" }[contract.status] || contract.status;
+  const statusLabels: Record<string, string> = {
+    active: "Ativo",
+    pending: "Pendente",
+    expired: "Expirado",
+  };
+  const statusLabel = statusLabels[String(contract.status)] || contract.status;
   const statusTone = contract.status === "active" ? "success" : contract.status === "pending" ? "warning" : "neutral";
 
   return (

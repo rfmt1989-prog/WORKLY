@@ -6,7 +6,7 @@ class WorkerProfileService:
         return WorkerProfileResponse(
             worker_id=worker_id,
             name="Demo Worker",
-            email="demo@workly.pt",
+            email="worker@workly.pt",
             role="Eletricista",
             location="Lisboa",
             pulse=92,

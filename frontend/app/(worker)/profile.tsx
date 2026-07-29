@@ -214,7 +214,7 @@ export default function WorkerProfileScreen() {
         >
           {profile?.email ??
             user?.email ??
-            "demo@workly.pt"}
+            "worker@workly.pt"}
         </Text>
 
         <Text

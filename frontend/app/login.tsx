@@ -217,9 +217,14 @@ export default function Login() {
 
       setLoading(true);
 
+      const demoEmail =
+        role === "worker"
+          ? "worker@workly.pt"
+          : "company@workly.pt";
+
       const authenticatedUser =
         await login(
-          "demo@workly.pt",
+          demoEmail,
           "123456",
           role
         );
@@ -256,7 +261,11 @@ export default function Login() {
 
   const fillDemo = () => {
     setScreenMode("login");
-    setEmail("demo@workly.pt");
+    setEmail(
+      role === "worker"
+        ? "worker@workly.pt"
+        : "company@workly.pt"
+    );
     setPassword("123456");
     setError("");
   };
