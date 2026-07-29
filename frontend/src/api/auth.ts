@@ -24,3 +24,20 @@ export function login(
     data
   );
 }
+
+export type RegisterRequest = LoginRequest & {
+  name: string;
+};
+
+export function register(
+  data: RegisterRequest
+): Promise<LoginResponse> {
+  return api.post<LoginResponse>(
+    "/auth/register",
+    data
+  );
+}
+
+export function me(): Promise<LoginResponse> {
+  return api.get<LoginResponse>("/auth/me");
+}

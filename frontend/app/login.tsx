@@ -166,7 +166,9 @@ export default function Login() {
           Haptics
             .NotificationFeedbackType
             .Success
-        );
+          );
+
+      navigateAfterLogin(role);
     } catch (
       caughtError: unknown
     ) {
@@ -259,15 +261,32 @@ export default function Login() {
     }
   };
 
-  const fillDemo = () => {
+  const demoLogin = async () => {
     setScreenMode("login");
-    setEmail(
+    setError("");
+    const demoEmail =
       role === "worker"
         ? "worker@workly.pt"
-        : "company@workly.pt"
-    );
+        : "company@workly.pt";
+    setEmail(demoEmail);
     setPassword("123456");
-    setError("");
+    try {
+      setLoading(true);
+      const authenticatedUser = await login(
+        demoEmail,
+        "123456",
+        role
+      );
+      navigateAfterLogin(authenticatedUser.role);
+    } catch (caughtError: unknown) {
+      setError(
+        caughtError instanceof Error
+          ? getReadableError(caughtError.message)
+          : "Não foi possível entrar na demonstração."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const changeRole = (
@@ -679,7 +698,7 @@ export default function Login() {
 
           <Pressable
             testID="demo-fill-button"
-            onPress={fillDemo}
+            onPress={demoLogin}
             style={{
               marginTop:
                 spacing.xl,
@@ -692,7 +711,7 @@ export default function Login() {
                 fontSize: 14,
               }}
             >
-              Usar conta demo ({role}) →
+              Entrar agora como {role === "worker" ? "Worker Demo" : "Company Demo"} →
             </Text>
           </Pressable>
         </ScrollView>

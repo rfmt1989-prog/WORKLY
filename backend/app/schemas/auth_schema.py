@@ -15,3 +15,10 @@ class LoginResponse(BaseModel):
     email: EmailStr
     user_type: str
     company_id: int | None = None
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    user_type: str
