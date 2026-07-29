@@ -1,11 +1,26 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd frontend && npm ci --no-audit --no-fund && npx expo export --platform web --output-dir ../public",
+  "outputDirectory": "public",
   "functions": {
     "backend/app/main.py": {
       "maxDuration": 30
     }
   },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/workspace",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/index.html",
