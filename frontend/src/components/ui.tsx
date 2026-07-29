@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import Svg, { Circle } from "react-native-svg";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useColors, spacing, radius, ThemeColors } from "@/src/theme/theme";
 
 // ---------------- Card ----------------

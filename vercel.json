@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd frontend && npm ci --no-audit --no-fund && npx expo export --platform web --output-dir ../public",
+  "buildCommand": "if [ -d frontend ]; then cd frontend && npm ci --no-audit --no-fund && npx expo export --platform web --output-dir ../public; fi",
   "outputDirectory": "public",
   "functions": {
     "backend/app/main.py": {
