@@ -7,6 +7,8 @@
 # Dependencies
 node_modules/
 /node_modules
+!public/assets/node_modules/
+!public/assets/node_modules/**
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -27,7 +29,6 @@ next-env.d.ts
 
 # Production builds
 /build
-/public/
 dist/
 dist
 
