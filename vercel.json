@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cd frontend && npm ci --no-audit --no-fund",
-  "buildCommand": "cd frontend && npx expo export --platform web --output-dir ../public",
+  "buildCommand": "cd frontend && npm ci --no-audit --no-fund && npx expo export --platform web --output-dir ../public",
   "functions": {
     "backend/app/main.py": {
       "maxDuration": 30
@@ -28,4 +27,3 @@
     }
   ]
 }
-
