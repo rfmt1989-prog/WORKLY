@@ -1,6 +1,6 @@
 import React from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { Worker } from "../../hooks/useTeams";
 
 type WorkerInspectorProps = {

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useApi } from "@/src/hooks/useApi";
 import { api } from "@/src/api/client";

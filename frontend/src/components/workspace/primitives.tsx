@@ -13,7 +13,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
 
