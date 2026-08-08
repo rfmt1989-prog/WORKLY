@@ -27,7 +27,11 @@ import {
   workspaceColors,
 } from "./primitives";
 
-const GEOFENCE_RADIUS_M = 250;
+const DEFAULT_GEOFENCE_RADIUS_M = 250;
+
+function projectRadius(project?: Project) {
+  return project?.geofence_radius_m ?? DEFAULT_GEOFENCE_RADIUS_M;
+}
 
 type LocationPreview = {
   mode: "gps" | "demo";
@@ -85,6 +89,7 @@ function geofenceFor(
   longitude: number | null,
   mode: "gps" | "demo",
   project?: Project,
+  radiusOverride?: number,
 ): LocationPreview {
   if (mode !== "gps") {
     return { mode, distance: null, within: null };
@@ -108,7 +113,7 @@ function geofenceFor(
   return {
     mode,
     distance,
-    within: distance <= GEOFENCE_RADIUS_M,
+    within: distance <= (radiusOverride ?? projectRadius(project)),
   };
 }
 
@@ -180,6 +185,7 @@ export function AttendanceView() {
         record.longitude,
         record.location_mode,
         project,
+        record.geofence_radius_m,
       ).within === true;
     }).length;
 
@@ -231,7 +237,7 @@ export function AttendanceView() {
             icon="shield-checkmark-outline"
             label={language === "pt" ? "Dentro da zona" : "Inside geofence"}
             value={`${activeInside}/${active.length}`}
-            detail={`${GEOFENCE_RADIUS_M} m ${language === "pt" ? "de raio" : "radius"}`}
+            detail={language === "pt" ? "Raio definido por obra" : "Radius set per site"}
             accent={workspaceColors.green}
           />
           <MetricCard
@@ -255,8 +261,8 @@ export function AttendanceView() {
             title={t.liveMonitoring}
             subtitle={
               language === "pt"
-                ? `Geofence operacional de ${GEOFENCE_RADIUS_M} m por obra.`
-                : `${GEOFENCE_RADIUS_M} m operational geofence per site.`
+                ? "Geofence operacional configurável por obra."
+                : "Configurable operational geofence per site."
             }
           />
           <View style={{ gap: 9, marginTop: 15 }}>
@@ -306,6 +312,7 @@ export function AttendanceView() {
         active.longitude,
         active.location_mode,
         currentProject,
+        active.geofence_radius_m,
       )
     : null;
   const visibleLocation = activeLocation ?? locationPreview;
@@ -331,10 +338,11 @@ export function AttendanceView() {
       setLocationPreview(validation);
 
       if (validation.mode === "gps" && validation.within === false) {
+        const radius = projectRadius(currentProject);
         notify(
           language === "pt"
-            ? `Check-in bloqueado: estás a ${Math.round(validation.distance ?? 0)} m da obra. Aproxima-te até ${GEOFENCE_RADIUS_M} m.`
-            : `Check-in blocked: you are ${Math.round(validation.distance ?? 0)} m from the site. Move within ${GEOFENCE_RADIUS_M} m.`,
+            ? `Check-in bloqueado: estás a ${Math.round(validation.distance ?? 0)} m da obra. Aproxima-te até ${radius} m.`
+            : `Check-in blocked: you are ${Math.round(validation.distance ?? 0)} m from the site. Move within ${radius} m.`,
           "error",
         );
         return;
@@ -472,8 +480,8 @@ export function AttendanceView() {
                       ? "Modo demonstração · sem validação GPS real"
                       : "Demo mode · no real GPS validation"
                     : language === "pt"
-                      ? `Zona autorizada: raio de ${GEOFENCE_RADIUS_M} m`
-                      : `Authorised zone: ${GEOFENCE_RADIUS_M} m radius`}
+                      ? `Zona autorizada: raio de ${projectRadius(currentProject)} m`
+                      : `Authorised zone: ${projectRadius(currentProject)} m radius`}
               </Text>
             </View>
             <View
@@ -505,7 +513,7 @@ export function AttendanceView() {
                     ? "GPS OK"
                     : visibleLocation?.within === false
                       ? "FORA"
-                      : `${GEOFENCE_RADIUS_M}M`}
+                      : `${projectRadius(currentProject)}M`}
               </Text>
             </View>
           </View>
@@ -555,8 +563,8 @@ export function AttendanceView() {
             />
             <Text style={styles.reminderText}>
               {language === "pt"
-                ? `O check-in GPS só é aceite até ${GEOFENCE_RADIUS_M} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.`
-                : `GPS check-in is accepted only within ${GEOFENCE_RADIUS_M} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.`}
+                ? `O check-in GPS só é aceite até ${projectRadius(currentProject)} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.`
+                : `GPS check-in is accepted only within ${projectRadius(currentProject)} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.`}
             </Text>
           </View>
         </Card>
@@ -615,6 +623,7 @@ function CompanyAttendanceRow({
     record.longitude,
     record.location_mode,
     project,
+    record.geofence_radius_m,
   );
   return (
     <View style={styles.companyRow}>
@@ -673,6 +682,7 @@ function WorkerAttendanceRow({
     record.longitude,
     record.location_mode,
     project,
+    record.geofence_radius_m,
   );
   return (
     <View style={styles.workerRow}>

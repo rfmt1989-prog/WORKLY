@@ -110,6 +110,9 @@ class ProjectInput(BaseModel):
     start_date: str
     end_date: str
     schedule: str = "08:00–17:00"
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    geofence_radius_m: int = Field(default=250, ge=50, le=2000)
     team_ids: list[str] = Field(default_factory=list)
     worker_ids: list[str] = Field(default_factory=list)
 
@@ -739,6 +742,9 @@ def update_project(
         "start_date",
         "end_date",
         "schedule",
+        "latitude",
+        "longitude",
+        "geofence_radius_m",
         "team_ids",
         "worker_ids",
     }
@@ -746,6 +752,23 @@ def update_project(
         project = _find("projects", project_id)
         if project["company_id"] != user["company_id"]:
             raise HTTPException(status_code=403, detail="Obra de outra empresa.")
+        if "geofence_radius_m" in patch.data:
+            try:
+                radius = int(patch.data["geofence_radius_m"])
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(status_code=422, detail="Raio GPS inválido.") from exc
+            if not 50 <= radius <= 2000:
+                raise HTTPException(status_code=422, detail="O raio GPS deve ficar entre 50 e 2000 m.")
+            patch.data["geofence_radius_m"] = radius
+        for key, minimum, maximum in (("latitude", -90, 90), ("longitude", -180, 180)):
+            if key in patch.data and patch.data[key] is not None:
+                try:
+                    coordinate = float(patch.data[key])
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(status_code=422, detail=f"{key} inválida.") from exc
+                if not minimum <= coordinate <= maximum:
+                    raise HTTPException(status_code=422, detail=f"{key} fora do intervalo permitido.")
+                patch.data[key] = coordinate
         project.update(
             {key: value for key, value in patch.data.items() if key in allowed}
         )
@@ -846,6 +869,7 @@ def check_in(
         if not project_id:
             raise HTTPException(status_code=422, detail="Não existe obra atribuída.")
         project = _find("projects", project_id)
+        geofence_radius_m = float(project.get("geofence_radius_m") or GEOFENCE_RADIUS_M)
         distance_m: float | None = None
         within_geofence: bool | None = None
         if data.location_mode == "gps":
@@ -856,22 +880,26 @@ def check_in(
                 )
             project_latitude = project.get("latitude")
             project_longitude = project.get("longitude")
-            if project_latitude is not None and project_longitude is not None:
-                distance_m = _distance_meters(
+            if project_latitude is None or project_longitude is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="A obra ainda não tem coordenadas GPS configuradas.",
+                )
+            distance_m = _distance_meters(
                     data.latitude,
                     data.longitude,
                     float(project_latitude),
                     float(project_longitude),
                 )
-                within_geofence = distance_m <= GEOFENCE_RADIUS_M
-                if not within_geofence:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=(
-                            "Check-in fora da zona autorizada da obra "
-                            f"({round(distance_m)} m; máximo {round(GEOFENCE_RADIUS_M)} m)."
-                        ),
-                    )
+            within_geofence = distance_m <= geofence_radius_m
+            if not within_geofence:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Check-in fora da zona autorizada da obra "
+                        f"({round(distance_m)} m; máximo {round(geofence_radius_m)} m)."
+                    ),
+                )
         record = {
             "id": f"attendance-{uuid.uuid4().hex[:10]}",
             "worker_id": user["sub"],
@@ -888,6 +916,7 @@ def check_in(
             else project.get("longitude"),
             "distance_m": distance_m,
             "within_geofence": within_geofence,
+            "geofence_radius_m": int(geofence_radius_m),
             "note": data.note or "Entrada registada na demonstração.",
         }
         _state["attendance"].insert(0, record)

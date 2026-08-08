@@ -110,6 +110,7 @@ export type Project = {
   location: string;
   latitude: number | null;
   longitude: number | null;
+  geofence_radius_m?: number;
   status: ProjectStatus;
   progress: number;
   start_date: string;
@@ -129,6 +130,9 @@ export type Attendance = {
   location_mode: "gps" | "demo";
   latitude: number | null;
   longitude: number | null;
+  distance_m?: number | null;
+  within_geofence?: boolean | null;
+  geofence_radius_m?: number;
   note: string;
 };
 
