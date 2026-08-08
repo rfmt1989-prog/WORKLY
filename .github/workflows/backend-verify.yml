@@ -1,0 +1,47 @@
+name: Backend Verify
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/backend-verify.yml"
+  push:
+    branches:
+      - "agent/**"
+    paths:
+      - "backend/**"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/backend-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest httpx
+
+      - name: Compile backend
+        env:
+          PYTHONPATH: .
+        run: python -m compileall -q backend
+
+      - name: Test backend
+        env:
+          PYTHONPATH: .
+        run: pytest -q backend/tests
