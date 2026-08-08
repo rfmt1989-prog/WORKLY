@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
 import threading
 import time
@@ -34,6 +35,7 @@ from .demo_data import (
 
 API_PREFIX = "/api"
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
+GEOFENCE_RADIUS_M = 250.0
 TOKEN_SECRET = os.getenv(
     "WORKLY_TOKEN_SECRET",
     "workly-demo-signing-key-not-for-production",
@@ -262,6 +264,24 @@ def _find(collection: str, entity_id: str) -> dict[str, Any]:
 
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _distance_meters(
+    latitude_a: float,
+    longitude_a: float,
+    latitude_b: float,
+    longitude_b: float,
+) -> float:
+    earth_radius = 6_371_000.0
+    latitude_delta = math.radians(latitude_b - latitude_a)
+    longitude_delta = math.radians(longitude_b - longitude_a)
+    value = (
+        math.sin(latitude_delta / 2) ** 2
+        + math.cos(math.radians(latitude_a))
+        * math.cos(math.radians(latitude_b))
+        * math.sin(longitude_delta / 2) ** 2
+    )
+    return earth_radius * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
 
 
 def _company_id_for_worker(worker_id: str, project_id: str | None) -> str | None:
@@ -826,6 +846,32 @@ def check_in(
         if not project_id:
             raise HTTPException(status_code=422, detail="Não existe obra atribuída.")
         project = _find("projects", project_id)
+        distance_m: float | None = None
+        within_geofence: bool | None = None
+        if data.location_mode == "gps":
+            if data.latitude is None or data.longitude is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Localização GPS incompleta para validar a entrada.",
+                )
+            project_latitude = project.get("latitude")
+            project_longitude = project.get("longitude")
+            if project_latitude is not None and project_longitude is not None:
+                distance_m = _distance_meters(
+                    data.latitude,
+                    data.longitude,
+                    float(project_latitude),
+                    float(project_longitude),
+                )
+                within_geofence = distance_m <= GEOFENCE_RADIUS_M
+                if not within_geofence:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "Check-in fora da zona autorizada da obra "
+                            f"({round(distance_m)} m; máximo {round(GEOFENCE_RADIUS_M)} m)."
+                        ),
+                    )
         record = {
             "id": f"attendance-{uuid.uuid4().hex[:10]}",
             "worker_id": user["sub"],
@@ -840,6 +886,8 @@ def check_in(
             "longitude": data.longitude
             if data.longitude is not None
             else project.get("longitude"),
+            "distance_m": distance_m,
+            "within_geofence": within_geofence,
             "note": data.note or "Entrada registada na demonstração.",
         }
         _state["attendance"].insert(0, record)
