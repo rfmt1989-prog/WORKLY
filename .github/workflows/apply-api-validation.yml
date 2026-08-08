@@ -1,0 +1,74 @@
+name: Apply API validation handling
+
+on:
+  push:
+    branches:
+      - "agent/enforce-api-validation"
+    paths:
+      - ".github/workflows/apply-api-validation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/enforce-api-validation
+
+      - name: Patch check-in error handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("frontend/src/context/WorklyDataContext.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          old_import = 'import { api } from "@/src/api/client";'
+          new_import = 'import { ApiError, api } from "@/src/api/client";'
+          if old_import not in text:
+              raise SystemExit("API import anchor not found")
+          text = text.replace(old_import, new_import, 1)
+
+          old = '''      } catch {\n        const project = state?.projects.find((item) => item.id === projectId);\n        record = {\n          id: `attendance-local-${Date.now()}`,\n          worker_id: user.id,\n          company_id: project?.company_id ?? null,\n          project_id: projectId,\n          check_in: new Date().toISOString(),\n          check_out: null,\n          ...location,\n          note:\n            language === "pt"\n              ? "Entrada guardada no modo demo."\n              : "Check-in saved in demo mode.",\n        };\n      }'''
+          new = '''      } catch (error) {\n        if (error instanceof ApiError) {\n          notify(error.message, "error");\n          throw error;\n        }\n        const project = state?.projects.find((item) => item.id === projectId);\n        record = {\n          id: `attendance-local-${Date.now()}`,\n          worker_id: user.id,\n          company_id: project?.company_id ?? null,\n          project_id: projectId,\n          check_in: new Date().toISOString(),\n          check_out: null,\n          ...location,\n          note:\n            language === "pt"\n              ? "Entrada guardada no modo demo por indisponibilidade de rede."\n              : "Check-in saved in demo mode because the network is unavailable.",\n        };\n      }'''
+          if old not in text:
+              raise SystemExit("Check-in fallback anchor not found")
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+
+      - name: Commit validated handling
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/context/WorklyDataContext.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Respect attendance API validation errors"
+          git push origin HEAD:agent/enforce-api-validation
