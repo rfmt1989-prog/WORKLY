@@ -8,9 +8,7 @@ const BASE_URL =
 
 let authToken: string | null = null;
 
-export function setAuthToken(
-  token: string | null
-) {
+export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
@@ -23,23 +21,29 @@ type ApiErrorPayload = {
   message?: string;
 };
 
-function buildUrl(endpoint: string) {
-  const normalizedBaseUrl =
-    BASE_URL.endsWith("/")
-      ? BASE_URL.slice(0, -1)
-      : BASE_URL;
+export class ApiError extends Error {
+  status: number;
 
-  const normalizedEndpoint =
-    endpoint.startsWith("/")
-      ? endpoint
-      : `/${endpoint}`;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+function buildUrl(endpoint: string) {
+  const normalizedBaseUrl = BASE_URL.endsWith("/")
+    ? BASE_URL.slice(0, -1)
+    : BASE_URL;
+
+  const normalizedEndpoint = endpoint.startsWith("/")
+    ? endpoint
+    : `/${endpoint}`;
 
   return `${normalizedBaseUrl}${normalizedEndpoint}`;
 }
 
-async function parseResponse<T>(
-  response: Response
-): Promise<T> {
+async function parseResponse<T>(response: Response): Promise<T> {
   const raw = await response.text();
 
   let parsed: unknown = null;
@@ -53,42 +57,28 @@ async function parseResponse<T>(
   }
 
   if (!response.ok) {
-    if (
-      parsed &&
-      typeof parsed === "object"
-    ) {
-      const payload =
-        parsed as ApiErrorPayload;
+    if (parsed && typeof parsed === "object") {
+      const payload = parsed as ApiErrorPayload;
 
-      throw new Error(
-        payload.detail ??
-          payload.message ??
-          `Erro ${response.status}`
+      throw new ApiError(
+        payload.detail ?? payload.message ?? `Erro ${response.status}`,
+        response.status,
       );
     }
 
-    if (
-      typeof parsed === "string" &&
-      parsed.trim()
-    ) {
-      throw new Error(parsed);
+    if (typeof parsed === "string" && parsed.trim()) {
+      throw new ApiError(parsed, response.status);
     }
 
-    throw new Error(
-      `Erro ${response.status}`
-    );
+    throw new ApiError(`Erro ${response.status}`, response.status);
   }
 
-  return (
-    parsed === null
-      ? ({} as T)
-      : (parsed as T)
-  );
+  return parsed === null ? ({} as T) : (parsed as T);
 }
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const url = buildUrl(endpoint);
 
@@ -100,8 +90,7 @@ async function request<T>(
 
       ...(authToken
         ? {
-            Authorization:
-              `Bearer ${authToken}`,
+            Authorization: `Bearer ${authToken}`,
           }
         : {}),
 
@@ -113,53 +102,34 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(
-    endpoint: string
-  ): Promise<T> {
+  get<T>(endpoint: string): Promise<T> {
     return request<T>(endpoint, {
       method: "GET",
     });
   },
 
-  post<T>(
-    endpoint: string,
-    body?: unknown
-  ): Promise<T> {
+  post<T>(endpoint: string, body?: unknown): Promise<T> {
     return request<T>(endpoint, {
       method: "POST",
-      body: JSON.stringify(
-        body ?? {}
-      ),
+      body: JSON.stringify(body ?? {}),
     });
   },
 
-  put<T>(
-    endpoint: string,
-    body?: unknown
-  ): Promise<T> {
+  put<T>(endpoint: string, body?: unknown): Promise<T> {
     return request<T>(endpoint, {
       method: "PUT",
-      body: JSON.stringify(
-        body ?? {}
-      ),
+      body: JSON.stringify(body ?? {}),
     });
   },
 
-  patch<T>(
-    endpoint: string,
-    body?: unknown
-  ): Promise<T> {
+  patch<T>(endpoint: string, body?: unknown): Promise<T> {
     return request<T>(endpoint, {
       method: "PATCH",
-      body: JSON.stringify(
-        body ?? {}
-      ),
+      body: JSON.stringify(body ?? {}),
     });
   },
 
-  delete<T>(
-    endpoint: string
-  ): Promise<T> {
+  delete<T>(endpoint: string): Promise<T> {
     return request<T>(endpoint, {
       method: "DELETE",
     });
