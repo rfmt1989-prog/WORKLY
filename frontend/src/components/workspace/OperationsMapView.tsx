@@ -195,7 +195,7 @@ export function OperationsMapView() {
       </View>
 
       <View style={[styles.mainGrid, compact ? styles.mainGridCompact : null]}>
-        <Card style={[styles.mapCard, compact ? styles.mapCardCompact : null]} accent={accent}>
+        <Card style={compact ? [styles.mapCard, styles.mapCardCompact] : styles.mapCard} accent={accent}>
           <SectionTitle
             title={language === "pt" ? "Rede de obras" : "Site network"}
             subtitle={

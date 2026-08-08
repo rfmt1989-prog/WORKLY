@@ -20,6 +20,7 @@ import { copy } from "@/src/demo/i18n";
 import { AttendanceView } from "./AttendanceView";
 import { DashboardView } from "./DashboardView";
 import { DocumentsView } from "./DocumentsView";
+import { OperationsMapView } from "./OperationsMapView";
 import type { WorkspaceSection } from "./navigation";
 import { ProfileView } from "./ProfileView";
 import { ProjectsView } from "./ProjectsView";
@@ -77,6 +78,12 @@ export function ImmersiveWorkspaceShell() {
 
   const allNavItems: NavItem[] = [
     { id: "dashboard", label: t.dashboard, icon: "grid-outline" },
+    {
+      id: "operations",
+      label: language === "pt" ? "Operações" : "Operations",
+      icon: "map-outline",
+      companyOnly: true,
+    },
     {
       id: "workers",
       label: t.workers,
@@ -230,6 +237,8 @@ export function ImmersiveWorkspaceShell() {
     }
 
     switch (activeSection) {
+      case "operations":
+        return <OperationsMapView />;
       case "workers":
         return <WorkersView />;
       case "teams":
@@ -277,9 +286,15 @@ export function ImmersiveWorkspaceShell() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            language === "pt" ? "Abrir presenças" : "Open attendance"
+            role === "company"
+              ? language === "pt"
+                ? "Abrir mapa operacional"
+                : "Open operations map"
+              : language === "pt"
+                ? "Abrir presenças"
+                : "Open attendance"
           }
-          onPress={() => navigate("attendance")}
+          onPress={() => navigate(role === "company" ? "operations" : "attendance")}
           style={({ pressed }) => [
             styles.liveStrip,
             { borderColor: `${accent}38` },
