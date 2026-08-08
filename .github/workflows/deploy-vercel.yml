@@ -1,0 +1,88 @@
+name: Deploy Vercel Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "vercel.json"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/deploy-vercel.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/deploy-vercel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workly-vercel-production
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_5LSRDYKDIDDttNfiidfjplCI
+  VERCEL_PROJECT_ID: prj_i2O5wxHnnL3WaI4OstDogjOBEpFg
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          echo "WORKLY Vercel deployment configuration is valid."
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Vercel authentication
+        id: auth
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Vercel deployment enabled."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Vercel deployment skipped::Add repository secret VERCEL_TOKEN to enable automatic production deployments."
+          fi
+
+      - name: Setup Node 24
+        if: steps.auth.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Vercel CLI
+        if: steps.auth.outputs.enabled == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Link production project
+        if: steps.auth.outputs.enabled == 'true'
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Deploy production
+        if: steps.auth.outputs.enabled == 'true'
+        id: production
+        shell: bash
+        run: |
+          url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          printf '### WORKLY production deployment\n%s\n' "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report skipped deployment
+        if: steps.auth.outputs.enabled != 'true'
+        run: echo "Deployment workflow is ready; VERCEL_TOKEN is not configured yet."
