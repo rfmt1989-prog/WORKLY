@@ -1,0 +1,229 @@
+name: Apply configurable project geofences
+
+on:
+  push:
+    branches:
+      - "agent/project-geofence-radius"
+    paths:
+      - ".github/workflows/apply-project-geofence-radius.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/project-geofence-radius
+
+      - name: Apply configurable geofence patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path_name: str, replacements: list[tuple[str, str]]) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding="utf-8")
+              for old, new in replacements:
+                  if old not in text:
+                      raise SystemExit(f"Patch anchor not found in {path_name}: {old[:120]!r}")
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding="utf-8")
+
+          patch(
+              "frontend/src/demo/types.ts",
+              [
+                  (
+                      "  longitude: number | null;\n  status: ProjectStatus;",
+                      "  longitude: number | null;\n  geofence_radius_m?: number;\n  status: ProjectStatus;",
+                  ),
+                  (
+                      "  longitude: number | null;\n  note: string;\n};",
+                      "  longitude: number | null;\n  distance_m?: number | null;\n  within_geofence?: boolean | null;\n  geofence_radius_m?: number;\n  note: string;\n};",
+                  ),
+              ],
+          )
+
+          patch(
+              "frontend/src/components/workspace/ProjectsView.tsx",
+              [
+                  (
+                      "  schedule: string;\n};",
+                      "  schedule: string;\n  latitude: string;\n  longitude: string;\n  geofence_radius_m: string;\n};",
+                  ),
+                  (
+                      '  schedule: "08:00–17:00",\n};',
+                      '  schedule: "08:00–17:00",\n  latitude: "",\n  longitude: "",\n  geofence_radius_m: "250",\n};',
+                  ),
+                  (
+                      "      schedule: selectedProject.schedule,\n    });",
+                      "      schedule: selectedProject.schedule,\n      latitude: selectedProject.latitude === null ? \"\" : String(selectedProject.latitude),\n      longitude: selectedProject.longitude === null ? \"\" : String(selectedProject.longitude),\n      geofence_radius_m: String(selectedProject.geofence_radius_m ?? 250),\n    });",
+                  ),
+                  (
+                      "      schedule: form.schedule,\n    };",
+                      "      schedule: form.schedule,\n      latitude: form.latitude.trim() ? Number(form.latitude) : null,\n      longitude: form.longitude.trim() ? Number(form.longitude) : null,\n      geofence_radius_m: Math.max(50, Math.min(2000, Number(form.geofence_radius_m) || 250)),\n    };",
+                  ),
+                  (
+                      '''        <Field\n          style={{ flex: 1 }}\n          label={language === "pt" ? "Horário" : "Schedule"}\n          value={form.schedule}\n          onChangeText={(value) => setValue("schedule", value)}\n        />\n        <Field\n          style={{ flex: 1 }}\n          label={`${language === "pt" ? "Progresso" : "Progress"} (0–100)`}\n          value={form.progress}\n          keyboardType="number-pad"\n          onChangeText={(value) => setValue("progress", value)}\n        />''',
+                      '''        <Field\n          style={{ flex: 1 }}\n          label={language === "pt" ? "Horário" : "Schedule"}\n          value={form.schedule}\n          onChangeText={(value) => setValue("schedule", value)}\n        />\n        <Field\n          style={{ flex: 1 }}\n          label={`${language === "pt" ? "Progresso" : "Progress"} (0–100)`}\n          value={form.progress}\n          keyboardType="number-pad"\n          onChangeText={(value) => setValue("progress", value)}\n        />''',
+                  ),
+                  (
+                      '''      <Text style={sharedStyles.label}>{t.status}</Text>''',
+                      '''      <View style={styles.formColumns}>\n        <Field\n          style={{ flex: 1, minWidth: 160 }}\n          label="Latitude"\n          value={form.latitude}\n          keyboardType="numbers-and-punctuation"\n          onChangeText={(value) => setValue("latitude", value)}\n        />\n        <Field\n          style={{ flex: 1, minWidth: 160 }}\n          label="Longitude"\n          value={form.longitude}\n          keyboardType="numbers-and-punctuation"\n          onChangeText={(value) => setValue("longitude", value)}\n        />\n        <Field\n          style={{ flex: 1, minWidth: 160 }}\n          label={language === "pt" ? "Raio GPS (50–2000 m)" : "GPS radius (50–2000 m)"}\n          value={form.geofence_radius_m}\n          keyboardType="number-pad"\n          onChangeText={(value) => setValue("geofence_radius_m", value)}\n        />\n      </View>\n      <Text style={sharedStyles.label}>{t.status}</Text>''',
+                  ),
+                  (
+                      '''        <Fact icon="time-outline" label={language === "pt" ? "Horário" : "Schedule"} value={project.schedule} />\n        <Fact icon="calendar-outline" label={language === "pt" ? "Período" : "Period"} value={`${project.start_date} → ${project.end_date}`} />''',
+                      '''        <Fact icon="time-outline" label={language === "pt" ? "Horário" : "Schedule"} value={project.schedule} />\n        <Fact icon="navigate-outline" label={language === "pt" ? "Zona GPS" : "GPS zone"} value={project.latitude !== null && project.longitude !== null ? `${project.geofence_radius_m ?? 250} m · ${project.latitude.toFixed(5)}, ${project.longitude.toFixed(5)}` : language === "pt" ? "Coordenadas por configurar" : "Coordinates not configured"} />\n        <Fact icon="calendar-outline" label={language === "pt" ? "Período" : "Period"} value={`${project.start_date} → ${project.end_date}`} />''',
+                  ),
+              ],
+          )
+
+          patch(
+              "frontend/src/components/workspace/AttendanceView.tsx",
+              [
+                  (
+                      "const GEOFENCE_RADIUS_M = 250;",
+                      "const DEFAULT_GEOFENCE_RADIUS_M = 250;\n\nfunction projectRadius(project?: Project) {\n  return project?.geofence_radius_m ?? DEFAULT_GEOFENCE_RADIUS_M;\n}",
+                  ),
+                  (
+                      "  project?: Project,\n): LocationPreview {",
+                      "  project?: Project,\n  radiusOverride?: number,\n): LocationPreview {",
+                  ),
+                  (
+                      "    within: distance <= GEOFENCE_RADIUS_M,",
+                      "    within: distance <= (radiusOverride ?? projectRadius(project)),",
+                  ),
+                  (
+                      '''        project,\n      ).within === true;''',
+                      '''        project,\n        record.geofence_radius_m,\n      ).within === true;''',
+                  ),
+                  (
+                      '''            detail={`${GEOFENCE_RADIUS_M} m ${language === "pt" ? "de raio" : "radius"}`}''',
+                      '''            detail={language === "pt" ? "Raio definido por obra" : "Radius set per site"}''',
+                  ),
+                  (
+                      '''                ? `Geofence operacional de ${GEOFENCE_RADIUS_M} m por obra.`\n                : `${GEOFENCE_RADIUS_M} m operational geofence per site.`''',
+                      '''                ? "Geofence operacional configurável por obra."\n                : "Configurable operational geofence per site."''',
+                  ),
+                  (
+                      '''        currentProject,\n      )\n    : null;''',
+                      '''        currentProject,\n        active.geofence_radius_m,\n      )\n    : null;''',
+                  ),
+                  (
+                      '''      if (validation.mode === "gps" && validation.within === false) {\n        notify(\n          language === "pt"\n            ? `Check-in bloqueado: estás a ${Math.round(validation.distance ?? 0)} m da obra. Aproxima-te até ${GEOFENCE_RADIUS_M} m.`\n            : `Check-in blocked: you are ${Math.round(validation.distance ?? 0)} m from the site. Move within ${GEOFENCE_RADIUS_M} m.`,''',
+                      '''      if (validation.mode === "gps" && validation.within === false) {\n        const radius = projectRadius(currentProject);\n        notify(\n          language === "pt"\n            ? `Check-in bloqueado: estás a ${Math.round(validation.distance ?? 0)} m da obra. Aproxima-te até ${radius} m.`\n            : `Check-in blocked: you are ${Math.round(validation.distance ?? 0)} m from the site. Move within ${radius} m.`,''',
+                  ),
+                  (
+                      '''                      ? `Zona autorizada: raio de ${GEOFENCE_RADIUS_M} m`\n                      : `Authorised zone: ${GEOFENCE_RADIUS_M} m radius`}''',
+                      '''                      ? `Zona autorizada: raio de ${projectRadius(currentProject)} m`\n                      : `Authorised zone: ${projectRadius(currentProject)} m radius`}''',
+                  ),
+                  (
+                      ''': `${GEOFENCE_RADIUS_M}M`}''',
+                      ''': `${projectRadius(currentProject)}M`}''',
+                  ),
+                  (
+                      '''                ? `O check-in GPS só é aceite até ${GEOFENCE_RADIUS_M} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.`\n                : `GPS check-in is accepted only within ${GEOFENCE_RADIUS_M} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.`}''',
+                      '''                ? `O check-in GPS só é aceite até ${projectRadius(currentProject)} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.`\n                : `GPS check-in is accepted only within ${projectRadius(currentProject)} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.`}''',
+                  ),
+                  (
+                      '''    project,\n  );\n  return (\n    <View style={styles.companyRow}>''',
+                      '''    project,\n    record.geofence_radius_m,\n  );\n  return (\n    <View style={styles.companyRow}>''',
+                  ),
+                  (
+                      '''    project,\n  );\n  return (\n    <View style={styles.workerRow}>''',
+                      '''    project,\n    record.geofence_radius_m,\n  );\n  return (\n    <View style={styles.workerRow}>''',
+                  ),
+              ],
+          )
+
+          patch(
+              "backend/app/main.py",
+              [
+                  (
+                      '    schedule: str = "08:00–17:00"\n    team_ids: list[str] = Field(default_factory=list)',
+                      '    schedule: str = "08:00–17:00"\n    latitude: float | None = Field(default=None, ge=-90, le=90)\n    longitude: float | None = Field(default=None, ge=-180, le=180)\n    geofence_radius_m: int = Field(default=250, ge=50, le=2000)\n    team_ids: list[str] = Field(default_factory=list)',
+                  ),
+                  (
+                      '        "schedule",\n        "team_ids",',
+                      '        "schedule",\n        "latitude",\n        "longitude",\n        "geofence_radius_m",\n        "team_ids",',
+                  ),
+                  (
+                      '''        project = _find("projects", project_id)\n        if project["company_id"] != user["company_id"]:\n            raise HTTPException(status_code=403, detail="Obra de outra empresa.")\n        project.update(''',
+                      '''        project = _find("projects", project_id)\n        if project["company_id"] != user["company_id"]:\n            raise HTTPException(status_code=403, detail="Obra de outra empresa.")\n        if "geofence_radius_m" in patch.data:\n            try:\n                radius = int(patch.data["geofence_radius_m"])\n            except (TypeError, ValueError) as exc:\n                raise HTTPException(status_code=422, detail="Raio GPS inválido.") from exc\n            if not 50 <= radius <= 2000:\n                raise HTTPException(status_code=422, detail="O raio GPS deve ficar entre 50 e 2000 m.")\n            patch.data["geofence_radius_m"] = radius\n        for key, minimum, maximum in (("latitude", -90, 90), ("longitude", -180, 180)):\n            if key in patch.data and patch.data[key] is not None:\n                try:\n                    coordinate = float(patch.data[key])\n                except (TypeError, ValueError) as exc:\n                    raise HTTPException(status_code=422, detail=f"{key} inválida.") from exc\n                if not minimum <= coordinate <= maximum:\n                    raise HTTPException(status_code=422, detail=f"{key} fora do intervalo permitido.")\n                patch.data[key] = coordinate\n        project.update(''',
+                  ),
+                  (
+                      '''        project = _find("projects", project_id)\n        distance_m: float | None = None''',
+                      '''        project = _find("projects", project_id)\n        geofence_radius_m = float(project.get("geofence_radius_m") or GEOFENCE_RADIUS_M)\n        distance_m: float | None = None''',
+                  ),
+                  (
+                      '''            project_latitude = project.get("latitude")\n            project_longitude = project.get("longitude")\n            if project_latitude is not None and project_longitude is not None:\n                distance_m = _distance_meters(''',
+                      '''            project_latitude = project.get("latitude")\n            project_longitude = project.get("longitude")\n            if project_latitude is None or project_longitude is None:\n                raise HTTPException(\n                    status_code=422,\n                    detail="A obra ainda não tem coordenadas GPS configuradas.",\n                )\n            distance_m = _distance_meters(''',
+                  ),
+                  (
+                      '''                    float(project_longitude),\n                )\n                within_geofence = distance_m <= GEOFENCE_RADIUS_M\n                if not within_geofence:\n                    raise HTTPException(\n                        status_code=422,\n                        detail=(\n                            "Check-in fora da zona autorizada da obra "\n                            f"({round(distance_m)} m; máximo {round(GEOFENCE_RADIUS_M)} m)."\n                        ),\n                    )''',
+                      '''                    float(project_longitude),\n                )\n            within_geofence = distance_m <= geofence_radius_m\n            if not within_geofence:\n                raise HTTPException(\n                    status_code=422,\n                    detail=(\n                        "Check-in fora da zona autorizada da obra "\n                        f"({round(distance_m)} m; máximo {round(geofence_radius_m)} m)."\n                    ),\n                )''',
+                  ),
+                  (
+                      '''            "within_geofence": within_geofence,\n            "note": data.note or "Entrada registada na demonstração.",''',
+                      '''            "within_geofence": within_geofence,\n            "geofence_radius_m": int(geofence_radius_m),\n            "note": data.note or "Entrada registada na demonstração.",''',
+                  ),
+              ],
+          )
+
+          test_path = Path("backend/tests/test_geofence.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          addition = '''\n\ndef test_project_specific_geofence_radius_is_enforced(\n    client: TestClient,\n    worker_auth: dict,\n    company_auth: dict,\n) -> None:\n    updated = client.patch(\n        "/api/projects/project-1",\n        headers=company_auth["headers"],\n        json={"data": {"geofence_radius_m": 50}},\n    )\n    assert updated.status_code == 200, updated.text\n    assert updated.json()["geofence_radius_m"] == 50\n\n    response = client.post(\n        "/api/attendance/check-in",\n        headers=worker_auth["headers"],\n        json={\n            "project_id": "project-1",\n            "latitude": 40.2040,\n            "longitude": -8.4103,\n            "location_mode": "gps",\n        },\n    )\n    assert response.status_code == 422\n    assert "máximo 50 m" in response.json()["detail"]\n\n\ndef test_gps_checkin_requires_project_coordinates(\n    client: TestClient,\n    worker_auth: dict,\n    company_auth: dict,\n) -> None:\n    updated = client.patch(\n        "/api/projects/project-1",\n        headers=company_auth["headers"],\n        json={"data": {"latitude": None, "longitude": None}},\n    )\n    assert updated.status_code == 200, updated.text\n\n    response = client.post(\n        "/api/attendance/check-in",\n        headers=worker_auth["headers"],\n        json={\n            "project_id": "project-1",\n            "latitude": 40.2034,\n            "longitude": -8.4102,\n            "location_mode": "gps",\n        },\n    )\n    assert response.status_code == 422\n    assert "coordenadas gps" in response.json()["detail"].lower()\n'''
+          if "test_project_specific_geofence_radius_is_enforced" not in test_text:
+              test_path.write_text(test_text + addition, encoding="utf-8")
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt pytest httpx
+
+      - name: Compile backend
+        run: python -m compileall -q backend
+
+      - name: Test backend
+        env:
+          PYTHONPATH: .
+        run: pytest -q backend/tests
+
+      - name: Commit configurable geofences
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/demo/types.ts frontend/src/components/workspace/ProjectsView.tsx frontend/src/components/workspace/AttendanceView.tsx backend/app/main.py backend/tests/test_geofence.py
+          git diff --cached --quiet && exit 0
+          git commit -m "Make project geofences configurable"
+          git push origin HEAD:agent/project-geofence-radius
