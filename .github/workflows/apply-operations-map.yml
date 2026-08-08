@@ -24,6 +24,14 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
+          map_path = Path("frontend/src/components/workspace/OperationsMapView.tsx")
+          map_text = map_path.read_text(encoding="utf-8")
+          old_style = 'style={[styles.mapCard, compact ? styles.mapCardCompact : null]}'
+          new_style = 'style={compact ? [styles.mapCard, styles.mapCardCompact] : styles.mapCard}'
+          if old_style not in map_text:
+              raise SystemExit("Operations map style anchor not found")
+          map_path.write_text(map_text.replace(old_style, new_style, 1), encoding="utf-8")
+
           path = Path("frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx")
           text = path.read_text(encoding="utf-8")
           replacements = [
@@ -78,7 +86,7 @@ jobs:
         run: |
           git config user.name "WORKLY Automation"
           git config user.email "actions@users.noreply.github.com"
-          git add frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx
+          git add frontend/src/components/workspace/OperationsMapView.tsx frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
