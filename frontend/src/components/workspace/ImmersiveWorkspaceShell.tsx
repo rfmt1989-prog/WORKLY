@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -23,12 +23,7 @@ import { DocumentsView } from "./DocumentsView";
 import type { WorkspaceSection } from "./navigation";
 import { ProfileView } from "./ProfileView";
 import { ProjectsView } from "./ProjectsView";
-import {
-  Avatar,
-  Button,
-  roleAccent,
-  workspaceColors,
-} from "./primitives";
+import { Avatar, Button, roleAccent, workspaceColors } from "./primitives";
 import { TeamsView } from "./TeamsView";
 import { WorkersView } from "./WorkersView";
 
@@ -61,64 +56,10 @@ export function ImmersiveWorkspaceShell() {
     useState<WorkspaceSection>("dashboard");
   const [resetBusy, setResetBusy] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
-
-  if (!user) return null;
-
-  const role = user.role;
+  const role = user?.role ?? "worker";
   const accent = roleAccent(role);
   const t = copy[language];
   const compact = width < 760;
-
-  const navItems = useMemo<NavItem[]>(() => {
-    const items: NavItem[] = [
-      { id: "dashboard", label: t.dashboard, icon: "grid-outline" },
-      {
-        id: "workers",
-        label: t.workers,
-        icon: "people-outline",
-        companyOnly: true,
-      },
-      {
-        id: "teams",
-        label: t.teams,
-        icon: "git-network-outline",
-        companyOnly: true,
-      },
-      { id: "projects", label: t.projects, icon: "business-outline" },
-      { id: "attendance", label: t.attendance, icon: "radio-outline" },
-      { id: "documents", label: t.documents, icon: "folder-open-outline" },
-      {
-        id: "certificates",
-        label: t.certificates,
-        icon: "ribbon-outline",
-        workerOnly: true,
-      },
-      {
-        id: "best-projects",
-        label: t.bestProjects,
-        icon: "trophy-outline",
-        workerOnly: true,
-      },
-      { id: "profile", label: t.profile, icon: "person-circle-outline" },
-    ];
-
-    return items.filter(
-      (item) =>
-        (!item.companyOnly || role === "company") &&
-        (!item.workerOnly || role === "worker"),
-    );
-  }, [
-    role,
-    t.attendance,
-    t.bestProjects,
-    t.certificates,
-    t.dashboard,
-    t.documents,
-    t.profile,
-    t.projects,
-    t.teams,
-    t.workers,
-  ]);
 
   useEffect(() => {
     fade.stopAnimation();
@@ -132,7 +73,46 @@ export function ImmersiveWorkspaceShell() {
     return () => animation.stop();
   }, [activeSection, fade]);
 
-  const operational = useMemo(() => {
+  if (!user) return null;
+
+  const allNavItems: NavItem[] = [
+    { id: "dashboard", label: t.dashboard, icon: "grid-outline" },
+    {
+      id: "workers",
+      label: t.workers,
+      icon: "people-outline",
+      companyOnly: true,
+    },
+    {
+      id: "teams",
+      label: t.teams,
+      icon: "git-network-outline",
+      companyOnly: true,
+    },
+    { id: "projects", label: t.projects, icon: "business-outline" },
+    { id: "attendance", label: t.attendance, icon: "radio-outline" },
+    { id: "documents", label: t.documents, icon: "folder-open-outline" },
+    {
+      id: "certificates",
+      label: t.certificates,
+      icon: "ribbon-outline",
+      workerOnly: true,
+    },
+    {
+      id: "best-projects",
+      label: t.bestProjects,
+      icon: "trophy-outline",
+      workerOnly: true,
+    },
+    { id: "profile", label: t.profile, icon: "person-circle-outline" },
+  ];
+  const navItems = allNavItems.filter(
+    (item) =>
+      (!item.companyOnly || role === "company") &&
+      (!item.workerOnly || role === "worker"),
+  );
+
+  const operational = (() => {
     if (!state) {
       return {
         primary: language === "pt" ? "A sincronizar" : "Syncing",
@@ -194,7 +174,7 @@ export function ImmersiveWorkspaceShell() {
       activeWorkers: activeAttendance ? 1 : 0,
       activeProjects,
     };
-  }, [language, role, state, user.company_id, user.id]);
+  })();
 
   const navigate = (section: WorkspaceSection) => {
     setActiveSection(section);
@@ -283,12 +263,12 @@ export function ImmersiveWorkspaceShell() {
         ]}
       >
         <View style={styles.brandBlock}>
-          <View style={[styles.logo, { borderColor: `${accent}99` }]}> 
+          <View style={[styles.logo, { borderColor: `${accent}99` }]}>
             <Text style={[styles.logoText, { color: accent }]}>W</Text>
           </View>
           <View>
             <Text style={styles.brandName}>WORKLY</Text>
-            <Text style={[styles.roleLabel, { color: accent }]}> 
+            <Text style={[styles.roleLabel, { color: accent }]}>
               {role === "worker" ? "WORKER" : "COMPANY"}
             </Text>
           </View>
