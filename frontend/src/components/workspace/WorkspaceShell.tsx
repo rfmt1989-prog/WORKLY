@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  type ViewStyle,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -40,6 +44,7 @@ type NavItem = {
   label: string;
   icon: IconName;
   companyOnly?: boolean;
+  workerOnly?: boolean;
 };
 
 export function WorkspaceShell() {
@@ -59,6 +64,9 @@ export function WorkspaceShell() {
   const [activeSection, setActiveSection] =
     useState<WorkspaceSection>("dashboard");
   const [resetBusy, setResetBusy] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const sectionMotion = useRef(new Animated.Value(1)).current;
+  const ambientMotion = useRef(new Animated.Value(0)).current;
   const isDesktop = width >= 960;
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
@@ -82,10 +90,95 @@ export function WorkspaceShell() {
       { id: "projects", label: t.projects, icon: "business-outline" },
       { id: "attendance", label: t.attendance, icon: "time-outline" },
       { id: "documents", label: t.documents, icon: "folder-open-outline" },
+      {
+        id: "certificates",
+        label: t.certificates,
+        icon: "ribbon-outline",
+        workerOnly: true,
+      },
+      {
+        id: "best-projects",
+        label: t.bestProjects,
+        icon: "trophy-outline",
+        workerOnly: true,
+      },
       { id: "profile", label: t.profile, icon: "person-circle-outline" },
     ];
-    return all.filter((item) => !item.companyOnly || role === "company");
-  }, [role, t.attendance, t.dashboard, t.documents, t.profile, t.projects, t.teams, t.workers]);
+    return all.filter(
+      (item) =>
+        (!item.companyOnly || role === "company") &&
+        (!item.workerOnly || role === "worker"),
+    );
+  }, [
+    role,
+    t.attendance,
+    t.bestProjects,
+    t.certificates,
+    t.dashboard,
+    t.documents,
+    t.profile,
+    t.projects,
+    t.teams,
+    t.workers,
+  ]);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setReduceMotion(enabled);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduceMotion,
+    );
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    sectionMotion.stopAnimation();
+    if (reduceMotion) {
+      sectionMotion.setValue(1);
+      return;
+    }
+    sectionMotion.setValue(0);
+    const animation = Animated.timing(sectionMotion, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [activeSection, reduceMotion, sectionMotion]);
+
+  useEffect(() => {
+    ambientMotion.stopAnimation();
+    if (reduceMotion) {
+      ambientMotion.setValue(0.5);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ambientMotion, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(ambientMotion, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [ambientMotion, reduceMotion]);
 
   if (!user) return null;
 
@@ -129,19 +222,42 @@ export function WorkspaceShell() {
       case "attendance":
         return <AttendanceView />;
       case "documents":
-        return <DocumentsView />;
+        return <DocumentsView key="archive" mode="archive" />;
+      case "certificates":
+        return <DocumentsView key="certificates" mode="certificates" />;
+      case "best-projects":
+        return <DocumentsView key="best-projects" mode="bestProjects" />;
       case "profile":
         return <ProfileView />;
       default:
         return <DashboardView onNavigate={setActiveSection} />;
     }
   })();
+  const ambientOpacity = ambientMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.52, 1],
+  });
+  const ambientScale = ambientMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1.04],
+  });
+  const sectionTranslate = sectionMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: [7, 0],
+  });
 
   return (
     <View style={styles.root}>
-      <View
+      <Animated.View
         pointerEvents="none"
-        style={[styles.ambientGlow, { backgroundColor: `${accent}0C` }]}
+        style={[
+          styles.ambientGlow,
+          {
+            backgroundColor: `${accent}0C`,
+            opacity: ambientOpacity,
+            transform: [{ scale: ambientScale }],
+          },
+        ]}
       />
       {isDesktop ? (
         <Sidebar
@@ -156,6 +272,7 @@ export function WorkspaceShell() {
           onLogout={handleLogout}
           resetBusy={resetBusy}
           userName={user.name}
+          reduceMotion={reduceMotion}
         />
       ) : null}
 
@@ -170,8 +287,19 @@ export function WorkspaceShell() {
           onReset={handleReset}
           onLogout={handleLogout}
           resetBusy={resetBusy}
+          reduceMotion={reduceMotion}
         />
-        <View style={styles.screen}>{content}</View>
+        <Animated.View
+          style={[
+            styles.screen,
+            {
+              opacity: sectionMotion,
+              transform: [{ translateY: sectionTranslate }],
+            },
+          ]}
+        >
+          {content}
+        </Animated.View>
         {!isDesktop ? (
           <MobileNav
             items={navItems}
@@ -232,6 +360,7 @@ function Sidebar({
   onLogout,
   resetBusy,
   userName,
+  reduceMotion,
 }: {
   navItems: NavItem[];
   activeSection: WorkspaceSection;
@@ -244,6 +373,7 @@ function Sidebar({
   onLogout: () => void;
   resetBusy: boolean;
   userName: string;
+  reduceMotion: boolean;
 }) {
   const t = copy[language];
   return (
@@ -268,7 +398,10 @@ function Sidebar({
           </Text>
           <Text style={styles.sidebarDemo}>{t.demo}</Text>
         </View>
-        <View style={[styles.onlineDot, { backgroundColor: workspaceColors.green }]} />
+        <LiveDot
+          reduceMotion={reduceMotion}
+          style={[styles.onlineDot, { backgroundColor: workspaceColors.green }]}
+        />
       </View>
 
       <View style={styles.navList}>
@@ -325,6 +458,7 @@ function NavButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={item.label}
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [
@@ -368,6 +502,7 @@ function TopBar({
   onReset,
   onLogout,
   resetBusy,
+  reduceMotion,
 }: {
   accent: string;
   role: "worker" | "company";
@@ -378,6 +513,7 @@ function TopBar({
   onReset: () => void;
   onLogout: () => void;
   resetBusy: boolean;
+  reduceMotion: boolean;
 }) {
   const t = copy[language];
   return (
@@ -396,7 +532,7 @@ function TopBar({
         </View>
       ) : (
         <View style={styles.statusLine}>
-          <View style={styles.statusDot} />
+          <LiveDot reduceMotion={reduceMotion} style={styles.statusDot} />
           <Text style={styles.statusText}>
             {language === "pt" ? "Demo operacional" : "Operational demo"}
           </Text>
@@ -455,6 +591,7 @@ function LanguageSwitch({
         <Pressable
           key={item}
           accessibilityRole="button"
+          accessibilityLabel={item === "pt" ? "Português" : "English"}
           accessibilityState={{ selected: language === item }}
           onPress={() => onLanguage(item)}
           style={[
@@ -502,6 +639,7 @@ function MobileNav({
             <Pressable
               key={item.id}
               accessibilityRole="button"
+              accessibilityLabel={item.label}
               accessibilityState={{ selected }}
               onPress={() => onNavigate(item.id)}
               style={[
@@ -527,6 +665,64 @@ function MobileNav({
         })}
       </ScrollView>
     </View>
+  );
+}
+
+function LiveDot({
+  style,
+  reduceMotion,
+}: {
+  style?: ViewStyle | ViewStyle[];
+  reduceMotion: boolean;
+}) {
+  const pulse = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    pulse.stopAnimation();
+    if (reduceMotion) {
+      pulse.setValue(1);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1300,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1300,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse, reduceMotion]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: pulse.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.5, 1],
+          }),
+          transform: [
+            {
+              scale: pulse.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.82, 1.15],
+              }),
+            },
+          ],
+        },
+      ]}
+    />
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, PanResponder, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -24,13 +24,15 @@ export default function ContractDetail() {
   const [paths, setPaths] = useState<string[]>([]);
   const current = useRef("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get<any>(`/contracts/${id}`);
       setContract(res);
     } catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, [id]);
+  }, [id]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const pan = useRef(
     PanResponder.create({

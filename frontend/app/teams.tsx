@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -652,21 +652,20 @@ export default function TeamsScreen() {
     }));
   };
 
-  const loadTeams = async (preferredTeamId?: string) => {
+  const loadTeams = useCallback(async (preferredTeamId?: string) => {
     const data = await api.get<Team[]>("/teams");
 
     setTeams(data);
 
-    const nextId =
+    setSelectedTeamId((currentId) =>
       preferredTeamId ||
-      (data.some((team) => team.id === selectedTeamId)
-        ? selectedTeamId
-        : data[0]?.id || "");
+      (data.some((team) => team.id === currentId)
+        ? currentId
+        : data[0]?.id || ""),
+    );
+  }, []);
 
-    setSelectedTeamId(nextId);
-  };
-
-  const loadWorkers = async (query = "") => {
+  const loadWorkers = useCallback(async (query = "") => {
     const suffix = query.trim()
       ? `?q=${encodeURIComponent(query.trim())}`
       : "";
@@ -676,9 +675,9 @@ export default function TeamsScreen() {
     );
 
     setWorkers(data);
-  };
+  }, []);
 
-  const loadEverything = async () => {
+  const loadEverything = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -691,11 +690,11 @@ export default function TeamsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadTeams, loadWorkers]);
 
   useEffect(() => {
-    loadEverything();
-  }, []);
+    void loadEverything();
+  }, [loadEverything]);
 
   const openEdit = () => {
     if (!selectedTeam) {
@@ -985,8 +984,6 @@ const deleteTeam = () => {
       </View>
     );
   }
-
-  const currentStatus = statusInfo(selectedTeam?.status);
 
   return (
     <ScrollView

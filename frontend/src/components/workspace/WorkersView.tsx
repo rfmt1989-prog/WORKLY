@@ -556,6 +556,8 @@ function WorkerDetails({
           {worker.documents.map((item) => (
             <Pressable
               key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={item.title}
               onPress={() => onDocument(item)}
               style={({ pressed }) => [
                 styles.documentRow,
@@ -980,4 +982,3 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 });
-
