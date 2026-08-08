@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { WorkspaceShell } from "@/src/components/workspace/WorkspaceShell";
+import { ImmersiveWorkspaceShell } from "@/src/components/workspace/ImmersiveWorkspaceShell";
 import { workspaceColors } from "@/src/components/workspace/primitives";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -21,7 +21,7 @@ export default function Workspace() {
     return <Redirect href="/login" />;
   }
 
-  return <WorkspaceShell />;
+  return <ImmersiveWorkspaceShell />;
 }
 
 const styles = StyleSheet.create({
