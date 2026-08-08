@@ -39,6 +39,9 @@ type ProjectForm = {
   start_date: string;
   end_date: string;
   schedule: string;
+  latitude: string;
+  longitude: string;
+  geofence_radius_m: string;
 };
 
 const EMPTY_FORM: ProjectForm = {
@@ -51,6 +54,9 @@ const EMPTY_FORM: ProjectForm = {
   start_date: "2026-08-01",
   end_date: "2026-12-20",
   schedule: "08:00–17:00",
+  latitude: "",
+  longitude: "",
+  geofence_radius_m: "250",
 };
 
 export function ProjectsView() {
@@ -103,6 +109,9 @@ export function ProjectsView() {
       start_date: selectedProject.start_date,
       end_date: selectedProject.end_date,
       schedule: selectedProject.schedule,
+      latitude: selectedProject.latitude === null ? "" : String(selectedProject.latitude),
+      longitude: selectedProject.longitude === null ? "" : String(selectedProject.longitude),
+      geofence_radius_m: String(selectedProject.geofence_radius_m ?? 250),
     });
     setModal("edit");
   };
@@ -119,6 +128,9 @@ export function ProjectsView() {
       start_date: form.start_date,
       end_date: form.end_date,
       schedule: form.schedule,
+      latitude: form.latitude.trim() ? Number(form.latitude) : null,
+      longitude: form.longitude.trim() ? Number(form.longitude) : null,
+      geofence_radius_m: Math.max(50, Math.min(2000, Number(form.geofence_radius_m) || 250)),
     };
     setBusy(true);
     try {
@@ -526,6 +538,29 @@ function ProjectEditor({
           onChangeText={(value) => setValue("progress", value)}
         />
       </View>
+      <View style={styles.formColumns}>
+        <Field
+          style={{ flex: 1, minWidth: 160 }}
+          label="Latitude"
+          value={form.latitude}
+          keyboardType="numbers-and-punctuation"
+          onChangeText={(value) => setValue("latitude", value)}
+        />
+        <Field
+          style={{ flex: 1, minWidth: 160 }}
+          label="Longitude"
+          value={form.longitude}
+          keyboardType="numbers-and-punctuation"
+          onChangeText={(value) => setValue("longitude", value)}
+        />
+        <Field
+          style={{ flex: 1, minWidth: 160 }}
+          label={language === "pt" ? "Raio GPS (50–2000 m)" : "GPS radius (50–2000 m)"}
+          value={form.geofence_radius_m}
+          keyboardType="number-pad"
+          onChangeText={(value) => setValue("geofence_radius_m", value)}
+        />
+      </View>
       <Text style={sharedStyles.label}>{t.status}</Text>
       <View style={styles.choiceWrap}>
         {(["planned", "active", "paused", "completed"] as ProjectStatus[]).map(
@@ -613,6 +648,7 @@ function ProjectDetails({
         <Fact icon="business-outline" label={language === "pt" ? "Empresa" : "Company"} value={company?.name ?? "—"} />
         <Fact icon="location-outline" label={language === "pt" ? "Local" : "Location"} value={project.location} />
         <Fact icon="time-outline" label={language === "pt" ? "Horário" : "Schedule"} value={project.schedule} />
+        <Fact icon="navigate-outline" label={language === "pt" ? "Zona GPS" : "GPS zone"} value={project.latitude !== null && project.longitude !== null ? `${project.geofence_radius_m ?? 250} m · ${project.latitude.toFixed(5)}, ${project.longitude.toFixed(5)}` : language === "pt" ? "Coordenadas por configurar" : "Coordinates not configured"} />
         <Fact icon="calendar-outline" label={language === "pt" ? "Período" : "Period"} value={`${project.start_date} → ${project.end_date}`} />
       </View>
 

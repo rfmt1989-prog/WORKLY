@@ -63,3 +63,56 @@ def test_demo_checkin_remains_available_for_presentations(
     assert payload["location_mode"] == "demo"
     assert payload["within_geofence"] is None
     assert payload["distance_m"] is None
+
+
+def test_project_specific_geofence_radius_is_enforced(
+    client: TestClient,
+    worker_auth: dict,
+    company_auth: dict,
+) -> None:
+    updated = client.patch(
+        "/api/projects/project-1",
+        headers=company_auth["headers"],
+        json={"data": {"geofence_radius_m": 50}},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["geofence_radius_m"] == 50
+
+    response = client.post(
+        "/api/attendance/check-in",
+        headers=worker_auth["headers"],
+        json={
+            "project_id": "project-1",
+            "latitude": 40.2040,
+            "longitude": -8.4103,
+            "location_mode": "gps",
+        },
+    )
+    assert response.status_code == 422
+    assert "máximo 50 m" in response.json()["detail"]
+
+
+def test_gps_checkin_requires_project_coordinates(
+    client: TestClient,
+    worker_auth: dict,
+    company_auth: dict,
+) -> None:
+    updated = client.patch(
+        "/api/projects/project-1",
+        headers=company_auth["headers"],
+        json={"data": {"latitude": None, "longitude": None}},
+    )
+    assert updated.status_code == 200, updated.text
+
+    response = client.post(
+        "/api/attendance/check-in",
+        headers=worker_auth["headers"],
+        json={
+            "project_id": "project-1",
+            "latitude": 40.2034,
+            "longitude": -8.4102,
+            "location_mode": "gps",
+        },
+    )
+    assert response.status_code == 422
+    assert "coordenadas gps" in response.json()["detail"].lower()
