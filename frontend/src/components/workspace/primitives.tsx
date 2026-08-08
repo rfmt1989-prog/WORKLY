@@ -350,6 +350,8 @@ export function ModalPanel({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}
@@ -411,21 +413,46 @@ export function MetricCard({
   value,
   detail,
   accent,
+  onPress,
 }: {
   icon: IconName;
   label: string;
   value: string | number;
   detail?: string;
   accent: string;
+  onPress?: () => void;
 }) {
-  return (
-    <Card style={styles.metricCard}>
+  const content = (
+    <>
       <View style={[styles.metricIcon, { backgroundColor: `${accent}18` }]}>
         <Ionicons name={icon} size={19} color={accent} />
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
       {detail ? <Text style={styles.metricDetail}>{detail}</Text> : null}
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value}${detail ? `. ${detail}` : ""}`}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.card,
+          styles.metricCard,
+          pressed ? styles.metricCardPressed : null,
+        ]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <Card style={styles.metricCard}>
+      {content}
     </Card>
   );
 }
@@ -734,6 +761,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 7,
   },
+  metricCardPressed: {
+    opacity: 0.76,
+    transform: [{ scale: 0.985 }],
+  },
   metricIcon: {
     width: 34,
     height: 34,
@@ -761,4 +792,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-

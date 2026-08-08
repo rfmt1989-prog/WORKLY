@@ -5,5 +5,6 @@ export type WorkspaceSection =
   | "projects"
   | "attendance"
   | "documents"
+  | "certificates"
+  | "best-projects"
   | "profile";
-

@@ -656,6 +656,12 @@ function ProjectDetails({
             return (
               <Pressable
                 key={worker.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${worker.name}, ${worker.profession}`}
+                accessibilityState={{
+                  disabled: busy || role !== "company",
+                  selected: assigned,
+                }}
                 disabled={busy || role !== "company"}
                 onPress={() => onWorker(worker.id, assigned)}
                 style={[
@@ -894,4 +900,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

@@ -143,6 +143,7 @@ export function DashboardView({ onNavigate }: Props) {
             value={companyProjects.filter((item) => item.status === "active").length}
             detail={`${companyProjects.length} ${language === "pt" ? "no total" : "total"}`}
             accent={accent}
+            onPress={() => onNavigate("projects")}
           />
           <MetricCard
             icon="people-outline"
@@ -150,6 +151,7 @@ export function DashboardView({ onNavigate }: Props) {
             value={companyTeams.length}
             detail={`${associatedWorkers.length} ${language === "pt" ? "profissionais" : "professionals"}`}
             accent={workspaceColors.blueSoft}
+            onPress={() => onNavigate("teams")}
           />
           <MetricCard
             icon="location-outline"
@@ -157,6 +159,7 @@ export function DashboardView({ onNavigate }: Props) {
             value={activeAttendance.length}
             detail={language === "pt" ? "Presenças ativas" : "Active attendance"}
             accent={workspaceColors.green}
+            onPress={() => onNavigate("attendance")}
           />
           <MetricCard
             icon="document-text-outline"
@@ -166,6 +169,7 @@ export function DashboardView({ onNavigate }: Props) {
             }
             detail={language === "pt" ? "Consultáveis" : "Available to view"}
             accent={workspaceColors.yellow}
+            onPress={() => onNavigate("documents")}
           />
         </View>
 
@@ -179,7 +183,15 @@ export function DashboardView({ onNavigate }: Props) {
                   : "Active check-ins and operational status"
               }
               action={
-                <Pressable onPress={() => onNavigate("attendance")}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    language === "pt"
+                      ? "Ver todas as presenças"
+                      : "View all attendance"
+                  }
+                  onPress={() => onNavigate("attendance")}
+                >
                   <Text style={[styles.link, { color: accent }]}>
                     {language === "pt" ? "Ver tudo" : "View all"}
                   </Text>
@@ -233,7 +245,13 @@ export function DashboardView({ onNavigate }: Props) {
                   : "Progress across key sites"
               }
               action={
-                <Pressable onPress={() => onNavigate("projects")}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    language === "pt" ? "Gerir obras" : "Manage projects"
+                  }
+                  onPress={() => onNavigate("projects")}
+                >
                   <Text style={[styles.link, { color: accent }]}>
                     {language === "pt" ? "Gerir" : "Manage"}
                   </Text>
@@ -354,6 +372,7 @@ export function DashboardView({ onNavigate }: Props) {
           value={completedHours.toFixed(1)}
           detail={language === "pt" ? "Últimos registos demo" : "Recent demo records"}
           accent={accent}
+          onPress={() => onNavigate("attendance")}
         />
         <MetricCard
           icon="ribbon-outline"
@@ -361,6 +380,7 @@ export function DashboardView({ onNavigate }: Props) {
           value={worker?.certificates.length ?? 0}
           detail={language === "pt" ? "Válidos e consultáveis" : "Valid and viewable"}
           accent={workspaceColors.yellow}
+          onPress={() => onNavigate("certificates")}
         />
         <MetricCard
           icon="briefcase-outline"
@@ -368,6 +388,7 @@ export function DashboardView({ onNavigate }: Props) {
           value={worker?.best_projects.length ?? 0}
           detail={language === "pt" ? "Portefólio profissional" : "Professional portfolio"}
           accent={workspaceColors.green}
+          onPress={() => onNavigate("best-projects")}
         />
         <MetricCard
           icon="document-text-outline"
@@ -377,6 +398,7 @@ export function DashboardView({ onNavigate }: Props) {
           }
           detail={language === "pt" ? "Disponíveis no arquivo" : "Available in records"}
           accent={workspaceColors.blueSoft}
+          onPress={() => onNavigate("documents")}
         />
       </View>
 
@@ -456,7 +478,13 @@ export function DashboardView({ onNavigate }: Props) {
             title={language === "pt" ? "Próximo turno" : "Next shift"}
             subtitle={language === "pt" ? "Planeamento diário" : "Daily planning"}
             action={
-              <Pressable onPress={() => onNavigate("attendance")}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  language === "pt" ? "Ver horários" : "View schedule"
+                }
+                onPress={() => onNavigate("attendance")}
+              >
                 <Text style={[styles.link, { color: accent }]}>
                   {language === "pt" ? "Horários" : "Schedule"}
                 </Text>
@@ -501,7 +529,13 @@ export function DashboardView({ onNavigate }: Props) {
               : "Validated professional development"
           }
           action={
-            <Pressable onPress={() => onNavigate("profile")}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                language === "pt" ? "Editar competências" : "Edit skills"
+              }
+              onPress={() => onNavigate("profile")}
+            >
               <Text style={[styles.link, { color: accent }]}>{t.edit}</Text>
             </Pressable>
           }

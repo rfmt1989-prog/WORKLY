@@ -25,6 +25,7 @@ import {
 } from "./primitives";
 
 type Tab = "documents" | "contracts" | "certificates" | "bestProjects";
+type DocumentsMode = "archive" | "certificates" | "bestProjects";
 
 type ViewerItem = {
   id: string;
@@ -35,11 +36,12 @@ type ViewerItem = {
   meta: string[];
 };
 
-export function DocumentsView() {
+export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
   const { user } = useAuth();
   const { state, language } = useWorklyData();
   const { width } = useWindowDimensions();
-  const [tab, setTab] = useState<Tab>("documents");
+  const initialTab: Tab = mode === "archive" ? "documents" : mode;
+  const [tab, setTab] = useState<Tab>(() => initialTab);
   const [viewer, setViewer] = useState<ViewerItem | null>(null);
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
@@ -117,16 +119,40 @@ export function DocumentsView() {
     { id: "certificates", label: t.certificates, count: certificates.length, icon: "ribbon-outline" },
     { id: "bestProjects", label: t.bestProjects, count: projects.length, icon: "trophy-outline" },
   ];
+  const visibleTabs =
+    mode === "archive"
+      ? user.role === "worker"
+        ? tabs.filter((item) => item.id === "documents" || item.id === "contracts")
+        : tabs
+      : [];
+  const sectionTitle =
+    tab === "contracts"
+      ? t.contracts
+      : tab === "certificates"
+        ? t.certificates
+        : tab === "bestProjects"
+          ? t.bestProjects
+          : t.documents;
+  const sectionDescription =
+    tab === "certificates"
+      ? language === "pt"
+        ? "Certificações profissionais válidas e prontas a consultar."
+        : "Valid professional certifications ready to view."
+      : tab === "bestProjects"
+        ? language === "pt"
+          ? "Portefólio de trabalhos verificados e resultados em obra."
+          : "A portfolio of verified work and on-site results."
+        : language === "pt"
+          ? "Arquivo consultável, organizado e sem botões vazios."
+          : "A viewable, organised archive with no dead actions.";
 
   return (
     <View style={styles.root}>
       <View style={[styles.header, compact ? styles.headerCompact : null]}>
         <View style={{ flex: 1 }}>
-          <Text style={sharedStyles.title}>{t.documents}</Text>
+          <Text style={sharedStyles.title}>{sectionTitle}</Text>
           <Text style={sharedStyles.subtitle}>
-            {language === "pt"
-              ? "Arquivo consultável, organizado e sem botões vazios."
-              : "A viewable, organised archive with no dead actions."}
+            {sectionDescription}
           </Text>
         </View>
         <View style={styles.securityBadge}>
@@ -141,45 +167,47 @@ export function DocumentsView() {
         </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={[
-          styles.tabs,
-          compact ? { paddingHorizontal: 14 } : null,
-        ]}
-      >
-        {tabs.map((item) => {
-          const active = tab === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              onPress={() => setTab(item.id)}
-              style={[
-                styles.tab,
-                active
-                  ? { borderColor: `${accent}88`, backgroundColor: `${accent}18` }
-                  : null,
-              ]}
-            >
-              <Ionicons
-                name={item.icon}
-                size={17}
-                color={active ? accent : workspaceColors.muted}
-              />
-              <Text style={[styles.tabText, active ? { color: accent } : null]}>
-                {item.label}
-              </Text>
-              <View style={[styles.tabCount, active ? { backgroundColor: `${accent}25` } : null]}>
-                <Text style={styles.tabCountText}>{item.count}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {visibleTabs.length ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={[
+            styles.tabs,
+            compact ? { paddingHorizontal: 14 } : null,
+          ]}
+        >
+          {visibleTabs.map((item) => {
+            const active = tab === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                onPress={() => setTab(item.id)}
+                style={[
+                  styles.tab,
+                  active
+                    ? { borderColor: `${accent}88`, backgroundColor: `${accent}18` }
+                    : null,
+                ]}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={17}
+                  color={active ? accent : workspaceColors.muted}
+                />
+                <Text style={[styles.tabText, active ? { color: accent } : null]}>
+                  {item.label}
+                </Text>
+                <View style={[styles.tabCount, active ? { backgroundColor: `${accent}25` } : null]}>
+                  <Text style={styles.tabCountText}>{item.count}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -311,6 +339,8 @@ export function DocumentsView() {
               projects.map((project) => (
                 <Pressable
                   key={`${project.workerId}-${project.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${project.title}, ${project.workerName}`}
                   onPress={() =>
                     setViewer({
                       id: project.id,
@@ -739,4 +769,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-

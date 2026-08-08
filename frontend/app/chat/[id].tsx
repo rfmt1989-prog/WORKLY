@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get<any>(`/conversations/${id}`);
       setConv(res.conversation);
@@ -39,9 +39,11 @@ export default function Chat() {
     } catch {} finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const send = async (type: string = "text", meta?: any) => {
     const body = type === "text" ? text.trim() : null;
