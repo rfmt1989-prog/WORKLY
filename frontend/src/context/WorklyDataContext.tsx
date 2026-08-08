@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 
-import { api } from "@/src/api/client";
+import { ApiError, api } from "@/src/api/client";
 import type {
   Attendance,
   Company,
@@ -543,7 +543,11 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           project_id: projectId,
           ...location,
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          notify(error.message, "error");
+          throw error;
+        }
         const project = state?.projects.find((item) => item.id === projectId);
         record = {
           id: `attendance-local-${Date.now()}`,
@@ -555,8 +559,8 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           ...location,
           note:
             language === "pt"
-              ? "Entrada guardada no modo demo."
-              : "Check-in saved in demo mode.",
+              ? "Entrada guardada no modo demo por indisponibilidade de rede."
+              : "Check-in saved in demo mode because the network is unavailable.",
         };
       }
       setState((current) => {
