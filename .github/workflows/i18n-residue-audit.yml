@@ -1,0 +1,51 @@
+name: I18N residue audit
+
+on:
+  push:
+    branches:
+      - agent/i18n-residue-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan visible Portuguese literals
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          roots = [Path('frontend/app'), Path('frontend/src/components'), Path('frontend/src/context')]
+          excluded = {
+              'frontend/src/demo/i18n.ts',
+              'frontend/src/demo/fullUi.ts',
+              'frontend/src/demo/localizedUi.ts',
+              'frontend/src/demo/localizedData.ts',
+              'frontend/src/demo/loginI18n.ts',
+              'frontend/src/demo/apiErrorI18n.ts',
+          }
+          words = re.compile(r'(?i)\b(equipa|equipas|obra|obras|trabalhador|trabalhadores|presenças?|documentos?|mensagens?|contratos?|certificados?|competências?|disponível|disponibilidade|carreira|conquistas|formação|percurso|nível|procurar|pesquisar|sem|novo|nova|editar|eliminar|remover|adicionar|guardar|cancelar|fechar|perfil|empresa|operações|montagem|estrutura|estruturas|coordenação|soldadura|máquinas|segurança|planeamento|descrição|localização|progresso|estado|assinatura|assinar|renovar|limpar|confirmar|aparência|claro|escuro|sistema|terminar|sessão|idiomas|países|portfólio|expira|expirar|ativo|ativa|pendente|expirado|expirada|início|horas|registadas|registo|fictício|demonstração|preparar|recuperar)\b')
+          results = []
+          for root in roots:
+              if not root.exists():
+                  continue
+              for p in root.rglob('*'):
+                  if p.suffix not in {'.ts', '.tsx'} or str(p) in excluded:
+                      continue
+                  for n, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+                      s = line.strip()
+                      if not s or s.startswith('//') or s.startswith('*') or s.startswith('/*'):
+                          continue
+                      if 'uiText(' in s or 'uiFormat(' in s or 'localizeDemoText(' in s or 'copy[' in s:
+                          continue
+                      if words.search(s):
+                          results.append((str(p), n, s))
+          print(f'PORTUGUESE_RESIDUES={len(results)}')
+          for p, n, s in results:
+              print(f'{p}:{n}: {s}')
+          PY
