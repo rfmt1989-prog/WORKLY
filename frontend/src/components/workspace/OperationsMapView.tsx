@@ -11,6 +11,8 @@ import {
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
+import { copy } from "@/src/demo/i18n";
+import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { Attendance, Project, Worker } from "@/src/demo/types";
 
 import {
@@ -46,6 +48,17 @@ function siteStatus(site: SiteOperational) {
   return "idle";
 }
 
+function projectStatusLabel(
+  status: Project["status"],
+  language: import("@/src/demo/types").LanguageCode,
+) {
+  const t = copy[language];
+  if (status === "active") return t.active;
+  if (status === "planned") return t.planned;
+  if (status === "completed") return t.completed;
+  return t.paused;
+}
+
 function siteColor(site: SiteOperational) {
   const status = siteStatus(site);
   if (status === "alert") return workspaceColors.redSoft;
@@ -70,6 +83,7 @@ export function OperationsMapView() {
   const compact = width < 880;
   const role = user?.role ?? "company";
   const accent = roleAccent(role);
+  const t = copy[language];
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const companyId = user?.company_id ?? user?.id;
@@ -149,47 +163,45 @@ export function OperationsMapView() {
       <View style={[styles.header, compact ? styles.headerCompact : null]}>
         <View style={{ flex: 1 }}>
           <Text style={sharedStyles.title}>
-            {language === "pt" ? "Mapa Operacional" : "Operations Map"}
+            {uiText(language, "Mapa Operacional", "Operations Map")}
           </Text>
           <Text style={sharedStyles.subtitle}>
-            {language === "pt"
-              ? "Visão em tempo real das obras, presenças e zonas GPS da empresa."
-              : "Real-time view of company sites, attendance and GPS zones."}
+            {uiText(language, "Visão em tempo real das obras, presenças e zonas GPS da empresa.", "Real-time view of company sites, attendance and GPS zones.")}
           </Text>
         </View>
         <View style={[styles.liveBadge, { borderColor: `${accent}66` }]}>
           <View style={[styles.liveDot, { backgroundColor: workspaceColors.green }]} />
-          <Text style={styles.liveBadgeText}>LIVE OPS</Text>
+          <Text style={styles.liveBadgeText}>{uiText(language, "OPERAÇÕES AO VIVO", "LIVE OPS")}</Text>
         </View>
       </View>
 
       <View style={styles.metrics}>
         <MetricCard
           icon="business-outline"
-          label={language === "pt" ? "Obras ativas" : "Active sites"}
+          label={uiText(language, "Obras ativas", "Active sites")}
           value={activeSites}
-          detail={`${sites.length} ${language === "pt" ? "obras monitorizadas" : "sites monitored"}`}
+          detail={`${sites.length} ${uiText(language, "obras monitorizadas", "sites monitored")}`}
           accent={accent}
         />
         <MetricCard
           icon="people-outline"
-          label={language === "pt" ? "Workers em obra" : "Workers on site"}
+          label={uiText(language, "Workers em obra", "Workers on site")}
           value={activeWorkers}
-          detail={language === "pt" ? "Sessões abertas" : "Open sessions"}
+          detail={uiText(language, "Sessões abertas", "Open sessions")}
           accent={workspaceColors.green}
         />
         <MetricCard
           icon="shield-checkmark-outline"
-          label={language === "pt" ? "GPS validado" : "GPS validated"}
+          label={uiText(language, "GPS validado", "GPS validated")}
           value={inside}
-          detail={language === "pt" ? "Dentro da geofence" : "Inside geofence"}
+          detail={uiText(language, "Dentro da geofence", "Inside geofence")}
           accent={workspaceColors.green}
         />
         <MetricCard
           icon="warning-outline"
-          label={language === "pt" ? "Alertas" : "Alerts"}
+          label={uiText(language, "Alertas", "Alerts")}
           value={alerts}
-          detail={language === "pt" ? "GPS fora ou não validado" : "Outside or unverified GPS"}
+          detail={uiText(language, "GPS fora ou não validado", "Outside or unverified GPS")}
           accent={alerts ? workspaceColors.redSoft : workspaceColors.muted}
         />
       </View>
@@ -197,11 +209,9 @@ export function OperationsMapView() {
       <View style={[styles.mainGrid, compact ? styles.mainGridCompact : null]}>
         <Card style={compact ? [styles.mapCard, styles.mapCardCompact] : styles.mapCard} accent={accent}>
           <SectionTitle
-            title={language === "pt" ? "Rede de obras" : "Site network"}
+            title={uiText(language, "Rede de obras", "Site network")}
             subtitle={
-              language === "pt"
-                ? "Posição relativa baseada nas coordenadas GPS configuradas."
-                : "Relative position based on configured GPS coordinates."
+              uiText(language, "Posição relativa baseada nas coordenadas GPS configuradas.", "Relative position based on configured GPS coordinates.")
             }
           />
 
@@ -225,7 +235,7 @@ export function OperationsMapView() {
                   <Pressable
                     key={site.project.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`${site.project.name} · ${site.activeAttendance.length} workers`}
+                    accessibilityLabel={`${site.project.name} · ${site.activeAttendance.length} ${uiText(language, "trabalhadores", "workers")}`}
                     onPress={() => setSelectedProjectId(site.project.id)}
                     style={({ pressed }) => [
                       styles.sitePinWrap,
@@ -253,26 +263,24 @@ export function OperationsMapView() {
                         {site.project.name}
                       </Text>
                       <Text style={[styles.pinMeta, { color }]}>
-                        {site.activeAttendance.length} {language === "pt" ? "em obra" : "on site"}
+                        {site.activeAttendance.length} {uiText(language, "em obra", "on site")}
                       </Text>
                     </View>
                   </Pressable>
                 );
               })}
               <View style={styles.mapLegend}>
-                <LegendDot color={workspaceColors.green} label={language === "pt" ? "Ativo" : "Live"} />
-                <LegendDot color={workspaceColors.redSoft} label={language === "pt" ? "Alerta" : "Alert"} />
-                <LegendDot color={workspaceColors.muted} label={language === "pt" ? "Sem sessão" : "Idle"} />
+                <LegendDot color={workspaceColors.green} label={uiText(language, "Ativo", "Live")} />
+                <LegendDot color={workspaceColors.redSoft} label={uiText(language, "Alerta", "Alert")} />
+                <LegendDot color={workspaceColors.muted} label={uiText(language, "Sem sessão", "Idle")} />
               </View>
             </View>
           ) : (
             <EmptyState
               icon="map-outline"
-              title={language === "pt" ? "Sem obras com coordenadas" : "No geocoded sites"}
+              title={uiText(language, "Sem obras com coordenadas", "No geocoded sites")}
               description={
-                language === "pt"
-                  ? "Define latitude e longitude no perfil da obra para a incluir no mapa operacional."
-                  : "Set latitude and longitude on the project to include it in the operations map."
+                uiText(language, "Define latitude e longitude no perfil da obra para a incluir no mapa operacional.", "Set latitude and longitude on the project to include it in the operations map.")
               }
             />
           )}
@@ -289,10 +297,8 @@ export function OperationsMapView() {
                     status={selected.activeAttendance.length ? "active" : selected.project.status}
                     label={
                       selected.activeAttendance.length
-                        ? language === "pt"
-                          ? "Em operação"
-                          : "Operating"
-                        : selected.project.status
+                        ? uiText(language, "Em operação", "Operating")
+                        : projectStatusLabel(selected.project.status, language)
                     }
                   />
                 }
@@ -301,17 +307,17 @@ export function OperationsMapView() {
               <View style={styles.siteFacts}>
                 <Fact
                   icon="navigate-outline"
-                  label={language === "pt" ? "Centro GPS" : "GPS centre"}
+                  label={uiText(language, "Centro GPS", "GPS centre")}
                   value={`${formatCoordinate(selected.project.latitude)}, ${formatCoordinate(selected.project.longitude)}`}
                 />
                 <Fact
                   icon="radio-outline"
-                  label={language === "pt" ? "Raio" : "Radius"}
+                  label={uiText(language, "Raio", "Radius")}
                   value={`${selected.project.geofence_radius_m ?? 250} m`}
                 />
                 <Fact
                   icon="people-outline"
-                  label={language === "pt" ? "Em obra" : "On site"}
+                  label={uiText(language, "Em obra", "On site")}
                   value={String(selected.activeAttendance.length)}
                 />
                 <Fact
@@ -329,18 +335,23 @@ export function OperationsMapView() {
                 />
                 <Text style={styles.alertText}>
                   {selected.alerts
-                    ? language === "pt"
-                      ? `${selected.alerts} sessão(ões) requerem atenção GPS.`
-                      : `${selected.alerts} session(s) require GPS attention.`
-                    : language === "pt"
-                      ? "Sem violações GPS ativas nesta obra."
-                      : "No active GPS violations on this site."}
+                    ? uiFormat(
+                        language,
+                        "{count} sessão(ões) requerem atenção GPS.",
+                        "{count} session(s) require GPS attention.",
+                        { count: selected.alerts },
+                      )
+                    : uiText(
+                        language,
+                        "Sem violações GPS ativas nesta obra.",
+                        "No active GPS violations on this site.",
+                      )}
                 </Text>
               </View>
 
               <View style={styles.workerList}>
                 <Text style={styles.listTitle}>
-                  {language === "pt" ? "Workers no local" : "Workers on site"}
+                  {uiText(language, "Workers no local", "Workers on site")}
                 </Text>
                 {selected.activeAttendance.length ? (
                   selected.activeAttendance.map((record) => {
@@ -376,14 +387,10 @@ export function OperationsMapView() {
                             {record.location_mode === "demo"
                               ? "DEMO"
                               : record.within_geofence === false
-                                ? language === "pt"
-                                  ? "FORA"
-                                  : "OUT"
+                                ? uiText(language, "FORA", "OUT")
                                 : record.within_geofence === true
                                   ? "GPS OK"
-                                  : language === "pt"
-                                    ? "VALIDAR"
-                                    : "CHECK"}
+                                  : uiText(language, "VALIDAR", "CHECK")}
                           </Text>
                         </View>
                       </View>
@@ -391,9 +398,7 @@ export function OperationsMapView() {
                   })
                 ) : (
                   <Text style={styles.emptyInline}>
-                    {language === "pt"
-                      ? "Nenhum worker com sessão ativa nesta obra."
-                      : "No worker has an active session on this site."}
+                    {uiText(language, "Nenhum worker com sessão ativa nesta obra.", "No worker has an active session on this site.")}
                   </Text>
                 )}
               </View>
@@ -401,7 +406,7 @@ export function OperationsMapView() {
           ) : (
             <EmptyState
               icon="business-outline"
-              title={language === "pt" ? "Sem obras" : "No sites"}
+              title={uiText(language, "Sem obras", "No sites")}
             />
           )}
         </Card>
@@ -409,11 +414,9 @@ export function OperationsMapView() {
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Estado de todas as obras" : "All site status"}
+          title={uiText(language, "Estado de todas as obras", "All site status")}
           subtitle={
-            language === "pt"
-              ? "Seleciona uma obra para a destacar no mapa."
-              : "Select a site to highlight it on the map."
+            uiText(language, "Seleciona uma obra para a destacar no mapa.", "Select a site to highlight it on the map.")
           }
         />
         <View style={styles.siteList}>
@@ -442,18 +445,16 @@ export function OperationsMapView() {
                 </View>
                 <Text style={styles.siteCount}>{site.activeAttendance.length}</Text>
                 <Text style={styles.siteCountLabel}>
-                  {language === "pt" ? "em obra" : "on site"}
+                  {uiText(language, "em obra", "on site")}
                 </Text>
                 <StatusPill
                   status={siteStatus(site) === "alert" ? "paused" : site.activeAttendance.length ? "active" : site.project.status}
                   label={
                     siteStatus(site) === "alert"
-                      ? language === "pt"
-                        ? "Atenção"
-                        : "Attention"
+                      ? uiText(language, "Atenção", "Attention")
                       : site.activeAttendance.length
                         ? "Live"
-                        : site.project.status
+                        : projectStatusLabel(site.project.status, language)
                   }
                 />
               </Pressable>
