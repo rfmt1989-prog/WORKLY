@@ -319,7 +319,7 @@ export function WorkersView() {
       <ModalPanel
         visible={Boolean(document)}
         onClose={() => setDocument(null)}
-        title={document?.title ?? t.demoDocument}
+        title={localizeDemoText(language, document?.title) || t.demoDocument}
         subtitle={document?.file_name}
         footer={
           <Button
@@ -391,7 +391,7 @@ function WorkerCard({
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={styles.workerName}>{worker.name}</Text>
           <Text style={styles.workerTrade} numberOfLines={1}>
-            {worker.profession}
+            {localizeDemoText(language, worker.profession)}
           </Text>
           <Text style={styles.workerLocation}>
             {worker.age} · {worker.location}
@@ -549,7 +549,7 @@ function WorkerDetails({
             <Pressable
               key={item.id}
               accessibilityRole="button"
-              accessibilityLabel={item.title}
+              accessibilityLabel={localizeDemoText(language, item.title)}
               onPress={() => onDocument(item)}
               style={({ pressed }) => [
                 styles.documentRow,
@@ -562,7 +562,7 @@ function WorkerDetails({
                 color={workspaceColors.textSoft}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>{item.title}</Text>
+                <Text style={styles.detailLabel}>{localizeDemoText(language, item.title)}</Text>
                 <Text style={styles.workerLocation}>{item.file_name}</Text>
               </View>
               <Text style={[styles.openText, { color: accent }]}>
@@ -636,7 +636,7 @@ function WorkerEditor({
     <View style={{ gap: 14 }}>
       <Field
         label={uiText(language, "Profissão", "Trade")}
-        value={form.profession}
+        value={localizeDemoText(language, form.profession)}
         onChangeText={(value) => setValue("profession", value)}
       />
       <View style={styles.detailColumns}>
@@ -655,7 +655,7 @@ function WorkerEditor({
       </View>
       <Field
         label={uiText(language, "Biografia", "Bio")}
-        value={form.bio}
+        value={localizeDemoText(language, form.bio)}
         multiline
         onChangeText={(value) => setValue("bio", value)}
       />

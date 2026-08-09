@@ -341,7 +341,7 @@ export function DashboardView({ onNavigate }: Props) {
               </Text>
               <Text style={sharedStyles.title}>{worker?.name ?? user.name}</Text>
               <Text style={sharedStyles.subtitle}>
-                {worker?.profession ?? user.title} · {worker?.location ?? "Portugal"}
+                {localizeDemoText(language, worker?.profession ?? user.title)} · {worker?.location ?? "Portugal"}
               </Text>
               <StatusPill
                 status={worker?.status ?? "available"}

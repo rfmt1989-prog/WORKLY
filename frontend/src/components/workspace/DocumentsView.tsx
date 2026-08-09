@@ -544,7 +544,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                 {worker.name}
                               </Text>
                               <Text numberOfLines={1} style={styles.folderSubtitle}>
-                                {worker.profession}
+                                {localizeDemoText(language, worker.profession)}
                               </Text>
                             </View>
                             <View style={styles.folderCounter}>
@@ -573,7 +573,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                       <EntityHeader
                         icon="person-outline"
                         title={activeWorker.name}
-                        subtitle={`${activeWorker.profession} · ${activeWorker.location}`}
+                        subtitle={`${localizeDemoText(language, activeWorker.profession)} · ${activeWorker.location}`}
                         accent={accent}
                         stats={[
                           {

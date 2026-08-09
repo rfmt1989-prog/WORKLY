@@ -12,7 +12,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { uiText } from "@/src/demo/fullUi";
-import { localizeDemoText } from "@/src/demo/localizedData";
+import { localizeDemoText, localizeSkillsText } from "@/src/demo/localizedData";
 import type { Company, Worker, WorkerStatus } from "@/src/demo/types";
 
 import {
@@ -191,7 +191,7 @@ export function ProfileView() {
           />
           <View style={{ flex: 1, minWidth: 220, gap: 6 }}>
             <Text style={sharedStyles.label}>
-              `WORKLY ${uiText(language, role === "worker" ? "TRABALHADOR" : "EMPRESA", role === "worker" ? "WORKER" : "COMPANY")}`
+              {`WORKLY ${uiText(language, role === "worker" ? "TRABALHADOR" : "EMPRESA", role === "worker" ? "WORKER" : "COMPANY")}`}
             </Text>
             <Text style={styles.entityName}>{entityName ?? user.name}</Text>
             <Text style={styles.entitySubtitle}>{localizeDemoText(language, entitySubtitle)}</Text>
@@ -295,7 +295,7 @@ function WorkerProfileSummary({
           />
           <Text style={[sharedStyles.body, { marginTop: 14 }]}>{localizeDemoText(language, worker.bio)}</Text>
           <View style={styles.infoGrid}>
-            <Info icon="mail-outline" label="Email" value={worker.email} />
+            <Info icon="mail-outline" label={uiText(language, "Email", "Email")} value={worker.email} />
             <Info
               icon="call-outline"
               label={uiText(language, "Telefone", "Phone")}
@@ -401,7 +401,7 @@ function WorkerProfileEditor({
           <Field
             style={styles.fieldHalf}
             label={uiText(language, "Profissão", "Trade")}
-            value={form.profession}
+            value={localizeDemoText(language, form.profession)}
             onChangeText={(value) => setValue("profession", value)}
           />
         </View>
@@ -433,7 +433,7 @@ function WorkerProfileEditor({
         />
         <Field
           label={uiText(language, "Biografia profissional", "Professional bio")}
-          value={form.bio}
+          value={localizeDemoText(language, form.bio)}
           multiline
           onChangeText={(value) => setValue("bio", value)}
         />
@@ -441,7 +441,7 @@ function WorkerProfileEditor({
           label={
             uiText(language, "Competências — uma por linha: Nome:Nível", "Skills — one per line: Name:Level")
           }
-          value={form.skills}
+          value={localizeSkillsText(language, form.skills)}
           multiline
           onChangeText={(value) => setValue("skills", value)}
         />
@@ -500,7 +500,7 @@ function CompanyProfileSummary({
           {localizeDemoText(language, company.description)}
         </Text>
         <View style={styles.infoGrid}>
-          <Info icon="mail-outline" label="Email" value={company.email} />
+          <Info icon="mail-outline" label={uiText(language, "Email", "Email")} value={company.email} />
           <Info
             icon="call-outline"
             label={uiText(language, "Telefone", "Phone")}
@@ -511,7 +511,7 @@ function CompanyProfileSummary({
             label={uiText(language, "Localização", "Location")}
             value={company.location}
           />
-          <Info icon="globe-outline" label="Website" value={company.website} />
+          <Info icon="globe-outline" label={uiText(language, "Website", "Website")} value={company.website} />
           <Info
             icon="receipt-outline"
             label={uiText(language, "NIF", "Tax ID")}
@@ -591,13 +591,13 @@ function CompanyProfileEditor({
           <Field
             style={styles.fieldHalf}
             label={uiText(language, "Setor", "Industry")}
-            value={form.industry}
+            value={localizeDemoText(language, form.industry)}
             onChangeText={(value) => setValue("industry", value)}
           />
         </View>
         <Field
           label={uiText(language, "Descrição", "Description")}
-          value={form.description}
+          value={localizeDemoText(language, form.description)}
           multiline
           onChangeText={(value) => setValue("description", value)}
         />
@@ -618,7 +618,7 @@ function CompanyProfileEditor({
         <View style={styles.formColumns}>
           <Field
             style={styles.fieldHalf}
-            label="Website"
+            label={uiText(language, "Website", "Website")}
             value={form.website}
             onChangeText={(value) => setValue("website", value)}
           />

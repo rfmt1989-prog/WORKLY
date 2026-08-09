@@ -440,12 +440,12 @@ function TeamEditor({
       />
       <Field
         label={uiText(language, "Especialidade", "Specialty")}
-        value={form.specialty}
+        value={localizeDemoText(language, form.specialty)}
         onChangeText={(value) => setValue("specialty", value)}
       />
       <Field
         label={uiText(language, "Descrição", "Description")}
-        value={form.description}
+        value={localizeDemoText(language, form.description)}
         multiline
         onChangeText={(value) => setValue("description", value)}
       />

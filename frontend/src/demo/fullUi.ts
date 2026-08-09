@@ -175,14 +175,22 @@ const extra: Record<SecondaryLanguage, Record<string, string>> = {
   }
 };
 
+const supplement: Record<SecondaryLanguage, Record<string, string>> = {
+  fr: { "Could not load the data.": "Impossible de charger les données.", "Reset failed.": "Échec de la réinitialisation.", Email: "E-mail", Website: "Site web", Notifications: "Notifications", "No notifications": "Aucune notification", Home: "Accueil", Search: "Rechercher", Messages: "Messages", "OUT {distance}m": "HORS ZONE {distance}m" },
+  es: { "Could not load the data.": "No se pudieron cargar los datos.", "Reset failed.": "Error al restablecer los datos.", Email: "Correo electrónico", Website: "Sitio web", Notifications: "Notificaciones", "No notifications": "Sin notificaciones", Home: "Inicio", Search: "Buscar", Messages: "Mensajes", "OUT {distance}m": "FUERA {distance}m" },
+  ro: { "Could not load the data.": "Datele nu au putut fi încărcate.", "Reset failed.": "Resetarea datelor a eșuat.", Email: "E-mail", Website: "Site web", Notifications: "Notificări", "No notifications": "Nicio notificare", Home: "Acasă", Search: "Caută", Messages: "Mesaje", "OUT {distance}m": "AFARĂ {distance}m" },
+  de: { "Could not load the data.": "Die Daten konnten nicht geladen werden.", "Reset failed.": "Zurücksetzen fehlgeschlagen.", Email: "E-Mail", Website: "Website", Notifications: "Benachrichtigungen", "No notifications": "Keine Benachrichtigungen", Home: "Start", Search: "Suchen", Messages: "Nachrichten", "OUT {distance}m": "AUSSERHALB {distance}m" },
+  nl: { "Could not load the data.": "De gegevens konden niet worden geladen.", "Reset failed.": "Resetten is mislukt.", Email: "E-mail", Website: "Website", Notifications: "Meldingen", "No notifications": "Geen meldingen", Home: "Start", Search: "Zoeken", Messages: "Berichten", "OUT {distance}m": "BUITEN {distance}m" },
+};
+
 export function uiText(language: LanguageCode, portuguese: string, english: string) {
   if (language === "pt" || language === "en") return baseUiText(language, portuguese, english);
-  return extra[language][english] ?? baseUiText(language, portuguese, english);
+  return supplement[language][english] ?? extra[language][english] ?? baseUiText(language, portuguese, english);
 }
 
 export function uiFormat(language: LanguageCode, portuguese: string, english: string, variables: Variables) {
   if (language === "pt" || language === "en") return baseUiFormat(language, portuguese, english, variables);
-  const template = extra[language][english] ?? baseUiText(language, portuguese, english);
+  const template = supplement[language][english] ?? extra[language][english] ?? baseUiText(language, portuguese, english);
   return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key: string) =>
     Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key]) : match,
   );

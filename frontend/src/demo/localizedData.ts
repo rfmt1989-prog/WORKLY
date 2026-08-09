@@ -190,3 +190,16 @@ export function localizeDemoText(language: LanguageCode, value?: string | null):
   const item = generic[value];
   return item ? item[index[language]] : value;
 }
+
+export function localizeSkillsText(language: LanguageCode, value: string) {
+  return value
+    .split("\n")
+    .map((line) => {
+      const separator = line.lastIndexOf(":");
+      if (separator < 0) return localizeDemoText(language, line);
+      const name = line.slice(0, separator);
+      const level = line.slice(separator + 1);
+      return `${localizeDemoText(language, name)}:${level}`;
+    })
+    .join("\n");
+}

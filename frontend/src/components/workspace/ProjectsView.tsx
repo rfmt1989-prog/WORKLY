@@ -491,7 +491,7 @@ function ProjectEditor({
       </View>
       <Field
         label={uiText(language, "Descrição", "Description")}
-        value={form.description}
+        value={localizeDemoText(language, form.description)}
         multiline
         onChangeText={(value) => setValue("description", value)}
       />
