@@ -1,0 +1,194 @@
+name: Native module i18n
+
+on:
+  push:
+    branches:
+      - agent/native-module-i18n
+    paths:
+      - .github/workflows/native-module-i18n.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/native-module-i18n
+
+      - name: Localize core modules
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          docs_path = Path('frontend/src/components/workspace/DocumentsView.tsx')
+          projects_path = Path('frontend/src/components/workspace/ProjectsView.tsx')
+          workers_path = Path('frontend/src/components/workspace/WorkersView.tsx')
+          ops_path = Path('frontend/src/components/workspace/OperationsMapView.tsx')
+          targets = [docs_path, projects_path, workers_path, ops_path]
+
+          def add_localized_import(text: str) -> str:
+              if '@/src/demo/localizedUi' in text:
+                  return text
+              marker = 'import { copy } from "@/src/demo/i18n";\n'
+              if marker in text:
+                  return text.replace(marker, marker + 'import { uiFormat, uiText } from "@/src/demo/localizedUi";\n', 1)
+              marker = 'import { useWorklyData } from "@/src/context/WorklyDataContext";\n'
+              if marker not in text:
+                  raise SystemExit('import marker missing')
+              return text.replace(marker, marker + 'import { uiFormat, uiText } from "@/src/demo/localizedUi";\n', 1)
+
+          # Documents: localize generated project archive content and dynamic phrases.
+          docs = add_localized_import(docs_path.read_text())
+          docs = docs.replace(
+              'function projectFallbackDocuments(project: Project): DemoDocument[] {',
+              'function projectFallbackDocuments(\n  project: Project,\n  language: import("@/src/demo/types").LanguageCode,\n): DemoDocument[] {',
+              1,
+          )
+          docs = docs.replace(
+              'title: "Plano de Segurança e Saúde",',
+              'title: uiText(language, "Plano de Segurança e Saúde", "Safety and Health Plan"),',
+              1,
+          )
+          docs = docs.replace(
+              'demo_content: `Plano de Segurança e Saúde de demonstração para ${project.name}. Inclui organização preventiva, regras de acesso, riscos principais e medidas de controlo da obra.`,',
+              'demo_content: uiFormat(\n        language,\n        "Plano de Segurança e Saúde de demonstração para {project}. Inclui organização preventiva, regras de acesso, riscos principais e medidas de controlo da obra.",\n        "Demonstration Safety and Health Plan for {project}. Includes preventive organisation, access rules, main risks and site control measures.",\n        { project: project.name },\n      ),',
+              1,
+          )
+          docs = docs.replace(
+              'title: "Desenhos e peças de montagem",',
+              'title: uiText(language, "Desenhos e peças de montagem", "Assembly drawings and parts"),',
+              1,
+          )
+          docs = docs.replace(
+              'demo_content: `Conjunto técnico de demonstração associado a ${project.name}: implantação, referências de montagem, zonas de intervenção e notas de execução.`,',
+              'demo_content: uiFormat(\n        language,\n        "Conjunto técnico de demonstração associado a {project}: implantação, referências de montagem, zonas de intervenção e notas de execução.",\n        "Demonstration technical package associated with {project}: layout, assembly references, intervention zones and execution notes.",\n        { project: project.name },\n      ),',
+              1,
+          )
+          docs = docs.replace(
+              'title: "Planeamento e cronograma",',
+              'title: uiText(language, "Planeamento e cronograma", "Planning and schedule"),',
+              1,
+          )
+          docs = docs.replace(
+              'demo_content: `Planeamento de demonstração da obra ${project.name}, com período ${project.start_date} a ${project.end_date}, horário ${project.schedule} e progresso atual de ${project.progress}%.`,',
+              'demo_content: uiFormat(\n        language,\n        "Planeamento de demonstração da obra {project}, com período {start} a {end}, horário {schedule} e progresso atual de {progress}%.",\n        "Demonstration schedule for {project}, covering {start} to {end}, working hours {schedule} and current progress of {progress}%.",\n        { project: project.name, start: project.start_date, end: project.end_date, schedule: project.schedule, progress: project.progress },\n      ),',
+              1,
+          )
+          docs = docs.replace(
+              'function projectDocuments(project: Project): DemoDocument[] {\n  return project.documents?.length ? project.documents : projectFallbackDocuments(project);\n}',
+              'function projectDocuments(\n  project: Project,\n  language: import("@/src/demo/types").LanguageCode,\n): DemoDocument[] {\n  return project.documents?.length ? project.documents : projectFallbackDocuments(project, language);\n}',
+              1,
+          )
+          docs = docs.replace('projectDocuments(project)', 'projectDocuments(project, language)')
+          docs = docs.replace('projectDocuments(activeProject)', 'projectDocuments(activeProject, language)')
+          docs = docs.replace(
+              'return item ? item[language === "pt" ? 0 : 1] : category;',
+              'return item ? uiText(language, item[0], item[1]) : category;',
+              1,
+          )
+          docs = re.sub(
+              r'language === "pt"\s*\?\s*`\$\{relevantWorkers\.length\} trabalhadores`\s*:\s*`\$\{relevantWorkers\.length\} workers`',
+              '`${relevantWorkers.length} ${uiText(language, "trabalhadores", "workers")}`',
+              docs,
+          )
+          docs = re.sub(
+              r'language === "pt"\s*\?\s*`\$\{relevantProjects\.length\} obras`\s*:\s*`\$\{relevantProjects\.length\} projects`',
+              '`${relevantProjects.length} ${uiText(language, "obras", "projects")}`',
+              docs,
+          )
+          docs = re.sub(
+              r'content:\s*language === "pt"\s*\?\s*`Certificado fictício emitido por \$\{certificate\.issuer\}, consultável para demonstrar a validação documental WORKLY\.`\s*:\s*`Fictitious certificate issued by \$\{certificate\.issuer\}, viewable to demonstrate WORKLY document validation\.`,',
+              'content: uiFormat(\n                      language,\n                      "Certificado fictício emitido por {issuer}, consultável para demonstrar a validação documental WORKLY.",\n                      "Fictitious certificate issued by {issuer}, viewable to demonstrate WORKLY document validation.",\n                      { issuer: certificate.issuer },\n                    ),',
+              docs,
+          )
+          docs = docs.replace('worker?.name ?? "Worker"', 'worker?.name ?? uiText(language, "Trabalhador", "Worker")')
+          docs = docs.replace('companyItem?.name ?? "Company"', 'companyItem?.name ?? uiText(language, "Empresa", "Company")')
+          docs = docs.replace('company?.name ?? "Company"', 'company?.name ?? uiText(language, "Empresa", "Company")')
+          docs_path.write_text(docs)
+
+          # Add shared localized helper imports to the remaining modules.
+          projects_path.write_text(add_localized_import(projects_path.read_text()))
+          workers_path.write_text(add_localized_import(workers_path.read_text()))
+
+          ops = ops_path.read_text()
+          if 'import { copy } from "@/src/demo/i18n";' not in ops:
+              marker = 'import { useWorklyData } from "@/src/context/WorklyDataContext";\n'
+              ops = ops.replace(marker, marker + 'import { copy } from "@/src/demo/i18n";\n', 1)
+          ops = add_localized_import(ops)
+          marker = 'function siteColor(site: SiteOperational) {'
+          helper = '''function projectStatusLabel(\n  status: Project["status"],\n  language: import("@/src/demo/types").LanguageCode,\n) {\n  const t = copy[language];\n  if (status === "active") return t.active;\n  if (status === "planned") return t.planned;\n  if (status === "completed") return t.completed;\n  return t.paused;\n}\n\n'''
+          if helper not in ops:
+              ops = ops.replace(marker, helper + marker, 1)
+          ops = ops.replace(
+              '  const accent = roleAccent(role);\n  const [selectedProjectId',
+              '  const accent = roleAccent(role);\n  const t = copy[language];\n  const [selectedProjectId',
+              1,
+          )
+          ops = ops.replace(
+              '<Text style={styles.liveBadgeText}>LIVE OPS</Text>',
+              '<Text style={styles.liveBadgeText}>{uiText(language, "OPERAÇÕES AO VIVO", "LIVE OPS")}</Text>',
+              1,
+          )
+          ops = ops.replace(
+              'accessibilityLabel={`${site.project.name} · ${site.activeAttendance.length} workers`}',
+              'accessibilityLabel={`${site.project.name} · ${site.activeAttendance.length} ${uiText(language, "trabalhadores", "workers")}`}',
+              1,
+          )
+          ops = re.sub(
+              r'selected\.alerts\s*\?\s*language === "pt"\s*\?\s*`\$\{selected\.alerts\} sessão\(ões\) requerem atenção GPS\.`\s*:\s*`\$\{selected\.alerts\} session\(s\) require GPS attention\.`\s*:\s*language === "pt"\s*\?\s*"Sem violações GPS ativas nesta obra\."\s*:\s*"No active GPS violations on this site\."',
+              'selected.alerts\n                    ? uiFormat(\n                        language,\n                        "{count} sessão(ões) requerem atenção GPS.",\n                        "{count} session(s) require GPS attention.",\n                        { count: selected.alerts },\n                      )\n                    : uiText(\n                        language,\n                        "Sem violações GPS ativas nesta obra.",\n                        "No active GPS violations on this site.",\n                      )',
+              ops,
+          )
+          ops = ops.replace(': selected.project.status\n                    }', ': projectStatusLabel(selected.project.status, language)\n                    }', 1)
+          ops = ops.replace(': site.project.status\n                  }', ': projectStatusLabel(site.project.status, language)\n                  }', 1)
+          ops_path.write_text(ops)
+
+          # Convert every remaining simple PT/EN literal ternary in these modules.
+          pattern = re.compile(
+              r'language === "pt"\s*\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"',
+              re.MULTILINE,
+          )
+          for path in targets:
+              text = path.read_text()
+              text = pattern.sub(lambda m: f'uiText(language, "{m.group(1)}", "{m.group(2)}")', text)
+              path.write_text(text)
+
+          # Any old PT/EN switch left in these files means a phrase still needs explicit localization.
+          leftovers = []
+          for path in targets:
+              for lineno, line in enumerate(path.read_text().splitlines(), 1):
+                  if 'language === "pt"' in line:
+                      leftovers.append(f'{path}:{lineno}: {line.strip()}')
+          if leftovers:
+              raise SystemExit('Unlocalized language switches remain:\n' + '\n'.join(leftovers))
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify frontend
+        shell: bash
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npm run lint
+          npm run build:web
+
+      - name: Commit verified localization
+        shell: bash
+        run: |
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add frontend/src/demo/localizedUi.ts frontend/src/components/workspace/DocumentsView.tsx frontend/src/components/workspace/ProjectsView.tsx frontend/src/components/workspace/WorkersView.tsx frontend/src/components/workspace/OperationsMapView.tsx
+          git commit -m "Localize core WORKLY modules in seven languages"
+          git push
