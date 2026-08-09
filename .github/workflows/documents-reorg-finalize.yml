@@ -1,0 +1,112 @@
+name: Finalize document archive reorganisation
+
+on:
+  push:
+    branches:
+      - agent/documents-by-worker-project
+    paths:
+      - .github/workflows/documents-reorg-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/documents-by-worker-project
+
+      - name: Apply final source patches
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          docs_path = Path('frontend/src/components/workspace/DocumentsView.tsx')
+          docs = docs_path.read_text()
+          docs = docs.replace('    outlineStyle: "none",\n', '')
+          docs = docs.replace(
+              'style={[styles.folderPane, splitCompact ? styles.folderPaneCompact : null]}',
+              'style={splitCompact ? styles.folderPaneCompact : styles.folderPane}',
+          )
+          old_compact = '''  folderPaneCompact: {\n    maxWidth: undefined,\n    minWidth: undefined,\n    flexBasis: "auto",\n  },'''
+          new_compact = '''  folderPaneCompact: {\n    flexBasis: "auto",\n    maxWidth: "100%",\n    minWidth: 0,\n    width: "100%",\n  },'''
+          if old_compact in docs:
+              docs = docs.replace(old_compact, new_compact, 1)
+          docs_path.write_text(docs)
+
+          main_path = Path('backend/app/main.py')
+          main = main_path.read_text()
+          old = '''    team_ids: list[str] = Field(default_factory=list)\n    worker_ids: list[str] = Field(default_factory=list)\n'''
+          new = '''    team_ids: list[str] = Field(default_factory=list)\n    worker_ids: list[str] = Field(default_factory=list)\n    documents: list[dict[str, Any]] = Field(default_factory=list)\n'''
+          if '    documents: list[dict[str, Any]] = Field(default_factory=list)\n' not in main:
+              if old not in main:
+                  raise SystemExit('ProjectInput insertion point not found')
+              main = main.replace(old, new, 1)
+          old = '''        "team_ids",\n        "worker_ids",\n    }\n    with _state_lock:\n        project = _find("projects", project_id)\n'''
+          new = '''        "team_ids",\n        "worker_ids",\n        "documents",\n    }\n    with _state_lock:\n        project = _find("projects", project_id)\n'''
+          if '        "documents",\n    }\n    with _state_lock:\n        project = _find("projects", project_id)\n' not in main:
+              if old not in main:
+                  raise SystemExit('Project update allow-list insertion point not found')
+              main = main.replace(old, new, 1)
+          main_path.write_text(main)
+
+          demo_path = Path('backend/app/demo_data.py')
+          demo = demo_path.read_text()
+          marker = '''\n\ndef _project_item(project_id: str, title: str, location: str, year: int) -> dict:\n'''
+          helper = '''\n\ndef _project_document(\n    project_id: str, suffix: str, title: str, category: str, *, status: str = "valid"\n) -> dict:\n    return {\n        "id": f"doc-{project_id}-{suffix}",\n        "owner_type": "project",\n        "owner_id": project_id,\n        "title": title,\n        "category": category,\n        "file_name": f"{suffix}_{project_id}.pdf",\n        "status": status,\n        "updated_at": "2026-08-08T14:00:00Z",\n        "demo_content": (\n            f"Documento de obra de demonstração WORKLY — {title}. "\n            "Organizado no arquivo técnico da obra e sem validade legal."\n        ),\n    }\n'''
+          if 'def _project_document(' not in demo:
+              if marker not in demo:
+                  raise SystemExit('Project document helper insertion point not found')
+              demo = demo.replace(marker, helper + marker, 1)
+
+          replacements = {
+              '''            "worker_ids": ["worker-1", "worker-4", "worker-6", "worker-8"],\n        },''': '''            "worker_ids": ["worker-1", "worker-4", "worker-6", "worker-8"],\n            "documents": [\n                _project_document("project-1", "pss", "Plano de Segurança e Saúde", "safety"),\n                _project_document("project-1", "desenhos", "Desenhos e peças de montagem", "technical"),\n                _project_document("project-1", "cronograma", "Planeamento e cronograma", "planning", status="active"),\n                _project_document("project-1", "registo", "Registo diário de obra", "planning", status="active"),\n            ],\n        },''',
+              '''            "worker_ids": ["worker-7"],\n        },''': '''            "worker_ids": ["worker-7"],\n            "documents": [\n                _project_document("project-2", "pss", "Plano de Segurança e Saúde", "safety"),\n                _project_document("project-2", "projeto", "Projeto de execução", "technical"),\n                _project_document("project-2", "cronograma", "Planeamento e cronograma", "planning", status="active"),\n            ],\n        },''',
+              '''            "worker_ids": ["worker-2", "worker-3", "worker-5"],\n        },''': '''            "worker_ids": ["worker-2", "worker-3", "worker-5"],\n            "documents": [\n                _project_document("project-3", "pss", "Plano de Segurança e Saúde", "safety"),\n                _project_document("project-3", "avac", "Projeto AVAC e redes técnicas", "technical"),\n                _project_document("project-3", "quadros", "Esquemas de quadros elétricos", "technical"),\n                _project_document("project-3", "cronograma", "Planeamento e cronograma", "planning", status="active"),\n            ],\n        },''',
+          }
+          for old, new in replacements.items():
+              if old in demo:
+                  demo = demo.replace(old, new, 1)
+          demo_path.write_text(demo)
+          PY
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Verify backend
+        shell: bash
+        run: |
+          python -m pip install -r requirements.txt pytest httpx
+          PYTHONPATH=. python -m compileall -q backend api
+          PYTHONPATH=. pytest -q backend/tests
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify frontend
+        shell: bash
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npm run build:web
+
+      - name: Commit verified source changes
+        shell: bash
+        run: |
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add frontend/src/components/workspace/DocumentsView.tsx backend/app/main.py backend/app/demo_data.py
+          git commit -m "Complete worker and project document archives"
+          git push
