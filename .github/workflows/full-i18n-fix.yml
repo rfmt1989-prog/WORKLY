@@ -1,0 +1,50 @@
+name: Final visual i18n pass
+
+on:
+  push:
+    branches:
+      - agent/full-i18n
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/full-i18n
+          fetch-depth: 0
+      - name: Apply visual corrections
+        run: python scripts/fix_full_i18n.py
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+      - name: Commit verified corrections
+        run: |
+          if git diff --quiet; then
+            echo "No corrections to commit."
+            exit 0
+          fi
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add frontend
+          git commit -m "Finish complete language switching across WORKLY"
+          git push origin HEAD:agent/full-i18n
