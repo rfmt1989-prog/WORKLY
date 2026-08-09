@@ -71,6 +71,7 @@ jobs:
           login_path.write_text(login)
           for path in Path('frontend').rglob('*'):
               if path.suffix not in {'.ts', '.tsx'}: continue
+              if path.as_posix() == 'frontend/src/demo/types.ts': continue
               text = path.read_text()
               widened = text.replace('"pt" | "en"', 'import("@/src/demo/types").LanguageCode')
               if widened != text: path.write_text(widened)
