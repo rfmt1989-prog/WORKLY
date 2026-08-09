@@ -12,6 +12,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { localeForLanguage, uiText } from "@/src/demo/fullUi";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import { resolveDemoLocation } from "@/src/demo/location";
 import type { Project, Worker } from "@/src/demo/types";
 
@@ -33,6 +35,18 @@ import {
 type Props = {
   onNavigate: (section: WorkspaceSection) => void;
 };
+
+function nextShiftDate(language: import("@/src/demo/types").LanguageCode) {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return {
+    day: String(date.getDate()).padStart(2, "0"),
+    month: date
+      .toLocaleDateString(localeForLanguage(language), { month: "short" })
+      .replace(".", "")
+      .toUpperCase(),
+  };
+}
 
 export function DashboardView({ onNavigate }: Props) {
   const { user } = useAuth();
@@ -87,11 +101,11 @@ export function DashboardView({ onNavigate }: Props) {
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={sharedStyles.label}>{t.liveMonitoring}</Text>
               <Text style={sharedStyles.title}>
-                {language === "pt" ? "Operação sob controlo" : "Operation under control"}
+                {uiText(language, "Operação sob controlo", "Operation under control")}
               </Text>
               <Text style={sharedStyles.subtitle}>
                 {company?.name ?? user.name} · {activeAttendance.length}{" "}
-                {language === "pt" ? "trabalhadores em obra" : "workers on site"}
+                {uiText(language, "trabalhadores em obra", "workers on site")}
               </Text>
             </View>
             <View style={styles.heroScores}>
@@ -113,14 +127,14 @@ export function DashboardView({ onNavigate }: Props) {
             <Button
               compact
               icon="person-add-outline"
-              label={language === "pt" ? "Procurar talento" : "Find talent"}
+              label={uiText(language, "Procurar talento", "Find talent")}
               accent={accent}
               onPress={() => onNavigate("workers")}
             />
             <Button
               compact
               icon="add-circle-outline"
-              label={language === "pt" ? "Nova obra" : "New project"}
+              label={uiText(language, "Nova obra", "New project")}
               variant="secondary"
               accent={accent}
               onPress={() => onNavigate("projects")}
@@ -128,7 +142,7 @@ export function DashboardView({ onNavigate }: Props) {
             <Button
               compact
               icon="people-outline"
-              label={language === "pt" ? "Gerir equipas" : "Manage teams"}
+              label={uiText(language, "Gerir equipas", "Manage teams")}
               variant="secondary"
               accent={accent}
               onPress={() => onNavigate("teams")}
@@ -139,35 +153,35 @@ export function DashboardView({ onNavigate }: Props) {
         <View style={styles.metrics}>
           <MetricCard
             icon="business-outline"
-            label={language === "pt" ? "Obras ativas" : "Active projects"}
+            label={uiText(language, "Obras ativas", "Active projects")}
             value={companyProjects.filter((item) => item.status === "active").length}
-            detail={`${companyProjects.length} ${language === "pt" ? "no total" : "total"}`}
+            detail={`${companyProjects.length} ${uiText(language, "no total", "total")}`}
             accent={accent}
             onPress={() => onNavigate("projects")}
           />
           <MetricCard
             icon="people-outline"
-            label={language === "pt" ? "Equipas" : "Teams"}
+            label={uiText(language, "Equipas", "Teams")}
             value={companyTeams.length}
-            detail={`${associatedWorkers.length} ${language === "pt" ? "profissionais" : "professionals"}`}
+            detail={`${associatedWorkers.length} ${uiText(language, "profissionais", "professionals")}`}
             accent={workspaceColors.blueSoft}
             onPress={() => onNavigate("teams")}
           />
           <MetricCard
             icon="location-outline"
-            label={language === "pt" ? "Em obra agora" : "On site now"}
+            label={uiText(language, "Em obra agora", "On site now")}
             value={activeAttendance.length}
-            detail={language === "pt" ? "Presenças ativas" : "Active attendance"}
+            detail={uiText(language, "Presenças ativas", "Active attendance")}
             accent={workspaceColors.green}
             onPress={() => onNavigate("attendance")}
           />
           <MetricCard
             icon="document-text-outline"
-            label={language === "pt" ? "Contratos" : "Contracts"}
+            label={uiText(language, "Contratos", "Contracts")}
             value={
               state.contracts.filter((item) => item.company_id === companyId).length
             }
-            detail={language === "pt" ? "Consultáveis" : "Available to view"}
+            detail={uiText(language, "Consultáveis", "Available to view")}
             accent={workspaceColors.yellow}
             onPress={() => onNavigate("documents")}
           />
@@ -176,24 +190,20 @@ export function DashboardView({ onNavigate }: Props) {
         <View style={[styles.dashboardGrid, compact ? styles.dashboardGridCompact : null]}>
           <Card style={{ flex: 1, minWidth: compact ? undefined : 380 }}>
             <SectionTitle
-              title={language === "pt" ? "Monitorização da equipa" : "Team monitoring"}
+              title={uiText(language, "Monitorização da equipa", "Team monitoring")}
               subtitle={
-                language === "pt"
-                  ? "Entradas ativas e estado operacional"
-                  : "Active check-ins and operational status"
+                uiText(language, "Entradas ativas e estado operacional", "Active check-ins and operational status")
               }
               action={
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
-                    language === "pt"
-                      ? "Ver todas as presenças"
-                      : "View all attendance"
+                    uiText(language, "Ver todas as presenças", "View all attendance")
                   }
                   onPress={() => onNavigate("attendance")}
                 >
                   <Text style={[styles.link, { color: accent }]}>
-                    {language === "pt" ? "Ver tudo" : "View all"}
+                    {uiText(language, "Ver tudo", "View all")}
                   </Text>
                 </Pressable>
               }
@@ -227,9 +237,7 @@ export function DashboardView({ onNavigate }: Props) {
                     color={workspaceColors.muted}
                   />
                   <Text style={sharedStyles.subtitle}>
-                    {language === "pt"
-                      ? "Sem presenças ativas neste momento."
-                      : "No active attendance right now."}
+                    {uiText(language, "Sem presenças ativas neste momento.", "No active attendance right now.")}
                   </Text>
                 </View>
               )}
@@ -238,22 +246,20 @@ export function DashboardView({ onNavigate }: Props) {
 
           <Card style={{ flex: 1, minWidth: compact ? undefined : 340 }}>
             <SectionTitle
-              title={language === "pt" ? "Pulso das obras" : "Project pulse"}
+              title={uiText(language, "Pulso das obras", "Project pulse")}
               subtitle={
-                language === "pt"
-                  ? "Progresso das frentes principais"
-                  : "Progress across key sites"
+                uiText(language, "Progresso das frentes principais", "Progress across key sites")
               }
               action={
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
-                    language === "pt" ? "Gerir obras" : "Manage projects"
+                    uiText(language, "Gerir obras", "Manage projects")
                   }
                   onPress={() => onNavigate("projects")}
                 >
                   <Text style={[styles.link, { color: accent }]}>
-                    {language === "pt" ? "Gerir" : "Manage"}
+                    {uiText(language, "Gerir", "Manage")}
                   </Text>
                 </Pressable>
               }
@@ -290,6 +296,7 @@ export function DashboardView({ onNavigate }: Props) {
   const workerAttendance = state.attendance.filter(
     (item) => item.worker_id === user.id,
   );
+  const shiftDate = nextShiftDate(language);
   const completedHours = workerAttendance.reduce((total, item) => {
     if (!item.check_out) return total;
     const duration =
@@ -330,7 +337,7 @@ export function DashboardView({ onNavigate }: Props) {
             />
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={sharedStyles.label}>
-                {language === "pt" ? "WORKER PULSE" : "WORKER PULSE"}
+                {uiText(language, "WORKER PULSE", "WORKER PULSE")}
               </Text>
               <Text style={sharedStyles.title}>{worker?.name ?? user.name}</Text>
               <Text style={sharedStyles.subtitle}>
@@ -368,9 +375,9 @@ export function DashboardView({ onNavigate }: Props) {
       <View style={styles.metrics}>
         <MetricCard
           icon="time-outline"
-          label={language === "pt" ? "Horas registadas" : "Recorded hours"}
+          label={uiText(language, "Horas registadas", "Recorded hours")}
           value={completedHours.toFixed(1)}
-          detail={language === "pt" ? "Últimos registos demo" : "Recent demo records"}
+          detail={uiText(language, "Últimos registos demo", "Recent demo records")}
           accent={accent}
           onPress={() => onNavigate("attendance")}
         />
@@ -378,7 +385,7 @@ export function DashboardView({ onNavigate }: Props) {
           icon="ribbon-outline"
           label={t.certificates}
           value={worker?.certificates.length ?? 0}
-          detail={language === "pt" ? "Válidos e consultáveis" : "Valid and viewable"}
+          detail={uiText(language, "Válidos e consultáveis", "Valid and viewable")}
           accent={workspaceColors.yellow}
           onPress={() => onNavigate("certificates")}
         />
@@ -386,7 +393,7 @@ export function DashboardView({ onNavigate }: Props) {
           icon="briefcase-outline"
           label={t.bestProjects}
           value={worker?.best_projects.length ?? 0}
-          detail={language === "pt" ? "Portefólio profissional" : "Professional portfolio"}
+          detail={uiText(language, "Portefólio profissional", "Professional portfolio")}
           accent={workspaceColors.green}
           onPress={() => onNavigate("best-projects")}
         />
@@ -396,7 +403,7 @@ export function DashboardView({ onNavigate }: Props) {
           value={
             state.contracts.filter((item) => item.worker_id === user.id).length
           }
-          detail={language === "pt" ? "Disponíveis no arquivo" : "Available in records"}
+          detail={uiText(language, "Disponíveis no arquivo", "Available in records")}
           accent={workspaceColors.blueSoft}
           onPress={() => onNavigate("documents")}
         />
@@ -408,15 +415,11 @@ export function DashboardView({ onNavigate }: Props) {
           style={{ flex: 1.15, minWidth: compact ? undefined : 410 }}
         >
           <SectionTitle
-            title={language === "pt" ? "Obra atual" : "Current project"}
+            title={uiText(language, "Obra atual", "Current project")}
             subtitle={
               activeCheckIn
-                ? language === "pt"
-                  ? "Sessão de trabalho ativa"
-                  : "Work session active"
-                : language === "pt"
-                  ? "Pronto para registar a entrada"
-                  : "Ready to check in"
+                ? uiText(language, "Sessão de trabalho ativa", "Work session active")
+                : uiText(language, "Pronto para registar a entrada", "Ready to check in")
             }
           />
           {currentProject ? (
@@ -439,17 +442,17 @@ export function DashboardView({ onNavigate }: Props) {
               <View style={styles.projectFacts}>
                 <Fact
                   icon="time-outline"
-                  label={language === "pt" ? "Horário" : "Schedule"}
+                  label={uiText(language, "Horário", "Schedule")}
                   value={currentProject.schedule}
                 />
                 <Fact
                   icon="calendar-outline"
-                  label={language === "pt" ? "Fim previsto" : "Expected end"}
+                  label={uiText(language, "Fim previsto", "Expected end")}
                   value={currentProject.end_date}
                 />
                 <Fact
                   icon="navigate-outline"
-                  label={language === "pt" ? "Localização" : "Location"}
+                  label={uiText(language, "Localização", "Location")}
                   value={activeCheckIn?.location_mode === "gps" ? "GPS" : "Demo GPS"}
                 />
               </View>
@@ -465,9 +468,7 @@ export function DashboardView({ onNavigate }: Props) {
           ) : (
             <View style={styles.miniEmpty}>
               <Text style={sharedStyles.subtitle}>
-                {language === "pt"
-                  ? "Ainda não existe uma obra atribuída."
-                  : "No project has been assigned yet."}
+                {uiText(language, "Ainda não existe uma obra atribuída.", "No project has been assigned yet.")}
               </Text>
             </View>
           )}
@@ -475,37 +476,35 @@ export function DashboardView({ onNavigate }: Props) {
 
         <Card style={{ flex: 0.85, minWidth: compact ? undefined : 320 }}>
           <SectionTitle
-            title={language === "pt" ? "Próximo turno" : "Next shift"}
-            subtitle={language === "pt" ? "Planeamento diário" : "Daily planning"}
+            title={uiText(language, "Próximo turno", "Next shift")}
+            subtitle={uiText(language, "Planeamento diário", "Daily planning")}
             action={
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
-                  language === "pt" ? "Ver horários" : "View schedule"
+                  uiText(language, "Ver horários", "View schedule")
                 }
                 onPress={() => onNavigate("attendance")}
               >
                 <Text style={[styles.link, { color: accent }]}>
-                  {language === "pt" ? "Horários" : "Schedule"}
+                  {uiText(language, "Horários", "Schedule")}
                 </Text>
               </Pressable>
             }
           />
           <View style={styles.shiftBox}>
             <View style={[styles.shiftDay, { borderColor: `${accent}77` }]}>
-              <Text style={[styles.shiftDayNumber, { color: accent }]}>30</Text>
-              <Text style={styles.shiftDayMonth}>JUL</Text>
+              <Text style={[styles.shiftDayNumber, { color: accent }]}>{shiftDate.day}</Text>
+              <Text style={styles.shiftDayMonth}>{shiftDate.month}</Text>
             </View>
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={styles.largeItemTitle}>08:00 — 17:00</Text>
               <Text style={styles.itemMeta}>
                 {currentProject?.name ??
-                  (language === "pt" ? "Sem obra atribuída" : "No assigned project")}
+                  (uiText(language, "Sem obra atribuída", "No assigned project"))}
               </Text>
               <Text style={styles.shiftNote}>
-                {language === "pt"
-                  ? "Check-in disponível junto à obra."
-                  : "Check-in available near the site."}
+                {uiText(language, "Check-in disponível junto à obra.", "Check-in available near the site.")}
               </Text>
             </View>
           </View>
@@ -514,7 +513,7 @@ export function DashboardView({ onNavigate }: Props) {
             variant="secondary"
             icon="calendar-outline"
             accent={accent}
-            label={language === "pt" ? "Ver presenças" : "View attendance"}
+            label={uiText(language, "Ver presenças", "View attendance")}
             onPress={() => onNavigate("attendance")}
           />
         </Card>
@@ -522,17 +521,15 @@ export function DashboardView({ onNavigate }: Props) {
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Competências em destaque" : "Top skills"}
+          title={uiText(language, "Competências em destaque", "Top skills")}
           subtitle={
-            language === "pt"
-              ? "Evolução profissional validada"
-              : "Validated professional development"
+            uiText(language, "Evolução profissional validada", "Validated professional development")
           }
           action={
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                language === "pt" ? "Editar competências" : "Edit skills"
+                uiText(language, "Editar competências", "Edit skills")
               }
               onPress={() => onNavigate("profile")}
             >
@@ -544,7 +541,7 @@ export function DashboardView({ onNavigate }: Props) {
           {(worker?.skills ?? []).slice(0, 4).map((skill) => (
             <View key={skill.name} style={styles.skillItem}>
               <View style={styles.projectHeading}>
-                <Text style={styles.itemTitle}>{skill.name}</Text>
+                <Text style={styles.itemTitle}>{localizeDemoText(language, skill.name)}</Text>
                 <Text style={[styles.skillLevel, { color: accent }]}>
                   {skill.level}%
                 </Text>
@@ -572,7 +569,7 @@ function MonitorRow({
   accent: string;
 }) {
   const time = new Date(checkedAt).toLocaleTimeString(
-    language === "pt" ? "pt-PT" : "en-GB",
+    localeForLanguage(language),
     { hour: "2-digit", minute: "2-digit" },
   );
   return (
@@ -586,7 +583,7 @@ function MonitorRow({
       </View>
       <StatusPill
         status="on_site"
-        label={language === "pt" ? "Em obra" : "On site"}
+        label={uiText(language, "Em obra", "On site")}
       />
     </View>
   );

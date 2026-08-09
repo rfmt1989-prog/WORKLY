@@ -17,6 +17,7 @@ import { LanguageSelector } from "@/src/components/LanguageSelector";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiText } from "@/src/demo/fullUi";
 
 import { AttendanceView } from "./AttendanceView";
 import { DashboardView } from "./DashboardView";
@@ -264,7 +265,7 @@ export function ImmersiveWorkspaceShell() {
           <View>
             <Text style={styles.brandName}>WORKLY</Text>
             <Text style={[styles.roleLabel, { color: accent }]}>
-              {role === "worker" ? "WORKER" : "COMPANY"}
+              {uiText(language, role === "worker" ? "TRABALHADOR" : "EMPRESA", role === "worker" ? "WORKER" : "COMPANY")}
             </Text>
           </View>
         </View>

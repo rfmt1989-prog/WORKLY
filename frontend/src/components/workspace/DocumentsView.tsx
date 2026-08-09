@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Project } from "@/src/demo/types";
 
@@ -339,9 +340,9 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
   const openDocument = (document: DemoDocument, ownerName: string) => {
     setViewer({
       id: document.id,
-      title: document.title,
+      title: localizeDemoText(language, document.title),
       subtitle: document.file_name,
-      content: document.demo_content,
+      content: localizeDemoText(language, document.demo_content),
       icon: "document-text-outline",
       meta: [
         ownerName,
@@ -595,7 +596,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                             <ArchiveRow
                               key={document.id}
                               icon="document-text-outline"
-                              title={document.title}
+                              title={localizeDemoText(language, document.title)}
                               subtitle={`${categoryLabel(document.category, language)} · ${document.file_name}`}
                               status={document.status}
                               accent={accent}
@@ -719,7 +720,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                   ? "calendar-outline"
                                   : "construct-outline"
                             }
-                            title={document.title}
+                            title={localizeDemoText(language, document.title)}
                             subtitle={`${categoryLabel(document.category, language)} · ${document.file_name}`}
                             status={document.status}
                             accent={accent}
@@ -742,7 +743,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                 <ArchiveRow
                                   key={contract.id}
                                   icon="newspaper-outline"
-                                  title={contract.title}
+                                  title={localizeDemoText(language, contract.title)}
                                   subtitle={`${worker?.name ?? uiText(language, "Trabalhador", "Worker")} · ${contract.file_name}`}
                                   status={contract.status}
                                   accent={workspaceColors.yellow}
@@ -750,9 +751,9 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                   onPress={() =>
                                     setViewer({
                                       id: contract.id,
-                                      title: contract.title,
+                                      title: localizeDemoText(language, contract.title),
                                       subtitle: contract.file_name,
-                                      content: contract.demo_content,
+                                      content: localizeDemoText(language, contract.demo_content),
                                       icon: "newspaper-outline",
                                       meta: [
                                         activeProject.name,
@@ -803,7 +804,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                       <ArchiveRow
                         key={document.id}
                         icon="document-lock-outline"
-                        title={document.title}
+                        title={localizeDemoText(language, document.title)}
                         subtitle={`${categoryLabel(document.category, language)} · ${document.file_name}`}
                         status={document.status}
                         accent={accent}
@@ -833,7 +834,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                 <ArchiveRow
                   key={contract.id}
                   icon="newspaper-outline"
-                  title={contract.title}
+                  title={localizeDemoText(language, contract.title)}
                   subtitle={`${worker?.name ?? uiText(language, "Trabalhador", "Worker")} · ${project?.name ?? companyItem?.name ?? uiText(language, "Empresa", "Company")}`}
                   status={contract.status}
                   accent={accent}
@@ -841,9 +842,9 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   onPress={() =>
                     setViewer({
                       id: contract.id,
-                      title: contract.title,
+                      title: localizeDemoText(language, contract.title),
                       subtitle: contract.file_name,
-                      content: contract.demo_content,
+                      content: localizeDemoText(language, contract.demo_content),
                       icon: "newspaper-outline",
                       meta: [
                         project?.name ?? companyItem?.name ?? uiText(language, "Empresa", "Company"),
@@ -866,7 +867,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
               <ArchiveRow
                 key={`${certificate.workerId}-${certificate.id}`}
                 icon="ribbon-outline"
-                title={certificate.name}
+                title={localizeDemoText(language, certificate.name)}
                 subtitle={`${certificate.workerName} · ${certificate.issuer}`}
                 status={certificate.status}
                 accent={workspaceColors.yellow}
@@ -874,7 +875,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                 onPress={() =>
                   setViewer({
                     id: certificate.id,
-                    title: certificate.name,
+                    title: localizeDemoText(language, certificate.name),
                     subtitle: certificate.file_name,
                     content: uiFormat(
                       language,
@@ -907,7 +908,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                       id: project.id,
                       title: project.title,
                       subtitle: `${project.location} · ${project.year}`,
-                      content: project.summary,
+                      content: localizeDemoText(language, project.summary),
                       icon: "trophy-outline",
                       meta: [project.workerName],
                     })

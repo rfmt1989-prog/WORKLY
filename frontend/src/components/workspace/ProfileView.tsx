@@ -11,6 +11,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiText } from "@/src/demo/fullUi";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import type { Company, Worker, WorkerStatus } from "@/src/demo/types";
 
 import {
@@ -189,10 +191,10 @@ export function ProfileView() {
           />
           <View style={{ flex: 1, minWidth: 220, gap: 6 }}>
             <Text style={sharedStyles.label}>
-              {role === "worker" ? "WORKLY WORKER" : "WORKLY COMPANY"}
+              `WORKLY ${uiText(language, role === "worker" ? "TRABALHADOR" : "EMPRESA", role === "worker" ? "WORKER" : "COMPANY")}`
             </Text>
             <Text style={styles.entityName}>{entityName ?? user.name}</Text>
-            <Text style={styles.entitySubtitle}>{entitySubtitle}</Text>
+            <Text style={styles.entitySubtitle}>{localizeDemoText(language, entitySubtitle)}</Text>
             {worker ? (
               <StatusPill
                 status={worker.status}
@@ -288,25 +290,25 @@ function WorkerProfileSummary({
       <View style={styles.twoColumns}>
         <Card style={{ flex: 1.05, minWidth: 290 }}>
           <SectionTitle
-            title={language === "pt" ? "Sobre" : "About"}
+            title={uiText(language, "Sobre", "About")}
             subtitle={`${worker.experience_years} ${t.years} · ${worker.location}`}
           />
-          <Text style={[sharedStyles.body, { marginTop: 14 }]}>{worker.bio}</Text>
+          <Text style={[sharedStyles.body, { marginTop: 14 }]}>{localizeDemoText(language, worker.bio)}</Text>
           <View style={styles.infoGrid}>
             <Info icon="mail-outline" label="Email" value={worker.email} />
             <Info
               icon="call-outline"
-              label={language === "pt" ? "Telefone" : "Phone"}
+              label={uiText(language, "Telefone", "Phone")}
               value={worker.phone}
             />
             <Info
               icon="flag-outline"
-              label={language === "pt" ? "País" : "Country"}
+              label={uiText(language, "País", "Country")}
               value={`${worker.flag} ${worker.country}`}
             />
             <Info
               icon="calendar-outline"
-              label={language === "pt" ? "Idade" : "Age"}
+              label={uiText(language, "Idade", "Age")}
               value={String(worker.age)}
             />
           </View>
@@ -314,7 +316,7 @@ function WorkerProfileSummary({
 
         <Card style={{ flex: 0.95, minWidth: 290 }}>
           <SectionTitle
-            title={language === "pt" ? "Indicadores profissionais" : "Professional indicators"}
+            title={uiText(language, "Indicadores profissionais", "Professional indicators")}
           />
           <View style={{ gap: 13, marginTop: 15 }}>
             <Indicator
@@ -328,7 +330,7 @@ function WorkerProfileSummary({
               accent={workspaceColors.green}
             />
             <Indicator
-              label={language === "pt" ? "Classificação geral" : "Overall rating"}
+              label={uiText(language, "Classificação geral", "Overall rating")}
               value={worker.rating * 10}
               accent={workspaceColors.yellow}
             />
@@ -338,18 +340,16 @@ function WorkerProfileSummary({
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Competências" : "Skills"}
+          title={uiText(language, "Competências", "Skills")}
           subtitle={
-            language === "pt"
-              ? "Níveis editáveis no perfil."
-              : "Editable levels in your profile."
+            uiText(language, "Níveis editáveis no perfil.", "Editable levels in your profile.")
           }
         />
         <View style={styles.skills}>
           {worker.skills.map((skill) => (
             <View key={skill.name} style={styles.skill}>
               <View style={styles.indicatorHeader}>
-                <Text style={styles.indicatorLabel}>{skill.name}</Text>
+                <Text style={styles.indicatorLabel}>{localizeDemoText(language, skill.name)}</Text>
                 <Text style={[styles.indicatorValue, { color: accent }]}>
                   {skill.level}%
                 </Text>
@@ -385,24 +385,22 @@ function WorkerProfileEditor({
   return (
     <Card>
       <SectionTitle
-        title={language === "pt" ? "Editar perfil Worker" : "Edit Worker profile"}
+        title={uiText(language, "Editar perfil Worker", "Edit Worker profile")}
         subtitle={
-          language === "pt"
-            ? "As alterações ficam guardadas nesta demonstração."
-            : "Changes are stored in this demo."
+          uiText(language, "As alterações ficam guardadas nesta demonstração.", "Changes are stored in this demo.")
         }
       />
       <View style={[styles.editor, { marginTop: 16 }]}>
         <View style={styles.formColumns}>
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Nome" : "Name"}
+            label={uiText(language, "Nome", "Name")}
             value={form.name}
             onChangeText={(value) => setValue("name", value)}
           />
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Profissão" : "Trade"}
+            label={uiText(language, "Profissão", "Trade")}
             value={form.profession}
             onChangeText={(value) => setValue("profession", value)}
           />
@@ -410,40 +408,38 @@ function WorkerProfileEditor({
         <View style={styles.formColumns}>
           <Field
             style={styles.fieldThird}
-            label={language === "pt" ? "Idade" : "Age"}
+            label={uiText(language, "Idade", "Age")}
             value={form.age}
             keyboardType="number-pad"
             onChangeText={(value) => setValue("age", value)}
           />
           <Field
             style={styles.fieldThird}
-            label={language === "pt" ? "País" : "Country"}
+            label={uiText(language, "País", "Country")}
             value={form.country}
             onChangeText={(value) => setValue("country", value)}
           />
           <Field
             style={styles.fieldThird}
-            label={language === "pt" ? "Localização" : "Location"}
+            label={uiText(language, "Localização", "Location")}
             value={form.location}
             onChangeText={(value) => setValue("location", value)}
           />
         </View>
         <Field
-          label={language === "pt" ? "Telefone" : "Phone"}
+          label={uiText(language, "Telefone", "Phone")}
           value={form.phone}
           onChangeText={(value) => setValue("phone", value)}
         />
         <Field
-          label={language === "pt" ? "Biografia profissional" : "Professional bio"}
+          label={uiText(language, "Biografia profissional", "Professional bio")}
           value={form.bio}
           multiline
           onChangeText={(value) => setValue("bio", value)}
         />
         <Field
           label={
-            language === "pt"
-              ? "Competências — uma por linha: Nome:Nível"
-              : "Skills — one per line: Name:Level"
+            uiText(language, "Competências — uma por linha: Nome:Nível", "Skills — one per line: Name:Level")
           }
           value={form.skills}
           multiline
@@ -499,47 +495,47 @@ function CompanyProfileSummary({
   return (
     <View style={styles.twoColumns}>
       <Card style={{ flex: 1.1, minWidth: 300 }}>
-        <SectionTitle title={language === "pt" ? "Empresa" : "Company"} />
+        <SectionTitle title={uiText(language, "Empresa", "Company")} />
         <Text style={[sharedStyles.body, { marginTop: 14 }]}>
-          {company.description}
+          {localizeDemoText(language, company.description)}
         </Text>
         <View style={styles.infoGrid}>
           <Info icon="mail-outline" label="Email" value={company.email} />
           <Info
             icon="call-outline"
-            label={language === "pt" ? "Telefone" : "Phone"}
+            label={uiText(language, "Telefone", "Phone")}
             value={company.phone}
           />
           <Info
             icon="location-outline"
-            label={language === "pt" ? "Localização" : "Location"}
+            label={uiText(language, "Localização", "Location")}
             value={company.location}
           />
           <Info icon="globe-outline" label="Website" value={company.website} />
           <Info
             icon="receipt-outline"
-            label={language === "pt" ? "NIF" : "Tax ID"}
+            label={uiText(language, "NIF", "Tax ID")}
             value={company.tax_id}
           />
         </View>
       </Card>
       <Card style={{ flex: 0.9, minWidth: 280 }}>
         <SectionTitle
-          title={language === "pt" ? "Capacidade operacional" : "Operational capacity"}
+          title={uiText(language, "Capacidade operacional", "Operational capacity")}
         />
         <View style={styles.companyMetrics}>
           <View style={styles.companyMetric}>
             <Ionicons name="business-outline" size={22} color={accent} />
             <Text style={styles.companyMetricValue}>{projectsCount}</Text>
             <Text style={styles.companyMetricLabel}>
-              {language === "pt" ? "Obras" : "Projects"}
+              {uiText(language, "Obras", "Projects")}
             </Text>
           </View>
           <View style={styles.companyMetric}>
             <Ionicons name="people-outline" size={22} color={accent} />
             <Text style={styles.companyMetricValue}>{teamsCount}</Text>
             <Text style={styles.companyMetricLabel}>
-              {language === "pt" ? "Equipas" : "Teams"}
+              {uiText(language, "Equipas", "Teams")}
             </Text>
           </View>
           <View style={styles.companyMetric}>
@@ -550,7 +546,7 @@ function CompanyProfileSummary({
             />
             <Text style={styles.companyMetricValue}>{company.documents.length}</Text>
             <Text style={styles.companyMetricLabel}>
-              {language === "pt" ? "Documentos" : "Documents"}
+              {uiText(language, "Documentos", "Documents")}
             </Text>
           </View>
         </View>
@@ -582,25 +578,25 @@ function CompanyProfileEditor({
   return (
     <Card>
       <SectionTitle
-        title={language === "pt" ? "Editar perfil Company" : "Edit Company profile"}
+        title={uiText(language, "Editar perfil Company", "Edit Company profile")}
       />
       <View style={[styles.editor, { marginTop: 16 }]}>
         <View style={styles.formColumns}>
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Nome da empresa" : "Company name"}
+            label={uiText(language, "Nome da empresa", "Company name")}
             value={form.name}
             onChangeText={(value) => setValue("name", value)}
           />
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Setor" : "Industry"}
+            label={uiText(language, "Setor", "Industry")}
             value={form.industry}
             onChangeText={(value) => setValue("industry", value)}
           />
         </View>
         <Field
-          label={language === "pt" ? "Descrição" : "Description"}
+          label={uiText(language, "Descrição", "Description")}
           value={form.description}
           multiline
           onChangeText={(value) => setValue("description", value)}
@@ -608,13 +604,13 @@ function CompanyProfileEditor({
         <View style={styles.formColumns}>
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Localização" : "Location"}
+            label={uiText(language, "Localização", "Location")}
             value={form.location}
             onChangeText={(value) => setValue("location", value)}
           />
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "Telefone" : "Phone"}
+            label={uiText(language, "Telefone", "Phone")}
             value={form.phone}
             onChangeText={(value) => setValue("phone", value)}
           />
@@ -628,7 +624,7 @@ function CompanyProfileEditor({
           />
           <Field
             style={styles.fieldHalf}
-            label={language === "pt" ? "NIF" : "Tax ID"}
+            label={uiText(language, "NIF", "Tax ID")}
             value={form.tax_id}
             onChangeText={(value) => setValue("tax_id", value)}
           />

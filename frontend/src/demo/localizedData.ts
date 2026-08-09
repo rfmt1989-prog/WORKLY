@@ -100,8 +100,18 @@ const terms: Record<string, Values> = {
 };
 
 function exact(language: LanguageCode, value: string) {
-  if (language === "pt") return value;
-  const translated = terms[value];
+  let source = value;
+  let translated = terms[source];
+  if (!translated) {
+    for (const [candidate, values] of Object.entries(terms)) {
+      if (values.includes(value)) {
+        source = candidate;
+        translated = values;
+        break;
+      }
+    }
+  }
+  if (language === "pt") return source;
   return translated ? translated[index[language]] : value;
 }
 
