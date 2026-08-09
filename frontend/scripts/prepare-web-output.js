@@ -1,15 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 
-const publicDirectory = path.resolve(__dirname, "../../public");
+const outputDirectory = path.resolve(__dirname, "../../web-dist");
 
-if (path.basename(publicDirectory) !== "public") {
-  throw new Error(`Refusing to clean unexpected output directory: ${publicDirectory}`);
+if (path.basename(outputDirectory) !== "web-dist") {
+  throw new Error(`Refusing to clean unexpected output directory: ${outputDirectory}`);
 }
 
-for (const generatedDirectory of ["_expo", "assets", "assets-static"]) {
-  fs.rmSync(path.join(publicDirectory, generatedDirectory), {
-    recursive: true,
-    force: true,
-  });
-}
+fs.rmSync(outputDirectory, {
+  recursive: true,
+  force: true,
+});
