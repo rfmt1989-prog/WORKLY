@@ -20,7 +20,7 @@ export type Certificate = {
 
 export type DemoDocument = {
   id: string;
-  owner_type: "worker" | "company";
+  owner_type: "worker" | "company" | "project";
   owner_id: string;
   title: string;
   category: string;
@@ -118,6 +118,7 @@ export type Project = {
   schedule: string;
   team_ids: string[];
   worker_ids: string[];
+  documents?: DemoDocument[];
 };
 
 export type Attendance = {
@@ -195,4 +196,3 @@ export type ToastMessage = {
   message: string;
   tone: ToastTone;
 };
-
