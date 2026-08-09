@@ -279,7 +279,7 @@ function WorkerProfileSummary({
   accent,
 }: {
   worker: Worker;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   const t = copy[language];
@@ -373,7 +373,7 @@ function WorkerProfileEditor({
 }: {
   form: WorkerForm;
   setForm: React.Dispatch<React.SetStateAction<WorkerForm | null>>;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
   busy: boolean;
   onSave: () => void;
@@ -491,7 +491,7 @@ function CompanyProfileSummary({
   teamsCount,
 }: {
   company: Company;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
   projectsCount: number;
   teamsCount: number;
@@ -569,7 +569,7 @@ function CompanyProfileEditor({
 }: {
   form: CompanyForm;
   setForm: React.Dispatch<React.SetStateAction<CompanyForm | null>>;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
   busy: boolean;
   onSave: () => void;

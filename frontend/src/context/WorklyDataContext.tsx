@@ -112,7 +112,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     let active = true;
     storage.getItem<string>(LANGUAGE_STORAGE_KEY, "pt").then((stored) => {
-      if (active && (stored === "pt" || stored === "en")) {
+      if (active && (stored === "pt" || stored === "en" || stored === "fr" || stored === "es" || stored === "ro" || stored === "de" || stored === "nl")) {
         setLanguageState(stored);
       }
     });

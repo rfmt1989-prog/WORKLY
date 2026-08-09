@@ -350,7 +350,7 @@ function TeamCard({
   team: Team;
   workers: Worker[];
   projectName?: string;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   onPress: () => void;
 }) {
   const accent = roleAccent("company");
@@ -440,7 +440,7 @@ function TeamEditor({
   form: TeamForm;
   setForm: React.Dispatch<React.SetStateAction<TeamForm>>;
   projects: { id: string; name: string }[];
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
 }) {
   const t = copy[language];
   const setValue = <K extends keyof TeamForm>(key: K, value: TeamForm[K]) => {
@@ -530,7 +530,7 @@ function TeamDetails({
   team: Team;
   workers: Worker[];
   projects: { id: string; name: string }[];
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   busy: boolean;
   onAdd: (workerId: string) => void;
   onRemove: (workerId: string) => void;

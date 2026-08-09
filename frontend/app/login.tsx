@@ -21,92 +21,18 @@ import {
   roleAccent,
   workspaceColors,
 } from "@/src/components/workspace/primitives";
+import { LanguageSelector } from "@/src/components/LanguageSelector";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
+import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 
 type ScreenMode = "login" | "register";
-type Language = "pt" | "en";
 
 const DEMO_PASSWORD = "WorklyDemo!";
 const DEMO_ACCOUNTS: Record<UserRole, string> = {
   worker: "worker.demo@workly.app",
   company: "company.demo@workly.app",
 };
-
-const labels = {
-  pt: {
-    eyebrow: "OPERAÇÃO CONECTADA",
-    title: "Pessoas certas.\nObras sob controlo.",
-    description:
-      "Uma visão única para trabalhadores, equipas, horários, documentos e execução no terreno.",
-    secure: "Sessão recuperável",
-    responsive: "Web e mobile",
-    gps: "Presença com GPS",
-    login: "Entrar",
-    register: "Criar conta",
-    worker: "Worker",
-    workerDescription: "Perfil, obras e presenças",
-    company: "Company",
-    companyDescription: "Equipas e operação",
-    name: "Nome completo",
-    companyName: "Nome da empresa",
-    email: "Email",
-    password: "Password",
-    submitLogin: "Entrar na WORKLY",
-    submitRegister: "Criar conta",
-    divider: "ou usa uma conta preparada",
-    workerDemo: "Entrar como Worker Demo",
-    companyDemo: "Entrar como Company Demo",
-    demoPassword: "Password única de demonstração",
-    required: "Preenche todos os campos.",
-    genericError: "Não foi possível autenticar. Confirma os dados e tenta novamente.",
-    demoBadge: "DEMO WEB",
-    loading: "A recuperar a sessão…",
-  },
-  en: {
-    eyebrow: "CONNECTED OPERATIONS",
-    title: "The right people.\nEvery site under control.",
-    description:
-      "One view for workers, teams, schedules, documents and field execution.",
-    secure: "Persistent session",
-    responsive: "Web and mobile",
-    gps: "GPS attendance",
-    login: "Sign in",
-    register: "Create account",
-    worker: "Worker",
-    workerDescription: "Profile, jobs and attendance",
-    company: "Company",
-    companyDescription: "Teams and operations",
-    name: "Full name",
-    companyName: "Company name",
-    email: "Email",
-    password: "Password",
-    submitLogin: "Sign in to WORKLY",
-    submitRegister: "Create account",
-    divider: "or use a ready-made account",
-    workerDemo: "Enter as Worker Demo",
-    companyDemo: "Enter as Company Demo",
-    demoPassword: "Single demonstration password",
-    required: "Complete all fields.",
-    genericError: "Authentication failed. Check the details and try again.",
-    demoBadge: "WEB DEMO",
-    loading: "Restoring your session…",
-  },
-} as const;
-
-function readableError(message: string, language: Language) {
-  if (message.includes("401") || message.toLowerCase().includes("invalid")) {
-    return language === "pt"
-      ? "Email, password ou tipo de conta incorretos."
-      : "Incorrect email, password or account type.";
-  }
-  if (message.includes("409") || message.toLowerCase().includes("exists")) {
-    return language === "pt"
-      ? "Já existe uma conta com este email."
-      : "An account already exists for this email.";
-  }
-  return labels[language].genericError;
-}
 
 export default function Login() {
   const router = useRouter();
@@ -115,7 +41,7 @@ export default function Login() {
   const compact = width < 860;
   const { user, loading: sessionLoading, login, register } = useAuth();
   const { language, setLanguage } = useWorklyData();
-  const text = labels[language];
+  const text = loginCopy[language];
 
   const [mode, setMode] = useState<ScreenMode>("login");
   const [role, setRole] = useState<UserRole>("worker");
@@ -167,7 +93,7 @@ export default function Login() {
     } catch (caughtError) {
       const message =
         caughtError instanceof Error ? caughtError.message : text.genericError;
-      setError(readableError(message, language));
+      setError(readableAuthError(message, language));
     } finally {
       setSubmitting(null);
     }
@@ -216,29 +142,7 @@ export default function Login() {
               <Text style={styles.demoBadgeText}>{text.demoBadge}</Text>
             </View>
           </View>
-          <View style={styles.languageSwitch}>
-            {(["pt", "en"] as Language[]).map((item) => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={item === "pt" ? "Português" : "English"}
-                key={item}
-                onPress={() => setLanguage(item)}
-                style={[
-                  styles.languageButton,
-                  language === item ? styles.languageButtonActive : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.languageText,
-                    language === item ? styles.languageTextActive : null,
-                  ]}
-                >
-                  {item.toUpperCase()}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <LanguageSelector language={language} onChange={setLanguage} accent={workspaceColors.blue} />
         </View>
 
         <View style={[styles.main, compact ? styles.mainCompact : null]}>

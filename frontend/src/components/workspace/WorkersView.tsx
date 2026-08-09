@@ -367,7 +367,7 @@ function WorkerCard({
   onPress,
 }: {
   worker: Worker;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   onPress: () => void;
 }) {
   const accent = roleAccent("company");
@@ -443,7 +443,7 @@ function WorkerDetails({
   onAssignProject,
 }: {
   worker: Worker;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   teams: { id: string; name: string; member_ids: string[] }[];
   projects: { id: string; name: string; worker_ids: string[] }[];
   onDocument: (document: DemoDocument) => void;
@@ -636,7 +636,7 @@ function WorkerEditor({
 }: {
   form: WorkerForm;
   setForm: React.Dispatch<React.SetStateAction<WorkerForm | null>>;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
 }) {
   const t = copy[language];
   const setValue = <K extends keyof WorkerForm>(key: K, value: WorkerForm[K]) => {

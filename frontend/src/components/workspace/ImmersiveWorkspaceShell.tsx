@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { LanguageSelector } from "@/src/components/LanguageSelector";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
@@ -80,7 +81,7 @@ export function ImmersiveWorkspaceShell() {
     { id: "dashboard", label: t.dashboard, icon: "grid-outline" },
     {
       id: "operations",
-      label: language === "pt" ? "Operações" : "Operations",
+      label: t.operations,
       icon: "map-outline",
       companyOnly: true,
     },
@@ -122,7 +123,7 @@ export function ImmersiveWorkspaceShell() {
   const operational = (() => {
     if (!state) {
       return {
-        primary: language === "pt" ? "A sincronizar" : "Syncing",
+        primary: t.syncing,
         secondary: "WORKLY",
         activeWorkers: 0,
         activeProjects: 0,
@@ -140,17 +141,8 @@ export function ImmersiveWorkspaceShell() {
 
       return {
         primary:
-          activeWorkers > 0
-            ? language === "pt"
-              ? `${activeWorkers} em obra agora`
-              : `${activeWorkers} on site now`
-            : language === "pt"
-              ? "Operação pronta"
-              : "Operation ready",
-        secondary:
-          language === "pt"
-            ? `${activeProjects} obras ativas`
-            : `${activeProjects} active projects`,
+          activeWorkers > 0 ? `${activeWorkers} ${t.onSiteNow}` : t.operationReady,
+        secondary: `${activeProjects} ${t.activeProjects}`,
         activeWorkers,
         activeProjects,
       };
@@ -168,16 +160,10 @@ export function ImmersiveWorkspaceShell() {
     ).length;
 
     return {
-      primary: activeAttendance
-        ? language === "pt"
-          ? "Sessão em obra ativa"
-          : "Active on-site session"
-        : language === "pt"
-          ? "Pronto para check-in"
-          : "Ready to check in",
+      primary: activeAttendance ? t.activeSession : t.readyCheckIn,
       secondary:
         project?.name ??
-        (language === "pt" ? "Sem obra selecionada" : "No project selected"),
+        t.noProject,
       activeWorkers: activeAttendance ? 1 : 0,
       activeProjects,
     };
@@ -222,12 +208,12 @@ export function ImmersiveWorkspaceShell() {
             color={workspaceColors.redSoft}
           />
           <Text style={styles.stateTitle}>
-            {language === "pt" ? "Ligação indisponível" : "Connection unavailable"}
+            {t.connectionUnavailable}
           </Text>
           <Text style={styles.stateText}>{error}</Text>
           <Button
             compact
-            label={language === "pt" ? "Tentar novamente" : "Try again"}
+            label={t.tryAgain}
             icon="refresh-outline"
             accent={accent}
             onPress={() => void reload(true)}
@@ -286,13 +272,7 @@ export function ImmersiveWorkspaceShell() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            role === "company"
-              ? language === "pt"
-                ? "Abrir mapa operacional"
-                : "Open operations map"
-              : language === "pt"
-                ? "Abrir presenças"
-                : "Open attendance"
+            role === "company" ? t.openOperations : t.openAttendance
           }
           onPress={() => navigate(role === "company" ? "operations" : "attendance")}
           style={({ pressed }) => [
@@ -317,20 +297,20 @@ export function ImmersiveWorkspaceShell() {
             <MetricMini
               icon="people-outline"
               value={operational.activeWorkers}
-              label={language === "pt" ? "em obra" : "on site"}
+              label={t.onSite}
               accent={accent}
             />
             <MetricMini
               icon="business-outline"
               value={operational.activeProjects}
-              label={language === "pt" ? "obras" : "projects"}
+              label={t.projects}
               accent={accent}
             />
           </View>
         ) : null}
 
         <View style={styles.topActions}>
-          <LanguageToggle
+          <LanguageSelector
             language={language}
             accent={accent}
             onChange={setLanguage}
@@ -479,46 +459,6 @@ function MetricMini({
       <Ionicons name={icon} size={14} color={accent} />
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function LanguageToggle({
-  language,
-  accent,
-  onChange,
-}: {
-  language: "pt" | "en";
-  accent: string;
-  onChange: (language: "pt" | "en") => void;
-}) {
-  return (
-    <View style={styles.languageToggle}>
-      {(["pt", "en"] as const).map((option) => {
-        const active = option === language;
-        return (
-          <Pressable
-            key={option}
-            accessibilityRole="button"
-            accessibilityLabel={option === "pt" ? "Português" : "English"}
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(option)}
-            style={[
-              styles.languageButton,
-              active ? { backgroundColor: `${accent}22` } : null,
-            ]}
-          >
-            <Text
-              style={[
-                styles.languageText,
-                active ? { color: accent } : null,
-              ]}
-            >
-              {option.toUpperCase()}
-            </Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
