@@ -1,0 +1,25 @@
+name: Disable Vercel Protection
+
+on:
+  push:
+    paths:
+      - '.github/workflows/disable-vercel-protection.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  unprotect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disable Vercel Authentication and password protection
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          response=$(curl -sS -f -X PATCH \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.vercel.com/v9/projects/prj_i2O5wxHnnL3WaI4OstDogjOBEpFg?teamId=team_5LSRDYKDIDDttNfiidfjplCI" \
+            --data '{"ssoProtection":null,"passwordProtection":null}')
+          echo "$response" | jq '{id,name,ssoProtection,passwordProtection}'
