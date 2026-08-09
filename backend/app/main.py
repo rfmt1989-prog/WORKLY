@@ -115,6 +115,7 @@ class ProjectInput(BaseModel):
     geofence_radius_m: int = Field(default=250, ge=50, le=2000)
     team_ids: list[str] = Field(default_factory=list)
     worker_ids: list[str] = Field(default_factory=list)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AssignmentInput(BaseModel):
@@ -747,6 +748,7 @@ def update_project(
         "geofence_radius_m",
         "team_ids",
         "worker_ids",
+        "documents",
     }
     with _state_lock:
         project = _find("projects", project_id)

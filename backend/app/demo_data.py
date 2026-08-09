@@ -40,6 +40,25 @@ def _document(worker_id: str, suffix: str, title: str, category: str) -> dict:
     }
 
 
+def _project_document(
+    project_id: str, suffix: str, title: str, category: str, *, status: str = "valid"
+) -> dict:
+    return {
+        "id": f"doc-{project_id}-{suffix}",
+        "owner_type": "project",
+        "owner_id": project_id,
+        "title": title,
+        "category": category,
+        "file_name": f"{suffix}_{project_id}.pdf",
+        "status": status,
+        "updated_at": "2026-08-08T14:00:00Z",
+        "demo_content": (
+            f"Documento de obra de demonstração WORKLY — {title}. "
+            "Organizado no arquivo técnico da obra e sem validade legal."
+        ),
+    }
+
+
 def _project_item(project_id: str, title: str, location: str, year: int) -> dict:
     return {
         "id": project_id,
@@ -375,6 +394,12 @@ def build_demo_state() -> dict:
             "schedule": "08:00–17:00",
             "team_ids": ["team-1"],
             "worker_ids": ["worker-1", "worker-4", "worker-6", "worker-8"],
+            "documents": [
+                _project_document("project-1", "pss", "Plano de Segurança e Saúde", "safety"),
+                _project_document("project-1", "desenhos", "Desenhos e peças de montagem", "technical"),
+                _project_document("project-1", "cronograma", "Planeamento e cronograma", "planning", status="active"),
+                _project_document("project-1", "registo", "Registo diário de obra", "planning", status="active"),
+            ],
         },
         {
             "id": "project-2",
@@ -392,6 +417,11 @@ def build_demo_state() -> dict:
             "schedule": "07:30–16:30",
             "team_ids": ["team-2"],
             "worker_ids": ["worker-7"],
+            "documents": [
+                _project_document("project-2", "pss", "Plano de Segurança e Saúde", "safety"),
+                _project_document("project-2", "projeto", "Projeto de execução", "technical"),
+                _project_document("project-2", "cronograma", "Planeamento e cronograma", "planning", status="active"),
+            ],
         },
         {
             "id": "project-3",
@@ -409,6 +439,12 @@ def build_demo_state() -> dict:
             "schedule": "08:00–17:00",
             "team_ids": [],
             "worker_ids": ["worker-2", "worker-3", "worker-5"],
+            "documents": [
+                _project_document("project-3", "pss", "Plano de Segurança e Saúde", "safety"),
+                _project_document("project-3", "avac", "Projeto AVAC e redes técnicas", "technical"),
+                _project_document("project-3", "quadros", "Esquemas de quadros elétricos", "technical"),
+                _project_document("project-3", "cronograma", "Planeamento e cronograma", "planning", status="active"),
+            ],
         },
     ]
 
