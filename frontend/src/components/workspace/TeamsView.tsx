@@ -234,8 +234,8 @@ export function TeamsView() {
       <ModalPanel
         visible={modal === "detail" && Boolean(selectedTeam)}
         onClose={() => setModal(null)}
-        title={selectedTeam?.name ?? ""}
-        subtitle={selectedTeam?.specialty}
+        title={localizeDemoText(language, selectedTeam?.name)}
+        subtitle={localizeDemoText(language, selectedTeam?.specialty)}
         wide
         footer={
           <>
@@ -304,7 +304,7 @@ export function TeamsView() {
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title={uiText(language, "Eliminar equipa?", "Delete team?")}
-        subtitle={selectedTeam?.name}
+        subtitle={localizeDemoText(language, selectedTeam?.name)}
         footer={
           <>
             <Button
@@ -351,7 +351,7 @@ function TeamCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={team.name}
+      accessibilityLabel={localizeDemoText(language, team.name)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.teamCard,
@@ -368,7 +368,7 @@ function TeamCard({
           <Ionicons name="people" size={23} color={accent} />
         </View>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={styles.teamName}>{team.name}</Text>
+          <Text style={styles.teamName}>{localizeDemoText(language, team.name)}</Text>
           <Text style={styles.teamMeta}>{localizeDemoText(language, team.specialty)}</Text>
         </View>
         <StatusPill
@@ -434,7 +434,7 @@ function TeamEditor({
     <View style={{ gap: 14 }}>
       <Field
         label={uiText(language, "Nome da equipa", "Team name")}
-        value={form.name}
+        value={localizeDemoText(language, form.name)}
         onChangeText={(value) => setValue("name", value)}
         placeholder={uiText(language, "Ex.: Equipa Estrutura Sul", "E.g. South Structure Team")}
       />
@@ -534,7 +534,7 @@ function TeamDetails({
     <View style={{ gap: 18 }}>
       <View style={styles.teamSummary}>
         <View style={{ flex: 1, minWidth: 220, gap: 5 }}>
-          <Text style={styles.detailTitle}>{team.name}</Text>
+          <Text style={styles.detailTitle}>{localizeDemoText(language, team.name)}</Text>
           <Text style={sharedStyles.body}>{localizeDemoText(language, team.description)}</Text>
           <StatusPill
             status={team.status}
