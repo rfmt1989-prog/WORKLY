@@ -52,7 +52,6 @@ jobs:
           replace(path, 'value={form.name}\n        onChangeText={(value) => setValue("name", value)}', 'value={localizeDemoText(language, form.name)}\n        onChangeText={(value) => setValue("name", value)}')
           replace(path, '<Text style={styles.detailTitle}>{team.name}</Text>', '<Text style={styles.detailTitle}>{localizeDemoText(language, team.name)}</Text>')
 
-          # Guard the screenshot regression and every visible rendering of the demo team names.
           body = Path(path).read_text(encoding='utf-8')
           forbidden = [
               '<Text style={styles.teamName}>{team.name}</Text>',
@@ -84,7 +83,7 @@ jobs:
 
       - name: Typecheck
         working-directory: frontend
-        run: npm run typecheck
+        run: npx tsc --noEmit
 
       - name: Lint
         working-directory: frontend
