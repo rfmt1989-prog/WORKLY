@@ -1,1 +1,0 @@
-WORKLY UI languages: PT, EN, FR, ES, RO, DE, NL.
