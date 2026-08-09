@@ -1,0 +1,279 @@
+name: Apply multilingual UI
+
+on:
+  push:
+    branches:
+      - agent/multilingual-ui
+    paths:
+      - .github/workflows/multilingual-ui-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/multilingual-ui
+
+      - name: Apply multilingual selectors and persistence
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Persist all supported languages.
+          context_path = Path('frontend/src/context/WorklyDataContext.tsx')
+          context = context_path.read_text()
+          old = 'if (active && (stored === "pt" || stored === "en")) {'
+          new = '''if (\n        active &&\n        (stored === "pt" ||\n          stored === "en" ||\n          stored === "fr" ||\n          stored === "es" ||\n          stored === "ro" ||\n          stored === "de" ||\n          stored === "nl")\n      ) {'''
+          if old not in context:
+              raise SystemExit('Language persistence patch point not found')
+          context_path.write_text(context.replace(old, new, 1))
+
+          # Use shared selector and central translated shell strings.
+          shell_path = Path('frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx')
+          shell = shell_path.read_text()
+          import_marker = 'import { useAuth } from "@/src/context/AuthContext";\n'
+          shell = shell.replace(
+              import_marker,
+              'import { LanguageSelector } from "@/src/components/LanguageSelector";\n' + import_marker,
+              1,
+          )
+          shell = shell.replace(
+              '''          <LanguageToggle\n            language={language}\n            accent={accent}\n            onChange={setLanguage}\n          />''',
+              '''          <LanguageSelector\n            language={language}\n            accent={accent}\n            onChange={setLanguage}\n          />''',
+              1,
+          )
+          shell, count = re.subn(
+              r'\nfunction LanguageToggle\([\s\S]*?\n}\n\nconst styles = StyleSheet\.create\(',
+              '\nconst styles = StyleSheet.create(',
+              shell,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('LanguageToggle function removal failed')
+          replacements = {
+              'label: language === "pt" ? "Operações" : "Operations",': 'label: t.operations,',
+              'primary: language === "pt" ? "A sincronizar" : "Syncing",': 'primary: t.syncing,',
+              '''          activeWorkers > 0\n            ? language === "pt"\n              ? `${activeWorkers} em obra agora`\n              : `${activeWorkers} on site now`\n            : language === "pt"\n              ? "Operação pronta"\n              : "Operation ready",''': '''          activeWorkers > 0\n            ? `${activeWorkers} ${t.onSiteNow}`\n            : t.operationReady,''',
+              '''        secondary:\n          language === "pt"\n            ? `${activeProjects} obras ativas`\n            : `${activeProjects} active projects`,''': '''        secondary: `${activeProjects} ${t.activeProjects}`,''',
+              '''      primary: activeAttendance\n        ? language === "pt"\n          ? "Sessão em obra ativa"\n          : "Active on-site session"\n        : language === "pt"\n          ? "Pronto para check-in"\n          : "Ready to check in",''': '''      primary: activeAttendance ? t.activeSession : t.readyCheckIn,''',
+              '''        (language === "pt" ? "Sem obra selecionada" : "No project selected"),''': '''        t.noProject,''',
+              '''            {language === "pt" ? "Ligação indisponível" : "Connection unavailable"}''': '''            {t.connectionUnavailable}''',
+              '''            label={language === "pt" ? "Tentar novamente" : "Try again"}''': '''            label={t.tryAgain}''',
+              '''            role === "company"\n              ? language === "pt"\n                ? "Abrir mapa operacional"\n                : "Open operations map"\n              : language === "pt"\n                ? "Abrir presenças"\n                : "Open attendance"''': '''            role === "company" ? t.openOperations : t.openAttendance''',
+              '''              label={language === "pt" ? "em obra" : "on site"}''': '''              label={t.onSite}''',
+              '''              label={language === "pt" ? "obras" : "projects"}''': '''              label={t.projects}''',
+          }
+          for old_text, new_text in replacements.items():
+              if old_text not in shell:
+                  raise SystemExit(f'Shell translation patch point missing: {old_text[:70]!r}')
+              shell = shell.replace(old_text, new_text, 1)
+          shell_path.write_text(shell)
+
+          # Expand login translations and use the same selector.
+          login_path = Path('frontend/app/login.tsx')
+          login = login_path.read_text()
+          login = login.replace(
+              'import { type UserRole, useAuth } from "@/src/context/AuthContext";\n',
+              'import { LanguageSelector } from "@/src/components/LanguageSelector";\nimport { type UserRole, useAuth } from "@/src/context/AuthContext";\nimport type { LanguageCode } from "@/src/demo/types";\n',
+              1,
+          )
+          login = login.replace('type Language = "pt" | "en";\n', '', 1)
+
+          extra_labels = r'''
+  fr: {
+    eyebrow: "OPÉRATIONS CONNECTÉES",
+    title: "Les bonnes personnes.\nChaque chantier sous contrôle.",
+    description: "Une vue unique pour les travailleurs, les équipes, les horaires, les documents et l’exécution sur le terrain.",
+    secure: "Session persistante",
+    responsive: "Web et mobile",
+    gps: "Présence avec GPS",
+    login: "Se connecter",
+    register: "Créer un compte",
+    worker: "Travailleur",
+    workerDescription: "Profil, chantiers et présences",
+    company: "Entreprise",
+    companyDescription: "Équipes et opérations",
+    name: "Nom complet",
+    companyName: "Nom de l’entreprise",
+    email: "E-mail",
+    password: "Mot de passe",
+    submitLogin: "Se connecter à WORKLY",
+    submitRegister: "Créer un compte",
+    divider: "ou utiliser un compte préparé",
+    workerDemo: "Entrer comme Travailleur Demo",
+    companyDemo: "Entrer comme Entreprise Demo",
+    demoPassword: "Mot de passe unique de démonstration",
+    required: "Remplissez tous les champs.",
+    genericError: "Authentification impossible. Vérifiez les informations et réessayez.",
+    demoBadge: "DÉMO WEB",
+    loading: "Restauration de la session…",
+  },
+  es: {
+    eyebrow: "OPERACIÓN CONECTADA",
+    title: "Las personas adecuadas.\nCada obra bajo control.",
+    description: "Una única vista para trabajadores, equipos, horarios, documentos y ejecución en obra.",
+    secure: "Sesión persistente",
+    responsive: "Web y móvil",
+    gps: "Asistencia con GPS",
+    login: "Iniciar sesión",
+    register: "Crear cuenta",
+    worker: "Trabajador",
+    workerDescription: "Perfil, obras y asistencia",
+    company: "Empresa",
+    companyDescription: "Equipos y operaciones",
+    name: "Nombre completo",
+    companyName: "Nombre de la empresa",
+    email: "Email",
+    password: "Contraseña",
+    submitLogin: "Entrar en WORKLY",
+    submitRegister: "Crear cuenta",
+    divider: "o usa una cuenta preparada",
+    workerDemo: "Entrar como Trabajador Demo",
+    companyDemo: "Entrar como Empresa Demo",
+    demoPassword: "Contraseña única de demostración",
+    required: "Completa todos los campos.",
+    genericError: "No se pudo autenticar. Comprueba los datos e inténtalo de nuevo.",
+    demoBadge: "DEMO WEB",
+    loading: "Restaurando la sesión…",
+  },
+  ro: {
+    eyebrow: "OPERAȚIUNI CONECTATE",
+    title: "Oamenii potriviți.\nFiecare șantier sub control.",
+    description: "O singură imagine pentru lucrători, echipe, programe, documente și execuția din teren.",
+    secure: "Sesiune persistentă",
+    responsive: "Web și mobil",
+    gps: "Prezență cu GPS",
+    login: "Autentificare",
+    register: "Creează cont",
+    worker: "Lucrător",
+    workerDescription: "Profil, șantiere și prezență",
+    company: "Companie",
+    companyDescription: "Echipe și operațiuni",
+    name: "Nume complet",
+    companyName: "Numele companiei",
+    email: "Email",
+    password: "Parolă",
+    submitLogin: "Intră în WORKLY",
+    submitRegister: "Creează cont",
+    divider: "sau folosește un cont pregătit",
+    workerDemo: "Intră ca Lucrător Demo",
+    companyDemo: "Intră ca Companie Demo",
+    demoPassword: "Parolă unică pentru demonstrație",
+    required: "Completează toate câmpurile.",
+    genericError: "Autentificarea a eșuat. Verifică datele și încearcă din nou.",
+    demoBadge: "DEMO WEB",
+    loading: "Restabilim sesiunea…",
+  },
+  de: {
+    eyebrow: "VERNETZTER BETRIEB",
+    title: "Die richtigen Menschen.\nJede Baustelle unter Kontrolle.",
+    description: "Eine zentrale Ansicht für Mitarbeiter, Teams, Zeitpläne, Dokumente und die Ausführung vor Ort.",
+    secure: "Persistente Sitzung",
+    responsive: "Web und Mobil",
+    gps: "GPS-Anwesenheit",
+    login: "Anmelden",
+    register: "Konto erstellen",
+    worker: "Mitarbeiter",
+    workerDescription: "Profil, Baustellen und Anwesenheit",
+    company: "Unternehmen",
+    companyDescription: "Teams und Betrieb",
+    name: "Vollständiger Name",
+    companyName: "Unternehmensname",
+    email: "E-Mail",
+    password: "Passwort",
+    submitLogin: "Bei WORKLY anmelden",
+    submitRegister: "Konto erstellen",
+    divider: "oder ein vorbereitetes Konto verwenden",
+    workerDemo: "Als Mitarbeiter Demo anmelden",
+    companyDemo: "Als Unternehmen Demo anmelden",
+    demoPassword: "Einheitliches Demo-Passwort",
+    required: "Füllen Sie alle Felder aus.",
+    genericError: "Anmeldung fehlgeschlagen. Prüfen Sie die Angaben und versuchen Sie es erneut.",
+    demoBadge: "WEB-DEMO",
+    loading: "Sitzung wird wiederhergestellt…",
+  },
+  nl: {
+    eyebrow: "VERBONDEN OPERATIES",
+    title: "De juiste mensen.\nElke bouwplaats onder controle.",
+    description: "Eén overzicht voor werknemers, teams, roosters, documenten en uitvoering op locatie.",
+    secure: "Blijvende sessie",
+    responsive: "Web en mobiel",
+    gps: "GPS-aanwezigheid",
+    login: "Inloggen",
+    register: "Account maken",
+    worker: "Werknemer",
+    workerDescription: "Profiel, bouwplaatsen en aanwezigheid",
+    company: "Bedrijf",
+    companyDescription: "Teams en operaties",
+    name: "Volledige naam",
+    companyName: "Bedrijfsnaam",
+    email: "E-mail",
+    password: "Wachtwoord",
+    submitLogin: "Inloggen bij WORKLY",
+    submitRegister: "Account maken",
+    divider: "of gebruik een voorbereid account",
+    workerDemo: "Inloggen als Werknemer Demo",
+    companyDemo: "Inloggen als Bedrijf Demo",
+    demoPassword: "Uniek demonstratiewachtwoord",
+    required: "Vul alle velden in.",
+    genericError: "Aanmelden is mislukt. Controleer de gegevens en probeer opnieuw.",
+    demoBadge: "WEBDEMO",
+    loading: "Sessie wordt hersteld…",
+  },
+'''
+          marker = '} as const;\n\nfunction readableError'
+          if marker not in login:
+              raise SystemExit('Login labels insertion marker not found')
+          login = login.replace('  },\n} as const;\n\nfunction readableError', '  },\n' + extra_labels + '} as const;\n\nfunction readableError', 1)
+          login = login.replace('function readableError(message: string, language: Language) {', 'function readableError(message: string, language: LanguageCode) {', 1)
+
+          language_block = re.compile(r'          <View style=\{styles\.languageSwitch\}>[\s\S]*?          </View>\n        </View>', re.M)
+          replacement = '''          <LanguageSelector\n            language={language}\n            onChange={setLanguage}\n            accent={workspaceColors.blue}\n          />\n        </View>'''
+          login, count = language_block.subn(replacement, login, count=1)
+          if count != 1:
+              raise SystemExit('Login language selector replacement failed')
+          login_path.write_text(login)
+          PY
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify backend
+        shell: bash
+        run: |
+          python -m pip install -r requirements.txt pytest httpx
+          PYTHONPATH=. python -m compileall -q backend api
+          PYTHONPATH=. pytest -q backend/tests
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify frontend
+        shell: bash
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npm run lint
+          npm run build:web
+
+      - name: Commit verified source changes
+        shell: bash
+        run: |
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add frontend/src/context/WorklyDataContext.tsx frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx frontend/app/login.tsx
+          git commit -m "Enable multilingual selection across WORKLY"
+          git push
