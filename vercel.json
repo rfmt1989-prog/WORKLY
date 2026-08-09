@@ -1,13 +1,22 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
   "buildCommand": "if [ -d frontend ]; then cd frontend && npm ci --no-audit --no-fund && npm run build:web; fi",
   "outputDirectory": "web-dist",
   "functions": {
-    "backend/app/main.py": {
+    "api/index.py": {
       "maxDuration": 30
     }
   },
   "rewrites": [
+    {
+      "source": "/api",
+      "destination": "/api/index?__path="
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?__path=:path*"
+    },
     {
       "source": "/assets/node_modules/:path*",
       "destination": "/assets-static/:path*"
