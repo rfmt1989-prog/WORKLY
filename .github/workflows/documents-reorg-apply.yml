@@ -18,11 +18,25 @@ jobs:
         with:
           ref: agent/documents-by-worker-project
 
-      - name: Add project document support to API demo
+      - name: Apply document archive changes
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+
+          docs_path = Path('frontend/src/components/workspace/DocumentsView.tsx')
+          docs = docs_path.read_text()
+          docs = docs.replace('    outlineStyle: "none",\n', '')
+          docs = docs.replace(
+              'style={[styles.folderPane, splitCompact ? styles.folderPaneCompact : null]}',
+              'style={splitCompact ? styles.folderPaneCompact : styles.folderPane}',
+          )
+          old_compact = '''  folderPaneCompact: {\n    maxWidth: undefined,\n    minWidth: undefined,\n    flexBasis: "auto",\n  },'''
+          new_compact = '''  folderPaneCompact: {\n    flexBasis: "auto",\n    maxWidth: "100%",\n    minWidth: 0,\n    width: "100%",\n  },'''
+          if old_compact not in docs:
+              raise SystemExit('Compact folder style patch point not found')
+          docs = docs.replace(old_compact, new_compact, 1)
+          docs_path.write_text(docs)
 
           main_path = Path('backend/app/main.py')
           main = main_path.read_text()
@@ -92,6 +106,6 @@ jobs:
         run: |
           git config user.name "rfmt1989-prog"
           git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
-          git add backend/app/main.py backend/app/demo_data.py
-          git commit -m "Add project document archives to demo data"
+          git add frontend/src/components/workspace/DocumentsView.tsx backend/app/main.py backend/app/demo_data.py
+          git commit -m "Complete worker and project document archives"
           git push
