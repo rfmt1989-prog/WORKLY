@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "if [ -d frontend ]; then cd frontend && npm ci --no-audit --no-fund && npm run build:web; fi",
-  "outputDirectory": "public",
+  "outputDirectory": "web-dist",
   "functions": {
     "backend/app/main.py": {
       "maxDuration": 30
