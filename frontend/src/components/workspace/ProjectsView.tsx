@@ -12,6 +12,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { Project, ProjectStatus } from "@/src/demo/types";
 
@@ -490,7 +491,7 @@ function ProjectEditor({
       </View>
       <Field
         label={uiText(language, "Descrição", "Description")}
-        value={form.description}
+        value={localizeDemoText(language, form.description)}
         multiline
         onChangeText={(value) => setValue("description", value)}
       />
@@ -607,7 +608,7 @@ function ProjectDetails({
       <View style={styles.detailHero}>
         <View style={{ flex: 1, minWidth: 240, gap: 6 }}>
           <Text style={styles.detailTitle}>{project.name}</Text>
-          <Text style={sharedStyles.body}>{project.description}</Text>
+          <Text style={sharedStyles.body}>{localizeDemoText(language, project.description)}</Text>
           <StatusPill
             status={project.status}
             label={
@@ -676,7 +677,7 @@ function ProjectDetails({
               <Pressable
                 key={worker.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${worker.name}, ${worker.profession}`}
+                accessibilityLabel={`${worker.name}, ${localizeDemoText(language, worker.profession)}`}
                 accessibilityState={{
                   disabled: busy || role !== "company",
                   selected: assigned,
@@ -699,7 +700,7 @@ function ProjectDetails({
                 <View style={{ flex: 1 }}>
                   <Text style={styles.workerName}>{worker.name}</Text>
                   <Text style={styles.meta} numberOfLines={1}>
-                    {worker.profession}
+                    {localizeDemoText(language, worker.profession)}
                   </Text>
                 </View>
                 <Ionicons

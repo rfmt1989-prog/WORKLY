@@ -9,6 +9,8 @@ import React, {
 } from "react";
 
 import { ApiError, api } from "@/src/api/client";
+import { localizeApiError } from "@/src/demo/apiErrorI18n";
+import { uiText } from "@/src/demo/fullUi";
 import type {
   Attendance,
   Company,
@@ -152,7 +154,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         const message =
           requestError instanceof Error
             ? requestError.message
-            : "Não foi possível carregar os dados.";
+            : uiText(language, "Não foi possível carregar os dados.", "Could not load the data.");
         setError(message);
       } finally {
         setLoading(false);
@@ -191,12 +193,12 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       hydratedRef.current = true;
       await storage.setItem(STATE_STORAGE_KEY, JSON.stringify(response.state));
       notify(
-        language === "pt" ? "Dados demo repostos." : "Demo data reset.",
+        uiText(language, "Dados demo repostos.", "Demo data reset."),
         "success",
       );
     } catch (requestError) {
       const message =
-        requestError instanceof Error ? requestError.message : "Reset failed.";
+        requestError instanceof Error ? requestError.message : uiText(language, "Falha ao repor os dados.", "Reset failed.");
       setError(message);
       notify(message, "error");
     } finally {
@@ -222,7 +224,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       if (user?.id === workerId) {
         setUser(user ? { ...user, ...patch } : user);
       }
-      notify(language === "pt" ? "Perfil atualizado." : "Profile updated.");
+      notify(uiText(language, "Perfil atualizado.", "Profile updated."));
     },
     [language, notify, setUser, user],
   );
@@ -250,7 +252,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       if (user?.id === companyId) {
         setUser(user ? { ...user, ...patch } : user);
       }
-      notify(language === "pt" ? "Empresa atualizada." : "Company updated.");
+      notify(uiText(language, "Empresa atualizada.", "Company updated."));
     },
     [language, notify, setUser, user],
   );
@@ -271,7 +273,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       setState((current) =>
         current ? { ...current, teams: [created, ...current.teams] } : current,
       );
-      notify(language === "pt" ? "Equipa criada." : "Team created.");
+      notify(uiText(language, "Equipa criada.", "Team created."));
       return created;
     },
     [language, notify, user],
@@ -294,7 +296,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           teams: replaceById(current.teams, updated ?? { ...existing, ...patch }),
         };
       });
-      notify(language === "pt" ? "Equipa atualizada." : "Team updated.");
+      notify(uiText(language, "Equipa atualizada.", "Team updated."));
     },
     [language, notify],
   );
@@ -317,7 +319,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           })),
         };
       });
-      notify(language === "pt" ? "Equipa eliminada." : "Team deleted.");
+      notify(uiText(language, "Equipa eliminada.", "Team deleted."));
     },
     [language, notify],
   );
@@ -344,7 +346,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           } satisfies Team);
         return { ...current, teams: replaceById(current.teams, nextTeam) };
       });
-      notify(language === "pt" ? "Trabalhador adicionado." : "Worker added.");
+      notify(uiText(language, "Trabalhador adicionado.", "Worker added."));
     },
     [language, notify],
   );
@@ -374,7 +376,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           } satisfies Team);
         return { ...current, teams: replaceById(current.teams, nextTeam) };
       });
-      notify(language === "pt" ? "Trabalhador removido." : "Worker removed.");
+      notify(uiText(language, "Trabalhador removido.", "Worker removed."));
     },
     [language, notify],
   );
@@ -402,7 +404,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           } satisfies Team);
         return { ...current, teams: replaceById(current.teams, nextTeam) };
       });
-      notify(language === "pt" ? "Líder definido." : "Leader assigned.");
+      notify(uiText(language, "Líder definido.", "Leader assigned."));
     },
     [language, notify],
   );
@@ -429,7 +431,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           ? { ...current, projects: [created, ...current.projects] }
           : current,
       );
-      notify(language === "pt" ? "Obra criada." : "Project created.");
+      notify(uiText(language, "Obra criada.", "Project created."));
       return created;
     },
     [language, notify, user],
@@ -457,7 +459,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           ),
         };
       });
-      notify(language === "pt" ? "Obra atualizada." : "Project updated.");
+      notify(uiText(language, "Obra atualizada.", "Project updated."));
     },
     [language, notify],
   );
@@ -481,7 +483,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           ),
         };
       });
-      notify(language === "pt" ? "Obra eliminada." : "Project deleted.");
+      notify(uiText(language, "Obra eliminada.", "Project deleted."));
     },
     [language, notify],
   );
@@ -529,7 +531,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
             : current.teams,
         };
       });
-      notify(language === "pt" ? "Atribuição concluída." : "Assignment completed.");
+      notify(uiText(language, "Atribuição concluída.", "Assignment completed."));
     },
     [language, notify],
   );
@@ -545,7 +547,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         });
       } catch (error) {
         if (error instanceof ApiError) {
-          notify(error.message, "error");
+          notify(localizeApiError(language, error.message), "error");
           throw error;
         }
         const project = state?.projects.find((item) => item.id === projectId);
@@ -558,9 +560,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           check_out: null,
           ...location,
           note:
-            language === "pt"
-              ? "Entrada guardada no modo demo por indisponibilidade de rede."
-              : "Check-in saved in demo mode because the network is unavailable.",
+            uiText(language, "Entrada guardada no modo demo por indisponibilidade de rede.", "Check-in saved in demo mode because the network is unavailable."),
         };
       }
       setState((current) => {
@@ -581,7 +581,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         };
       });
       notify(
-        language === "pt" ? "Check-in registado." : "Check-in recorded.",
+        uiText(language, "Check-in registado.", "Check-in recorded."),
         "success",
       );
     },
@@ -619,7 +619,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       };
     });
     notify(
-      language === "pt" ? "Check-out registado." : "Check-out recorded.",
+      uiText(language, "Check-out registado.", "Check-out recorded."),
       "success",
     );
   }, [language, notify, user]);

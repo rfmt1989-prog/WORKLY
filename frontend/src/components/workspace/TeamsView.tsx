@@ -12,6 +12,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiText } from "@/src/demo/fullUi";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import type { Team, TeamStatus, Worker } from "@/src/demo/types";
 
 import {
@@ -148,14 +150,12 @@ export function TeamsView() {
         <View style={{ flex: 1 }}>
           <Text style={sharedStyles.title}>{t.teams}</Text>
           <Text style={sharedStyles.subtitle}>
-            {language === "pt"
-              ? "Cria equipas, escolhe líderes e distribui trabalhadores."
-              : "Create teams, choose leaders and allocate workers."}
+            {uiText(language, "Cria equipas, escolhe líderes e distribui trabalhadores.", "Create teams, choose leaders and allocate workers.")}
           </Text>
         </View>
         <Button
           testID="create-team"
-          label={language === "pt" ? "Nova equipa" : "New team"}
+          label={uiText(language, "Nova equipa", "New team")}
           icon="add"
           accent={accent}
           onPress={openCreate}
@@ -188,11 +188,9 @@ export function TeamsView() {
           <Card style={{ width: "100%" }}>
             <EmptyState
               icon="people-outline"
-              title={language === "pt" ? "Ainda não há equipas" : "No teams yet"}
+              title={uiText(language, "Ainda não há equipas", "No teams yet")}
               description={
-                language === "pt"
-                  ? "Cria a primeira equipa e adiciona trabalhadores."
-                  : "Create the first team and add workers."
+                uiText(language, "Cria a primeira equipa e adiciona trabalhadores.", "Create the first team and add workers.")
               }
             />
           </Card>
@@ -204,17 +202,11 @@ export function TeamsView() {
         onClose={() => setModal(null)}
         title={
           modal === "create"
-            ? language === "pt"
-              ? "Criar equipa"
-              : "Create team"
-            : language === "pt"
-              ? "Editar equipa"
-              : "Edit team"
+            ? uiText(language, "Criar equipa", "Create team")
+            : uiText(language, "Editar equipa", "Edit team")
         }
         subtitle={
-          language === "pt"
-            ? "Configuração operacional da equipa"
-            : "Team operational settings"
+          uiText(language, "Configuração operacional da equipa", "Team operational settings")
         }
         footer={
           <>
@@ -311,7 +303,7 @@ export function TeamsView() {
       <ModalPanel
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={language === "pt" ? "Eliminar equipa?" : "Delete team?"}
+        title={uiText(language, "Eliminar equipa?", "Delete team?")}
         subtitle={selectedTeam?.name}
         footer={
           <>
@@ -331,9 +323,7 @@ export function TeamsView() {
         }
       >
         <Text style={sharedStyles.body}>
-          {language === "pt"
-            ? "A equipa será removida das obras atribuídas. Os perfis dos trabalhadores não serão eliminados."
-            : "The team will be removed from assigned projects. Worker profiles will not be deleted."}
+          {uiText(language, "A equipa será removida das obras atribuídas. Os perfis dos trabalhadores não serão eliminados.", "The team will be removed from assigned projects. Worker profiles will not be deleted.")}
         </Text>
       </ModalPanel>
     </View>
@@ -379,22 +369,16 @@ function TeamCard({
         </View>
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={styles.teamName}>{team.name}</Text>
-          <Text style={styles.teamMeta}>{team.specialty}</Text>
+          <Text style={styles.teamMeta}>{localizeDemoText(language, team.specialty)}</Text>
         </View>
         <StatusPill
           status={team.status}
           label={
             team.status === "on_site"
-              ? language === "pt"
-                ? "Em obra"
-                : "On site"
+              ? uiText(language, "Em obra", "On site")
               : team.status === "assigned"
-                ? language === "pt"
-                  ? "Atribuída"
-                  : "Assigned"
-                : language === "pt"
-                  ? "Disponível"
-                  : "Available"
+                ? uiText(language, "Atribuída", "Assigned")
+                : uiText(language, "Disponível", "Available")
           }
         />
       </View>
@@ -402,7 +386,7 @@ function TeamCard({
         <Ionicons name="business-outline" size={15} color={workspaceColors.muted} />
         <Text style={styles.teamMeta} numberOfLines={1}>
           {projectName ??
-            (language === "pt" ? "Sem obra atribuída" : "No project assigned")}
+            (uiText(language, "Sem obra atribuída", "No project assigned"))}
         </Text>
       </View>
       <View style={styles.teamFooter}>
@@ -420,10 +404,10 @@ function TeamCard({
         </View>
         <View style={{ alignItems: "flex-end" }}>
           <Text style={styles.teamCount}>
-            {members.length} {language === "pt" ? "membros" : "members"}
+            {members.length} {uiText(language, "membros", "members")}
           </Text>
           <Text style={styles.teamTrust}>
-            {language === "pt" ? "Confiança" : "Trust"} {trust.toFixed(1)}
+            {uiText(language, "Confiança", "Trust")} {trust.toFixed(1)}
           </Text>
         </View>
       </View>
@@ -449,19 +433,19 @@ function TeamEditor({
   return (
     <View style={{ gap: 14 }}>
       <Field
-        label={language === "pt" ? "Nome da equipa" : "Team name"}
+        label={uiText(language, "Nome da equipa", "Team name")}
         value={form.name}
         onChangeText={(value) => setValue("name", value)}
-        placeholder={language === "pt" ? "Ex.: Equipa Estrutura Sul" : "E.g. South Structure Team"}
+        placeholder={uiText(language, "Ex.: Equipa Estrutura Sul", "E.g. South Structure Team")}
       />
       <Field
-        label={language === "pt" ? "Especialidade" : "Specialty"}
-        value={form.specialty}
+        label={uiText(language, "Especialidade", "Specialty")}
+        value={localizeDemoText(language, form.specialty)}
         onChangeText={(value) => setValue("specialty", value)}
       />
       <Field
-        label={language === "pt" ? "Descrição" : "Description"}
-        value={form.description}
+        label={uiText(language, "Descrição", "Description")}
+        value={localizeDemoText(language, form.description)}
         multiline
         onChangeText={(value) => setValue("description", value)}
       />
@@ -476,14 +460,10 @@ function TeamEditor({
                 status === "available"
                   ? t.available
                   : status === "assigned"
-                    ? language === "pt"
-                      ? "Atribuída"
-                      : "Assigned"
+                    ? uiText(language, "Atribuída", "Assigned")
                     : status === "on_site"
                       ? t.onSite
-                      : language === "pt"
-                        ? "Inativa"
-                        : "Inactive"
+                      : uiText(language, "Inativa", "Inactive")
               }
               variant={form.status === status ? "primary" : "secondary"}
               accent={roleAccent("company")}
@@ -496,7 +476,7 @@ function TeamEditor({
       <View style={styles.choiceWrap}>
         <Button
           compact
-          label={language === "pt" ? "Sem obra" : "No project"}
+          label={uiText(language, "Sem obra", "No project")}
           variant={form.project_id === null ? "primary" : "secondary"}
           accent={roleAccent("company")}
           onPress={() => setValue("project_id", null)}
@@ -555,16 +535,14 @@ function TeamDetails({
       <View style={styles.teamSummary}>
         <View style={{ flex: 1, minWidth: 220, gap: 5 }}>
           <Text style={styles.detailTitle}>{team.name}</Text>
-          <Text style={sharedStyles.body}>{team.description}</Text>
+          <Text style={sharedStyles.body}>{localizeDemoText(language, team.description)}</Text>
           <StatusPill
             status={team.status}
             label={
               team.status === "on_site"
                 ? t.onSite
                 : team.status === "assigned"
-                  ? language === "pt"
-                    ? "Atribuída"
-                    : "Assigned"
+                  ? uiText(language, "Atribuída", "Assigned")
                   : t.available
             }
           />
@@ -580,16 +558,16 @@ function TeamDetails({
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Obra atribuída" : "Assigned project"}
+          title={uiText(language, "Obra atribuída", "Assigned project")}
           subtitle={
             projects.find((project) => project.id === team.project_id)?.name ??
-            (language === "pt" ? "Sem obra atribuída" : "No project assigned")
+            (uiText(language, "Sem obra atribuída", "No project assigned"))
           }
         />
         <View style={[styles.choiceWrap, { marginTop: 13 }]}>
           <Button
             compact
-            label={language === "pt" ? "Sem obra" : "No project"}
+            label={uiText(language, "Sem obra", "No project")}
             variant={team.project_id === null ? "primary" : "secondary"}
             accent={accent}
             disabled={busy}
@@ -613,9 +591,7 @@ function TeamDetails({
         <SectionTitle
           title={`${t.members} · ${members.length}`}
           subtitle={
-            language === "pt"
-              ? "Define o líder ou remove membros."
-              : "Assign the leader or remove members."
+            uiText(language, "Define o líder ou remove membros.", "Assign the leader or remove members.")
           }
         />
         <View style={{ gap: 9, marginTop: 14 }}>
@@ -630,7 +606,7 @@ function TeamDetails({
                 />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.memberName}>{worker.name}</Text>
-                  <Text style={styles.teamMeta}>{worker.profession}</Text>
+                  <Text style={styles.teamMeta}>{localizeDemoText(language, worker.profession)}</Text>
                 </View>
                 {team.leader_id === worker.id ? (
                   <View style={styles.leaderBadge}>
@@ -664,7 +640,7 @@ function TeamDetails({
             <EmptyState
               icon="person-add-outline"
               title={
-                language === "pt" ? "Equipa sem membros" : "Team has no members"
+                uiText(language, "Equipa sem membros", "Team has no members")
               }
             />
           )}
@@ -673,11 +649,9 @@ function TeamDetails({
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Adicionar trabalhadores" : "Add workers"}
+          title={uiText(language, "Adicionar trabalhadores", "Add workers")}
           subtitle={
-            language === "pt"
-              ? "Perfis disponíveis na rede WORKLY."
-              : "Profiles available in the WORKLY network."
+            uiText(language, "Perfis disponíveis na rede WORKLY.", "Profiles available in the WORKLY network.")
           }
         />
         <View style={[styles.availableGrid, { marginTop: 14 }]}>
@@ -692,7 +666,7 @@ function TeamDetails({
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberName}>{worker.name}</Text>
                 <Text style={styles.teamMeta} numberOfLines={1}>
-                  {worker.profession}
+                  {localizeDemoText(language, worker.profession)}
                 </Text>
               </View>
               <Button

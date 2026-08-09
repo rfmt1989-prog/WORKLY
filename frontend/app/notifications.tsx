@@ -5,6 +5,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useApi } from "@/src/hooks/useApi";
 import { api } from "@/src/api/client";
+import { useWorklyData } from "@/src/context/WorklyDataContext";
+import { uiText } from "@/src/demo/fullUi";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import { useColors, spacing, radius } from "@/src/theme/theme";
 
 const ICONS: Record<string, { name: keyof typeof Ionicons.glyphMap; tone: string }> = {
@@ -20,6 +23,7 @@ export default function Notifications() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { language } = useWorklyData();
   const { data, loading } = useApi<any[]>("/notifications");
 
   useEffect(() => {
@@ -35,7 +39,7 @@ export default function Notifications() {
         <Pressable testID="notif-back" onPress={() => router.back()} style={{ padding: 6 }}>
           <Ionicons name="chevron-back" size={26} color={c.onSurface} />
         </Pressable>
-        <Text style={{ color: c.onSurface, fontSize: 20, fontWeight: "800" }}>Notificações</Text>
+        <Text style={{ color: c.onSurface, fontSize: 20, fontWeight: "800" }}>{uiText(language, "Notificações", "Notifications")}</Text>
       </View>
 
       {loading && !data ? (
@@ -43,7 +47,7 @@ export default function Notifications() {
       ) : !data?.length ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md }}>
           <Ionicons name="notifications-off-outline" size={48} color={c.muted} />
-          <Text style={{ color: c.muted }}>Sem notificações</Text>
+          <Text style={{ color: c.muted }}>{uiText(language, "Sem notificações", "No notifications")}</Text>
         </View>
       ) : (
         <FlatList
@@ -58,8 +62,8 @@ export default function Notifications() {
                   <Ionicons name={cfg.name} size={20} color={toneColor(cfg.tone)} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ color: c.onSurface, fontSize: 15, fontWeight: "700" }}>{item.title}</Text>
-                  <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>{item.body}</Text>
+                  <Text style={{ color: c.onSurface, fontSize: 15, fontWeight: "700" }}>{localizeDemoText(language, item.title)}</Text>
+                  <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>{localizeDemoText(language, item.body ?? item.message)}</Text>
                 </View>
               </View>
             );

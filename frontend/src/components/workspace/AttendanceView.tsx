@@ -11,6 +11,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { localeForLanguage, uiFormat, uiText } from "@/src/demo/fullUi";
 import { resolveDemoLocation } from "@/src/demo/location";
 import type { Attendance, Project, Worker } from "@/src/demo/types";
 
@@ -40,7 +41,7 @@ type LocationPreview = {
 };
 
 function formatDate(value: string, language: import("@/src/demo/types").LanguageCode) {
-  return new Date(value).toLocaleDateString(language === "pt" ? "pt-PT" : "en-GB", {
+  return new Date(value).toLocaleDateString(localeForLanguage(language), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -48,7 +49,7 @@ function formatDate(value: string, language: import("@/src/demo/types").Language
 }
 
 function formatTime(value: string, language: import("@/src/demo/types").LanguageCode) {
-  return new Date(value).toLocaleTimeString(language === "pt" ? "pt-PT" : "en-GB", {
+  return new Date(value).toLocaleTimeString(localeForLanguage(language), {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -123,7 +124,7 @@ function nextShiftDate(language: import("@/src/demo/types").LanguageCode) {
   return {
     day: String(date.getDate()).padStart(2, "0"),
     month: date
-      .toLocaleDateString(language === "pt" ? "pt-PT" : "en-GB", { month: "short" })
+      .toLocaleDateString(localeForLanguage(language), { month: "short" })
       .replace(".", "")
       .toUpperCase(),
   };
@@ -202,21 +203,15 @@ export function AttendanceView() {
           <View style={{ flex: 1 }}>
             <Text style={sharedStyles.title}>{t.attendance}</Text>
             <Text style={sharedStyles.subtitle}>
-              {language === "pt"
-                ? "Centro de controlo de entradas, saídas e zona GPS da obra."
-                : "Control centre for check-ins, check-outs and site GPS zones."}
+              {uiText(language, "Centro de controlo de entradas, saídas e zona GPS da obra.", "Control centre for check-ins, check-outs and site GPS zones.")}
             </Text>
           </View>
           <Button
             compact
             label={
               showActiveOnly
-                ? language === "pt"
-                  ? "Mostrar todos"
-                  : "Show all"
-                : language === "pt"
-                  ? "Só ativos"
-                  : "Active only"
+                ? uiText(language, "Mostrar todos", "Show all")
+                : uiText(language, "Só ativos", "Active only")
             }
             icon={showActiveOnly ? "list-outline" : "radio-outline"}
             variant="secondary"
@@ -228,30 +223,30 @@ export function AttendanceView() {
         <View style={styles.metrics}>
           <MetricCard
             icon="radio-outline"
-            label={language === "pt" ? "Em obra agora" : "On site now"}
+            label={uiText(language, "Em obra agora", "On site now")}
             value={active.length}
-            detail={language === "pt" ? "Sessões ativas" : "Active sessions"}
+            detail={uiText(language, "Sessões ativas", "Active sessions")}
             accent={workspaceColors.green}
           />
           <MetricCard
             icon="shield-checkmark-outline"
-            label={language === "pt" ? "Dentro da zona" : "Inside geofence"}
+            label={uiText(language, "Dentro da zona", "Inside geofence")}
             value={`${activeInside}/${active.length}`}
-            detail={language === "pt" ? "Raio definido por obra" : "Radius set per site"}
+            detail={uiText(language, "Raio definido por obra", "Radius set per site")}
             accent={workspaceColors.green}
           />
           <MetricCard
             icon="time-outline"
-            label={language === "pt" ? "Horas registadas" : "Recorded hours"}
+            label={uiText(language, "Horas registadas", "Recorded hours")}
             value={totalHours.toFixed(1)}
-            detail={language === "pt" ? "Registos concluídos" : "Completed records"}
+            detail={uiText(language, "Registos concluídos", "Completed records")}
             accent={accent}
           />
           <MetricCard
             icon="navigate-outline"
             label="GPS / Demo"
             value={`${records.filter((item) => item.location_mode === "gps").length}/${records.filter((item) => item.location_mode === "demo").length}`}
-            detail={language === "pt" ? "Origem da localização" : "Location source"}
+            detail={uiText(language, "Origem da localização", "Location source")}
             accent={workspaceColors.yellow}
           />
         </View>
@@ -260,9 +255,7 @@ export function AttendanceView() {
           <SectionTitle
             title={t.liveMonitoring}
             subtitle={
-              language === "pt"
-                ? "Geofence operacional configurável por obra."
-                : "Configurable operational geofence per site."
+              uiText(language, "Geofence operacional configurável por obra.", "Configurable operational geofence per site.")
             }
           />
           <View style={{ gap: 9, marginTop: 15 }}>
@@ -285,9 +278,7 @@ export function AttendanceView() {
               <EmptyState
                 icon="time-outline"
                 title={
-                  language === "pt"
-                    ? "Sem registos para o filtro"
-                    : "No records for this filter"
+                  uiText(language, "Sem registos para o filtro", "No records for this filter")
                 }
               />
             )}
@@ -340,9 +331,12 @@ export function AttendanceView() {
       if (validation.mode === "gps" && validation.within === false) {
         const radius = projectRadius(currentProject);
         notify(
-          language === "pt"
-            ? `Check-in bloqueado: estás a ${Math.round(validation.distance ?? 0)} m da obra. Aproxima-te até ${radius} m.`
-            : `Check-in blocked: you are ${Math.round(validation.distance ?? 0)} m from the site. Move within ${radius} m.`,
+          uiFormat(
+            language,
+            "Check-in bloqueado: estás a {distance} m da obra. Aproxima-te até {radius} m.",
+            "Check-in blocked: you are {distance} m from the site. Move within {radius} m.",
+            { distance: Math.round(validation.distance ?? 0), radius },
+          ),
           "error",
         );
         return;
@@ -367,9 +361,7 @@ export function AttendanceView() {
         <View style={{ flex: 1 }}>
           <Text style={sharedStyles.title}>{t.attendance}</Text>
           <Text style={sharedStyles.subtitle}>
-            {language === "pt"
-              ? "Check-in protegido por localização, horário e histórico de presenças."
-              : "Location-protected check-in, schedule and attendance history."}
+            {uiText(language, "Check-in protegido por localização, horário e histórico de presenças.", "Location-protected check-in, schedule and attendance history.")}
           </Text>
         </View>
       </View>
@@ -400,20 +392,16 @@ export function AttendanceView() {
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={styles.attendanceTitle}>
                 {active
-                  ? language === "pt"
-                    ? "Sessão ativa"
-                    : "Active session"
-                  : language === "pt"
-                    ? "Pronto para validar a zona"
-                    : "Ready to validate site zone"}
+                  ? uiText(language, "Sessão ativa", "Active session")
+                  : uiText(language, "Pronto para validar a zona", "Ready to validate site zone")}
               </Text>
               <Text style={sharedStyles.subtitle}>
                 {currentProject?.name ??
-                  (language === "pt" ? "Sem obra atribuída" : "No assigned project")}
+                  (uiText(language, "Sem obra atribuída", "No assigned project"))}
               </Text>
               {active ? (
                 <Text style={[styles.activeSince, { color: workspaceColors.green }]}>
-                  {language === "pt" ? "Desde" : "Since"}{" "}
+                  {uiText(language, "Desde", "Since")}{" "}
                   {formatTime(active.check_in, language)}
                 </Text>
               ) : null}
@@ -465,23 +453,28 @@ export function AttendanceView() {
               <Text style={styles.meta}>
                 {visibleLocation?.mode === "gps"
                   ? visibleLocation.distance === null
-                    ? language === "pt"
-                      ? "GPS obtido · distância indisponível"
-                      : "GPS obtained · distance unavailable"
+                    ? uiText(language, "GPS obtido · distância indisponível", "GPS obtained · distance unavailable")
                     : visibleLocation.within
-                      ? language === "pt"
-                        ? `GPS validado · ${Math.round(visibleLocation.distance)} m do centro da obra`
-                        : `GPS validated · ${Math.round(visibleLocation.distance)} m from site centre`
-                      : language === "pt"
-                        ? `Fora da zona · ${Math.round(visibleLocation.distance)} m do centro da obra`
-                        : `Outside zone · ${Math.round(visibleLocation.distance)} m from site centre`
+                      ? uiFormat(
+                        language,
+                        "GPS validado · {distance} m do centro da obra",
+                        "GPS validated · {distance} m from site centre",
+                        { distance: Math.round(visibleLocation.distance) },
+                      )
+                      : uiFormat(
+                        language,
+                        "Fora da zona · {distance} m do centro da obra",
+                        "Outside zone · {distance} m from site centre",
+                        { distance: Math.round(visibleLocation.distance) },
+                      )
                   : visibleLocation?.mode === "demo"
-                    ? language === "pt"
-                      ? "Modo demonstração · sem validação GPS real"
-                      : "Demo mode · no real GPS validation"
-                    : language === "pt"
-                      ? `Zona autorizada: raio de ${projectRadius(currentProject)} m`
-                      : `Authorised zone: ${projectRadius(currentProject)} m radius`}
+                    ? uiText(language, "Modo demonstração · sem validação GPS real", "Demo mode · no real GPS validation")
+                    : uiFormat(
+                      language,
+                      "Zona autorizada: raio de {radius} m",
+                      "Authorised zone: {radius} m radius",
+                      { radius: projectRadius(currentProject) },
+                    )}
               </Text>
             </View>
             <View
@@ -512,7 +505,7 @@ export function AttendanceView() {
                   : visibleLocation?.within === true
                     ? "GPS OK"
                     : visibleLocation?.within === false
-                      ? "FORA"
+                      ? uiText(language, "FORA", "OUT")
                       : `${projectRadius(currentProject)}M`}
               </Text>
             </View>
@@ -523,9 +516,7 @@ export function AttendanceView() {
             label={
               active
                 ? t.checkOut
-                : language === "pt"
-                  ? "Validar GPS e fazer check-in"
-                  : "Validate GPS and check in"
+                : uiText(language, "Validar GPS e fazer check-in", "Validate GPS and check in")
             }
             icon={active ? "exit-outline" : "shield-checkmark-outline"}
             accent={active ? workspaceColors.green : accent}
@@ -538,7 +529,7 @@ export function AttendanceView() {
         <Card style={{ flex: 0.9, minWidth: compact ? undefined : 320 }}>
           <SectionTitle
             title={t.schedule}
-            subtitle={language === "pt" ? "Próximo turno" : "Next shift"}
+            subtitle={uiText(language, "Próximo turno", "Next shift")}
           />
           <View style={styles.scheduleCard}>
             <View style={[styles.dayBox, { borderColor: `${accent}77` }]}>
@@ -562,9 +553,12 @@ export function AttendanceView() {
               color={workspaceColors.yellow}
             />
             <Text style={styles.reminderText}>
-              {language === "pt"
-                ? `O check-in GPS só é aceite até ${projectRadius(currentProject)} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.`
-                : `GPS check-in is accepted only within ${projectRadius(currentProject)} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.`}
+              {uiFormat(
+                language,
+                "O check-in GPS só é aceite até {radius} m do centro da obra. Se o GPS não estiver disponível, a demonstração continua identificada como DEMO.",
+                "GPS check-in is accepted only within {radius} m of the site centre. If GPS is unavailable, the demo continues clearly marked as DEMO.",
+                { radius: projectRadius(currentProject) },
+              )}
             </Text>
           </View>
         </Card>
@@ -572,8 +566,8 @@ export function AttendanceView() {
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Histórico de presenças" : "Attendance history"}
-          subtitle={`${records.length} ${language === "pt" ? "registos" : "records"}`}
+          title={uiText(language, "Histórico de presenças", "Attendance history")}
+          subtitle={`${records.length} ${uiText(language, "registos", "records")}`}
         />
         <View style={{ gap: 9, marginTop: 15 }}>
           {records.length ? (
@@ -592,9 +586,7 @@ export function AttendanceView() {
             <EmptyState
               icon="calendar-clear-outline"
               title={
-                language === "pt"
-                  ? "Ainda não há registos"
-                  : "No records yet"
+                uiText(language, "Ainda não há registos", "No records yet")
               }
             />
           )}
@@ -640,11 +632,11 @@ function CompanyAttendanceRow({
         </Text>
       </View>
       <View style={styles.timeBlock}>
-        <Text style={styles.timeLabel}>{language === "pt" ? "Entrada" : "In"}</Text>
+        <Text style={styles.timeLabel}>{uiText(language, "Entrada", "In")}</Text>
         <Text style={styles.timeValue}>{formatTime(record.check_in, language)}</Text>
       </View>
       <View style={styles.timeBlock}>
-        <Text style={styles.timeLabel}>{language === "pt" ? "Saída" : "Out"}</Text>
+        <Text style={styles.timeLabel}>{uiText(language, "Saída", "Out")}</Text>
         <Text style={styles.timeValue}>
           {record.check_out ? formatTime(record.check_out, language) : "—"}
         </Text>
@@ -654,12 +646,8 @@ function CompanyAttendanceRow({
         status={active ? "on_site" : "completed"}
         label={
           active
-            ? language === "pt"
-              ? "Em obra"
-              : "On site"
-            : language === "pt"
-              ? "Concluído"
-              : "Complete"
+            ? uiText(language, "Em obra", "On site")
+            : uiText(language, "Concluído", "Complete")
         }
       />
     </View>
@@ -694,17 +682,17 @@ function WorkerAttendanceRow({
         <Text style={styles.meta}>{formatDate(record.check_in, language)}</Text>
       </View>
       <View style={styles.timeBlock}>
-        <Text style={styles.timeLabel}>{language === "pt" ? "Entrada" : "In"}</Text>
+        <Text style={styles.timeLabel}>{uiText(language, "Entrada", "In")}</Text>
         <Text style={styles.timeValue}>{formatTime(record.check_in, language)}</Text>
       </View>
       <View style={styles.timeBlock}>
-        <Text style={styles.timeLabel}>{language === "pt" ? "Saída" : "Out"}</Text>
+        <Text style={styles.timeLabel}>{uiText(language, "Saída", "Out")}</Text>
         <Text style={styles.timeValue}>
           {record.check_out ? formatTime(record.check_out, language) : "—"}
         </Text>
       </View>
       <View style={styles.timeBlock}>
-        <Text style={styles.timeLabel}>{language === "pt" ? "Duração" : "Duration"}</Text>
+        <Text style={styles.timeLabel}>{uiText(language, "Duração", "Duration")}</Text>
         <Text style={styles.timeValue}>{duration(record)}</Text>
       </View>
       <GeofenceBadge geofence={geofence} language={language} />
@@ -712,12 +700,8 @@ function WorkerAttendanceRow({
         status={record.check_out ? "completed" : "on_site"}
         label={
           record.check_out
-            ? language === "pt"
-              ? "Concluído"
-              : "Complete"
-            : language === "pt"
-              ? "Ativo"
-              : "Active"
+            ? uiText(language, "Concluído", "Complete")
+            : uiText(language, "Ativo", "Active")
         }
       />
     </View>
@@ -744,9 +728,12 @@ function GeofenceBadge({
   const label = demo
     ? "DEMO"
     : outside
-      ? language === "pt"
-        ? `FORA ${Math.round(geofence.distance ?? 0)}m`
-        : `OUT ${Math.round(geofence.distance ?? 0)}m`
+      ? uiFormat(
+        language,
+        "FORA {distance}m",
+        "OUT {distance}m",
+        { distance: Math.round(geofence.distance ?? 0) },
+      )
       : inside
         ? `${Math.round(geofence.distance ?? 0)}m · GPS`
         : "GPS";

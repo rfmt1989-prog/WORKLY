@@ -9,6 +9,9 @@ import { BlurView } from "expo-blur";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/src/theme/theme";
+import { useWorklyData } from "@/src/context/WorklyDataContext";
+import { copy } from "@/src/demo/i18n";
+import { uiText } from "@/src/demo/fullUi";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -39,6 +42,8 @@ function createTabIcon(
 
 export default function TabsLayout() {
   const c = useColors();
+  const { language } = useWorklyData();
+  const t = copy[language];
 
   return (
     <Tabs
@@ -66,11 +71,11 @@ export default function TabsLayout() {
         ),
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: createTabIcon("home", "home-outline") }} />
-      <Tabs.Screen name="search" options={{ title: "Search", tabBarIcon: createTabIcon("search", "search-outline") }} />
-      <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: createTabIcon("chatbubble", "chatbubble-outline") }} />
-      <Tabs.Screen name="contracts" options={{ title: "Contracts", tabBarIcon: createTabIcon("document-text", "document-text-outline") }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: createTabIcon("person", "person-outline") }} />
+      <Tabs.Screen name="index" options={{ title: uiText(language, "Início", "Home"), tabBarIcon: createTabIcon("home", "home-outline") }} />
+      <Tabs.Screen name="search" options={{ title: t.search, tabBarIcon: createTabIcon("search", "search-outline") }} />
+      <Tabs.Screen name="messages" options={{ title: uiText(language, "Mensagens", "Messages"), tabBarIcon: createTabIcon("chatbubble", "chatbubble-outline") }} />
+      <Tabs.Screen name="contracts" options={{ title: t.contracts, tabBarIcon: createTabIcon("document-text", "document-text-outline") }} />
+      <Tabs.Screen name="profile" options={{ title: t.profile, tabBarIcon: createTabIcon("person", "person-outline") }} />
     </Tabs>
   );
 }

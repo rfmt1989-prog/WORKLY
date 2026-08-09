@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Worker, WorkerStatus } from "@/src/demo/types";
 
@@ -318,7 +319,7 @@ export function WorkersView() {
       <ModalPanel
         visible={Boolean(document)}
         onClose={() => setDocument(null)}
-        title={document?.title ?? t.demoDocument}
+        title={localizeDemoText(language, document?.title) || t.demoDocument}
         subtitle={document?.file_name}
         footer={
           <Button
@@ -334,8 +335,8 @@ export function WorkersView() {
             size={42}
             color={workspaceColors.redSoft}
           />
-          <Text style={styles.documentTitle}>{document?.title}</Text>
-          <Text style={sharedStyles.body}>{document?.demo_content}</Text>
+          <Text style={styles.documentTitle}>{localizeDemoText(language, document?.title)}</Text>
+          <Text style={sharedStyles.body}>{localizeDemoText(language, document?.demo_content)}</Text>
           <View style={styles.demoNotice}>
             <Ionicons
               name="information-circle-outline"
@@ -373,7 +374,7 @@ function WorkerCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${worker.name}, ${worker.profession}`}
+      accessibilityLabel={`${worker.name}, ${localizeDemoText(language, worker.profession)}`}
       onPress={onPress}
       style={({ pressed }) => [
         styles.workerCard,
@@ -390,7 +391,7 @@ function WorkerCard({
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={styles.workerName}>{worker.name}</Text>
           <Text style={styles.workerTrade} numberOfLines={1}>
-            {worker.profession}
+            {localizeDemoText(language, worker.profession)}
           </Text>
           <Text style={styles.workerLocation}>
             {worker.age} · {worker.location}
@@ -416,7 +417,7 @@ function WorkerCard({
       <View style={styles.skillChips}>
         {worker.skills.slice(0, 3).map((skill) => (
           <View key={skill.name} style={styles.skillChip}>
-            <Text style={styles.skillChipText}>{skill.name}</Text>
+            <Text style={styles.skillChipText}>{localizeDemoText(language, skill.name)}</Text>
           </View>
         ))}
       </View>
@@ -449,7 +450,7 @@ function WorkerDetails({
         <Avatar name={worker.name} flag={worker.flag} size={72} accent={accent} />
         <View style={{ flex: 1, gap: 5 }}>
           <Text style={styles.profileName}>{worker.name}</Text>
-          <Text style={styles.profileTrade}>{worker.profession}</Text>
+          <Text style={styles.profileTrade}>{localizeDemoText(language, worker.profession)}</Text>
           <Text style={sharedStyles.subtitle}>
             {worker.experience_years} {t.years} · {worker.country}
           </Text>
@@ -478,7 +479,7 @@ function WorkerDetails({
         />
       </View>
 
-      <Text style={sharedStyles.body}>{worker.bio}</Text>
+      <Text style={sharedStyles.body}>{localizeDemoText(language, worker.bio)}</Text>
 
       <View style={styles.detailColumns}>
         <Card style={{ flex: 1, minWidth: 250 }}>
@@ -487,7 +488,7 @@ function WorkerDetails({
             {worker.skills.map((skill) => (
               <View key={skill.name} style={{ gap: 6 }}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.detailLabel}>{skill.name}</Text>
+                  <Text style={styles.detailLabel}>{localizeDemoText(language, skill.name)}</Text>
                   <Text style={[styles.detailValue, { color: accent }]}>
                     {skill.level}%
                   </Text>
@@ -511,7 +512,7 @@ function WorkerDetails({
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.detailLabel}>{certificate.name}</Text>
+                  <Text style={styles.detailLabel}>{localizeDemoText(language, certificate.name)}</Text>
                   <Text style={styles.workerLocation}>
                     {certificate.issuer} · {certificate.expires_at}
                   </Text>
@@ -548,7 +549,7 @@ function WorkerDetails({
             <Pressable
               key={item.id}
               accessibilityRole="button"
-              accessibilityLabel={item.title}
+              accessibilityLabel={localizeDemoText(language, item.title)}
               onPress={() => onDocument(item)}
               style={({ pressed }) => [
                 styles.documentRow,
@@ -561,7 +562,7 @@ function WorkerDetails({
                 color={workspaceColors.textSoft}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>{item.title}</Text>
+                <Text style={styles.detailLabel}>{localizeDemoText(language, item.title)}</Text>
                 <Text style={styles.workerLocation}>{item.file_name}</Text>
               </View>
               <Text style={[styles.openText, { color: accent }]}>
@@ -635,7 +636,7 @@ function WorkerEditor({
     <View style={{ gap: 14 }}>
       <Field
         label={uiText(language, "Profissão", "Trade")}
-        value={form.profession}
+        value={localizeDemoText(language, form.profession)}
         onChangeText={(value) => setValue("profession", value)}
       />
       <View style={styles.detailColumns}>
@@ -654,7 +655,7 @@ function WorkerEditor({
       </View>
       <Field
         label={uiText(language, "Biografia", "Bio")}
-        value={form.bio}
+        value={localizeDemoText(language, form.bio)}
         multiline
         onChangeText={(value) => setValue("bio", value)}
       />
