@@ -12,6 +12,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { Project, ProjectStatus } from "@/src/demo/types";
 
 import {
@@ -171,18 +172,14 @@ export function ProjectsView() {
           <Text style={sharedStyles.title}>{t.projects}</Text>
           <Text style={sharedStyles.subtitle}>
             {role === "company"
-              ? language === "pt"
-                ? "Planeamento, progresso e recursos por obra."
-                : "Planning, progress and resources by project."
-              : language === "pt"
-                ? "Obras atribuídas, local e horário."
-                : "Assigned projects, locations and schedules."}
+              ? uiText(language, "Planeamento, progresso e recursos por obra.", "Planning, progress and resources by project.")
+              : uiText(language, "Obras atribuídas, local e horário.", "Assigned projects, locations and schedules.")}
           </Text>
         </View>
         {role === "company" ? (
           <Button
             testID="create-project"
-            label={language === "pt" ? "Nova obra" : "New project"}
+            label={uiText(language, "Nova obra", "New project")}
             icon="add"
             accent={accent}
             onPress={() => {
@@ -219,16 +216,12 @@ export function ProjectsView() {
             <EmptyState
               icon="business-outline"
               title={
-                language === "pt" ? "Ainda não existem obras" : "No projects yet"
+                uiText(language, "Ainda não existem obras", "No projects yet")
               }
               description={
                 role === "company"
-                  ? language === "pt"
-                    ? "Cria a primeira obra e atribui uma equipa."
-                    : "Create the first project and assign a team."
-                  : language === "pt"
-                    ? "A empresa ainda não atribuiu uma obra ao teu perfil."
-                    : "The company has not assigned a project to your profile yet."
+                  ? uiText(language, "Cria a primeira obra e atribui uma equipa.", "Create the first project and assign a team.")
+                  : uiText(language, "A empresa ainda não atribuiu uma obra ao teu perfil.", "The company has not assigned a project to your profile yet.")
               }
             />
           </Card>
@@ -240,17 +233,11 @@ export function ProjectsView() {
         onClose={() => setModal(null)}
         title={
           modal === "create"
-            ? language === "pt"
-              ? "Criar obra"
-              : "Create project"
-            : language === "pt"
-              ? "Editar obra"
-              : "Edit project"
+            ? uiText(language, "Criar obra", "Create project")
+            : uiText(language, "Editar obra", "Edit project")
         }
         subtitle={
-          language === "pt"
-            ? "Informação operacional e calendário"
-            : "Operational details and schedule"
+          uiText(language, "Informação operacional e calendário", "Operational details and schedule")
         }
         footer={
           <>
@@ -351,7 +338,7 @@ export function ProjectsView() {
       <ModalPanel
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={language === "pt" ? "Eliminar obra?" : "Delete project?"}
+        title={uiText(language, "Eliminar obra?", "Delete project?")}
         subtitle={selectedProject?.name}
         footer={
           <>
@@ -371,9 +358,7 @@ export function ProjectsView() {
         }
       >
         <Text style={sharedStyles.body}>
-          {language === "pt"
-            ? "A obra será removida e as equipas associadas ficarão disponíveis. Os registos históricos de presença permanecem na demonstração."
-            : "The project will be removed and assigned teams will become available. Historical attendance remains in the demo."}
+          {uiText(language, "A obra será removida e as equipas associadas ficarão disponíveis. Os registos históricos de presença permanecem na demonstração.", "The project will be removed and assigned teams will become available. Historical attendance remains in the demo.")}
         </Text>
       </ModalPanel>
     </View>
@@ -439,7 +424,7 @@ function ProjectCard({
       <View style={{ gap: 7 }}>
         <View style={styles.progressHeader}>
           <Text style={styles.meta}>
-            {language === "pt" ? "Progresso" : "Progress"}
+            {uiText(language, "Progresso", "Progress")}
           </Text>
           <Text style={[styles.progressValue, { color: accent }]}>
             {project.progress}%
@@ -451,13 +436,13 @@ function ProjectCard({
         <View style={styles.footerStat}>
           <Ionicons name="people-outline" size={15} color={workspaceColors.textSoft} />
           <Text style={styles.footerText}>
-            {teamsCount} {language === "pt" ? "equipas" : "teams"}
+            {teamsCount} {uiText(language, "equipas", "teams")}
           </Text>
         </View>
         <View style={styles.footerStat}>
           <Ionicons name="person-outline" size={15} color={workspaceColors.textSoft} />
           <Text style={styles.footerText}>
-            {workersCount} {language === "pt" ? "pessoas" : "people"}
+            {workersCount} {uiText(language, "pessoas", "people")}
           </Text>
         </View>
         <Text style={styles.dateText}>{project.end_date}</Text>
@@ -485,26 +470,26 @@ function ProjectEditor({
   return (
     <View style={{ gap: 14 }}>
       <Field
-        label={language === "pt" ? "Nome da obra" : "Project name"}
+        label={uiText(language, "Nome da obra", "Project name")}
         value={form.name}
         onChangeText={(value) => setValue("name", value)}
       />
       <View style={styles.formColumns}>
         <Field
           style={{ flex: 1, minWidth: 210 }}
-          label={language === "pt" ? "Cliente" : "Client"}
+          label={uiText(language, "Cliente", "Client")}
           value={form.client}
           onChangeText={(value) => setValue("client", value)}
         />
         <Field
           style={{ flex: 1, minWidth: 210 }}
-          label={language === "pt" ? "Localização" : "Location"}
+          label={uiText(language, "Localização", "Location")}
           value={form.location}
           onChangeText={(value) => setValue("location", value)}
         />
       </View>
       <Field
-        label={language === "pt" ? "Descrição" : "Description"}
+        label={uiText(language, "Descrição", "Description")}
         value={form.description}
         multiline
         onChangeText={(value) => setValue("description", value)}
@@ -512,13 +497,13 @@ function ProjectEditor({
       <View style={styles.formColumns}>
         <Field
           style={{ flex: 1 }}
-          label={language === "pt" ? "Data de início" : "Start date"}
+          label={uiText(language, "Data de início", "Start date")}
           value={form.start_date}
           onChangeText={(value) => setValue("start_date", value)}
         />
         <Field
           style={{ flex: 1 }}
-          label={language === "pt" ? "Data de fim" : "End date"}
+          label={uiText(language, "Data de fim", "End date")}
           value={form.end_date}
           onChangeText={(value) => setValue("end_date", value)}
         />
@@ -526,13 +511,13 @@ function ProjectEditor({
       <View style={styles.formColumns}>
         <Field
           style={{ flex: 1 }}
-          label={language === "pt" ? "Horário" : "Schedule"}
+          label={uiText(language, "Horário", "Schedule")}
           value={form.schedule}
           onChangeText={(value) => setValue("schedule", value)}
         />
         <Field
           style={{ flex: 1 }}
-          label={`${language === "pt" ? "Progresso" : "Progress"} (0–100)`}
+          label={`${uiText(language, "Progresso", "Progress")} (0–100)`}
           value={form.progress}
           keyboardType="number-pad"
           onChangeText={(value) => setValue("progress", value)}
@@ -555,7 +540,7 @@ function ProjectEditor({
         />
         <Field
           style={{ flex: 1, minWidth: 160 }}
-          label={language === "pt" ? "Raio GPS (50–2000 m)" : "GPS radius (50–2000 m)"}
+          label={uiText(language, "Raio GPS (50–2000 m)", "GPS radius (50–2000 m)")}
           value={form.geofence_radius_m}
           keyboardType="number-pad"
           onChangeText={(value) => setValue("geofence_radius_m", value)}
@@ -640,16 +625,16 @@ function ProjectDetails({
           <Text style={[styles.progressRingValue, { color: accent }]}>
             {project.progress}%
           </Text>
-          <Text style={styles.meta}>{language === "pt" ? "concluído" : "complete"}</Text>
+          <Text style={styles.meta}>{uiText(language, "concluído", "complete")}</Text>
         </View>
       </View>
 
       <View style={styles.facts}>
-        <Fact icon="business-outline" label={language === "pt" ? "Empresa" : "Company"} value={company?.name ?? "—"} />
-        <Fact icon="location-outline" label={language === "pt" ? "Local" : "Location"} value={project.location} />
-        <Fact icon="time-outline" label={language === "pt" ? "Horário" : "Schedule"} value={project.schedule} />
-        <Fact icon="navigate-outline" label={language === "pt" ? "Zona GPS" : "GPS zone"} value={project.latitude !== null && project.longitude !== null ? `${project.geofence_radius_m ?? 250} m · ${project.latitude.toFixed(5)}, ${project.longitude.toFixed(5)}` : language === "pt" ? "Coordenadas por configurar" : "Coordinates not configured"} />
-        <Fact icon="calendar-outline" label={language === "pt" ? "Período" : "Period"} value={`${project.start_date} → ${project.end_date}`} />
+        <Fact icon="business-outline" label={uiText(language, "Empresa", "Company")} value={company?.name ?? "—"} />
+        <Fact icon="location-outline" label={uiText(language, "Local", "Location")} value={project.location} />
+        <Fact icon="time-outline" label={uiText(language, "Horário", "Schedule")} value={project.schedule} />
+        <Fact icon="navigate-outline" label={uiText(language, "Zona GPS", "GPS zone")} value={project.latitude !== null && project.longitude !== null ? `${project.geofence_radius_m ?? 250} m · ${project.latitude.toFixed(5)}, ${project.longitude.toFixed(5)}` : uiText(language, "Coordenadas por configurar", "Coordinates not configured")} />
+        <Fact icon="calendar-outline" label={uiText(language, "Período", "Period")} value={`${project.start_date} → ${project.end_date}`} />
       </View>
 
       <Card>
@@ -680,9 +665,7 @@ function ProjectDetails({
           title={`${t.workers} · ${assignedWorkers.length}`}
           subtitle={
             role === "company"
-              ? language === "pt"
-                ? "Seleciona para atribuir ou remover."
-                : "Select to assign or remove."
+              ? uiText(language, "Seleciona para atribuir ou remover.", "Select to assign or remove.")
               : undefined
           }
         />

@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Project } from "@/src/demo/types";
 
 import {
@@ -39,7 +40,10 @@ type ViewerItem = {
   meta: string[];
 };
 
-function projectFallbackDocuments(project: Project): DemoDocument[] {
+function projectFallbackDocuments(
+  project: Project,
+  language: import("@/src/demo/types").LanguageCode,
+): DemoDocument[] {
   const slug = project.name
     .toLowerCase()
     .normalize("NFD")
@@ -53,40 +57,58 @@ function projectFallbackDocuments(project: Project): DemoDocument[] {
       id: `doc-${project.id}-safety`,
       owner_type: "project",
       owner_id: project.id,
-      title: "Plano de Segurança e Saúde",
+      title: uiText(language, "Plano de Segurança e Saúde", "Safety and Health Plan"),
       category: "safety",
       file_name: `pss_${slug}.pdf`,
       status: "valid",
       updated_at: `${project.start_date}T08:00:00Z`,
-      demo_content: `Plano de Segurança e Saúde de demonstração para ${project.name}. Inclui organização preventiva, regras de acesso, riscos principais e medidas de controlo da obra.`,
+      demo_content: uiFormat(
+        language,
+        "Plano de Segurança e Saúde de demonstração para {project}. Inclui organização preventiva, regras de acesso, riscos principais e medidas de controlo da obra.",
+        "Demonstration Safety and Health Plan for {project}. Includes preventive organisation, access rules, main risks and site control measures.",
+        { project: project.name },
+      ),
     },
     {
       id: `doc-${project.id}-drawings`,
       owner_type: "project",
       owner_id: project.id,
-      title: "Desenhos e peças de montagem",
+      title: uiText(language, "Desenhos e peças de montagem", "Assembly drawings and parts"),
       category: "technical",
       file_name: `desenhos_${slug}.pdf`,
       status: "valid",
       updated_at: `${project.start_date}T08:30:00Z`,
-      demo_content: `Conjunto técnico de demonstração associado a ${project.name}: implantação, referências de montagem, zonas de intervenção e notas de execução.`,
+      demo_content: uiFormat(
+        language,
+        "Conjunto técnico de demonstração associado a {project}: implantação, referências de montagem, zonas de intervenção e notas de execução.",
+        "Demonstration technical package associated with {project}: layout, assembly references, intervention zones and execution notes.",
+        { project: project.name },
+      ),
     },
     {
       id: `doc-${project.id}-schedule`,
       owner_type: "project",
       owner_id: project.id,
-      title: "Planeamento e cronograma",
+      title: uiText(language, "Planeamento e cronograma", "Planning and schedule"),
       category: "planning",
       file_name: `cronograma_${slug}.pdf`,
       status: project.status === "completed" ? "valid" : "active",
       updated_at: `${project.start_date}T09:00:00Z`,
-      demo_content: `Planeamento de demonstração da obra ${project.name}, com período ${project.start_date} a ${project.end_date}, horário ${project.schedule} e progresso atual de ${project.progress}%.`,
+      demo_content: uiFormat(
+        language,
+        "Planeamento de demonstração da obra {project}, com período {start} a {end}, horário {schedule} e progresso atual de {progress}%.",
+        "Demonstration schedule for {project}, covering {start} to {end}, working hours {schedule} and current progress of {progress}%.",
+        { project: project.name, start: project.start_date, end: project.end_date, schedule: project.schedule, progress: project.progress },
+      ),
     },
   ];
 }
 
-function projectDocuments(project: Project): DemoDocument[] {
-  return project.documents?.length ? project.documents : projectFallbackDocuments(project);
+function projectDocuments(
+  project: Project,
+  language: import("@/src/demo/types").LanguageCode,
+): DemoDocument[] {
+  return project.documents?.length ? project.documents : projectFallbackDocuments(project, language);
 }
 
 function initials(name: string) {
@@ -110,7 +132,7 @@ function categoryLabel(category: string, language: import("@/src/demo/types").La
     license: ["Licença", "License"],
   };
   const item = labels[category];
-  return item ? item[language === "pt" ? 0 : 1] : category;
+  return item ? uiText(language, item[0], item[1]) : category;
 }
 
 export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
@@ -164,7 +186,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
     })),
   );
   const projectDocumentCount = relevantProjects.reduce(
-    (total, project) => total + projectDocuments(project).length,
+    (total, project) => total + projectDocuments(project, language).length,
     0,
   );
   const companyDocuments = user.role === "company" ? company?.documents ?? [] : [];
@@ -241,20 +263,12 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
 
   const sectionDescription =
     tab === "documents"
-      ? language === "pt"
-        ? "Arquivo organizado por trabalhador e por obra, com acesso imediato a cada documento."
-        : "Archive organised by worker and project, with immediate access to every document."
+      ? uiText(language, "Arquivo organizado por trabalhador e por obra, com acesso imediato a cada documento.", "Archive organised by worker and project, with immediate access to every document.")
       : tab === "certificates"
-        ? language === "pt"
-          ? "Certificações profissionais válidas e prontas a consultar."
-          : "Valid professional certifications ready to view."
+        ? uiText(language, "Certificações profissionais válidas e prontas a consultar.", "Valid professional certifications ready to view.")
         : tab === "bestProjects"
-          ? language === "pt"
-            ? "Portefólio de trabalhos verificados e resultados em obra."
-            : "A portfolio of verified work and on-site results."
-          : language === "pt"
-            ? "Contratos ligados a trabalhadores, empresas e obras."
-            : "Contracts linked to workers, companies and projects.";
+          ? uiText(language, "Portefólio de trabalhos verificados e resultados em obra.", "A portfolio of verified work and on-site results.")
+          : uiText(language, "Contratos ligados a trabalhadores, empresas e obras.", "Contracts linked to workers, companies and projects.");
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleWorkers = relevantWorkers.filter((worker) =>
@@ -291,30 +305,20 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
       id: "workers",
       label:
         user.role === "worker"
-          ? language === "pt"
-            ? "Pessoais"
-            : "Personal"
-          : language === "pt"
-            ? "Trabalhadores"
-            : "Workers",
+          ? uiText(language, "Pessoais", "Personal")
+          : uiText(language, "Trabalhadores", "Workers"),
       subtitle:
         user.role === "worker"
-          ? language === "pt"
-            ? "Os teus documentos"
-            : "Your documents"
-          : language === "pt"
-            ? `${relevantWorkers.length} trabalhadores`
-            : `${relevantWorkers.length} workers`,
+          ? uiText(language, "Os teus documentos", "Your documents")
+          : `${relevantWorkers.length} ${uiText(language, "trabalhadores", "workers")}`,
       count: workerDocuments.length,
       icon: "people-outline",
     },
     {
       id: "projects",
-      label: language === "pt" ? "Obras" : "Projects",
+      label: uiText(language, "Obras", "Projects"),
       subtitle:
-        language === "pt"
-          ? `${relevantProjects.length} obras`
-          : `${relevantProjects.length} projects`,
+        `${relevantProjects.length} ${uiText(language, "obras", "projects")}`,
       count: projectDocumentCount,
       icon: "business-outline",
     },
@@ -322,9 +326,9 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
       ? [
           {
             id: "company" as const,
-            label: language === "pt" ? "Empresa" : "Company",
+            label: uiText(language, "Empresa", "Company"),
             subtitle:
-              language === "pt" ? "Arquivo legal" : "Legal archive",
+              uiText(language, "Arquivo legal", "Legal archive"),
             count: companyDocuments.length,
             icon: "briefcase-outline" as const,
           },
@@ -342,7 +346,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
       meta: [
         ownerName,
         categoryLabel(document.category, language),
-        `${language === "pt" ? "Atualizado" : "Updated"} ${document.updated_at.slice(0, 10)}`,
+        `${uiText(language, "Atualizado", "Updated")} ${document.updated_at.slice(0, 10)}`,
       ],
     });
   };
@@ -361,7 +365,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
             color={workspaceColors.green}
           />
           <Text style={styles.securityText}>
-            {language === "pt" ? "Arquivo protegido" : "Protected archive"}
+            {uiText(language, "Arquivo protegido", "Protected archive")}
           </Text>
         </View>
       </View>
@@ -483,12 +487,8 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   onChangeText={setQuery}
                   placeholder={
                     scope === "workers"
-                      ? language === "pt"
-                        ? "Procurar trabalhador..."
-                        : "Search worker..."
-                      : language === "pt"
-                        ? "Procurar obra..."
-                        : "Search project..."
+                      ? uiText(language, "Procurar trabalhador...", "Search worker...")
+                      : uiText(language, "Procurar obra...", "Search project...")
                   }
                   placeholderTextColor={workspaceColors.muted}
                   style={styles.searchInput}
@@ -507,17 +507,11 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   <SectionTitle
                     title={
                       user.role === "worker"
-                        ? language === "pt"
-                          ? "Pasta pessoal"
-                          : "Personal folder"
-                        : language === "pt"
-                          ? "Trabalhadores"
-                          : "Workers"
+                        ? uiText(language, "Pasta pessoal", "Personal folder")
+                        : uiText(language, "Trabalhadores", "Workers")
                     }
                     subtitle={
-                      language === "pt"
-                        ? "Seleciona uma pasta para ver apenas os documentos desse trabalhador."
-                        : "Select a folder to see only that worker's documents."
+                      uiText(language, "Seleciona uma pasta para ver apenas os documentos desse trabalhador.", "Select a folder to see only that worker's documents.")
                     }
                   />
                   <View style={styles.folderList}>
@@ -566,7 +560,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                     ) : (
                       <EmptyState
                         icon="people-outline"
-                        title={language === "pt" ? "Sem resultados" : "No results"}
+                        title={uiText(language, "Sem resultados", "No results")}
                       />
                     )}
                   </View>
@@ -582,15 +576,15 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                         accent={accent}
                         stats={[
                           {
-                            label: language === "pt" ? "Documentos" : "Documents",
+                            label: uiText(language, "Documentos", "Documents"),
                             value: activeWorker.documents.length,
                           },
                           {
-                            label: language === "pt" ? "Certificados" : "Certificates",
+                            label: uiText(language, "Certificados", "Certificates"),
                             value: activeWorker.certificates.length,
                           },
                           {
-                            label: language === "pt" ? "Contratos" : "Contracts",
+                            label: uiText(language, "Contratos", "Contracts"),
                             value: contracts.filter((item) => item.worker_id === activeWorker.id).length,
                           },
                         ]}
@@ -612,7 +606,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                         ) : (
                           <EmptyState
                             icon="folder-open-outline"
-                            title={language === "pt" ? "Pasta vazia" : "Empty folder"}
+                            title={uiText(language, "Pasta vazia", "Empty folder")}
                           />
                         )}
                       </View>
@@ -620,7 +614,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   ) : (
                     <EmptyState
                       icon="person-outline"
-                      title={language === "pt" ? "Sem trabalhadores" : "No workers"}
+                      title={uiText(language, "Sem trabalhadores", "No workers")}
                     />
                   )}
                 </Card>
@@ -631,18 +625,16 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
               <View style={[styles.archiveSplit, splitCompact ? styles.archiveSplitCompact : null]}>
                 <Card style={splitCompact ? styles.folderPaneCompact : styles.folderPane}>
                   <SectionTitle
-                    title={language === "pt" ? "Obras" : "Projects"}
+                    title={uiText(language, "Obras", "Projects")}
                     subtitle={
-                      language === "pt"
-                        ? "Cada obra possui o seu próprio arquivo técnico."
-                        : "Each project has its own technical archive."
+                      uiText(language, "Cada obra possui o seu próprio arquivo técnico.", "Each project has its own technical archive.")
                     }
                   />
                   <View style={styles.folderList}>
                     {visibleProjects.length ? (
                       visibleProjects.map((project) => {
                         const active = activeProject?.id === project.id;
-                        const docs = projectDocuments(project);
+                        const docs = projectDocuments(project, language);
                         return (
                           <Pressable
                             key={project.id}
@@ -687,7 +679,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                     ) : (
                       <EmptyState
                         icon="business-outline"
-                        title={language === "pt" ? "Sem resultados" : "No results"}
+                        title={uiText(language, "Sem resultados", "No results")}
                       />
                     )}
                   </View>
@@ -703,21 +695,21 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                         accent={accent}
                         stats={[
                           {
-                            label: language === "pt" ? "Documentos" : "Documents",
-                            value: projectDocuments(activeProject).length,
+                            label: uiText(language, "Documentos", "Documents"),
+                            value: projectDocuments(activeProject, language).length,
                           },
                           {
-                            label: language === "pt" ? "Trabalhadores" : "Workers",
+                            label: uiText(language, "Trabalhadores", "Workers"),
                             value: activeProject.worker_ids.length,
                           },
                           {
-                            label: language === "pt" ? "Progresso" : "Progress",
+                            label: uiText(language, "Progresso", "Progress"),
                             value: `${activeProject.progress}%`,
                           },
                         ]}
                       />
                       <View style={styles.documentList}>
-                        {projectDocuments(activeProject).map((document) => (
+                        {projectDocuments(activeProject, language).map((document) => (
                           <ArchiveRow
                             key={document.id}
                             icon={
@@ -739,7 +731,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
 
                       <View style={styles.linkedSection}>
                         <Text style={styles.linkedTitle}>
-                          {language === "pt" ? "Contratos ligados à obra" : "Contracts linked to project"}
+                          {uiText(language, "Contratos ligados à obra", "Contracts linked to project")}
                         </Text>
                         {contracts.filter((item) => item.project_id === activeProject.id).length ? (
                           contracts
@@ -751,7 +743,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                   key={contract.id}
                                   icon="newspaper-outline"
                                   title={contract.title}
-                                  subtitle={`${worker?.name ?? "Worker"} · ${contract.file_name}`}
+                                  subtitle={`${worker?.name ?? uiText(language, "Trabalhador", "Worker")} · ${contract.file_name}`}
                                   status={contract.status}
                                   accent={workspaceColors.yellow}
                                   language={language}
@@ -764,7 +756,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                                       icon: "newspaper-outline",
                                       meta: [
                                         activeProject.name,
-                                        worker?.name ?? "Worker",
+                                        worker?.name ?? uiText(language, "Trabalhador", "Worker"),
                                         `${contract.start_date} → ${contract.end_date}`,
                                       ],
                                     })
@@ -774,9 +766,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                             })
                         ) : (
                           <Text style={styles.linkedEmpty}>
-                            {language === "pt"
-                              ? "Ainda não existem contratos associados a esta obra."
-                              : "No contracts are linked to this project yet."}
+                            {uiText(language, "Ainda não existem contratos associados a esta obra.", "No contracts are linked to this project yet.")}
                           </Text>
                         )}
                       </View>
@@ -784,7 +774,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   ) : (
                     <EmptyState
                       icon="business-outline"
-                      title={language === "pt" ? "Sem obras" : "No projects"}
+                      title={uiText(language, "Sem obras", "No projects")}
                     />
                   )}
                 </Card>
@@ -795,16 +785,14 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
               <Card>
                 <EntityHeader
                   icon="briefcase-outline"
-                  title={company?.name ?? (language === "pt" ? "Empresa" : "Company")}
+                  title={company?.name ?? (uiText(language, "Empresa", "Company"))}
                   subtitle={
-                    language === "pt"
-                      ? "Documentos institucionais e legais da empresa"
-                      : "Institutional and legal company documents"
+                    uiText(language, "Documentos institucionais e legais da empresa", "Institutional and legal company documents")
                   }
                   accent={accent}
                   stats={[
                     {
-                      label: language === "pt" ? "Documentos" : "Documents",
+                      label: uiText(language, "Documentos", "Documents"),
                       value: companyDocuments.length,
                     },
                   ]}
@@ -820,13 +808,13 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                         status={document.status}
                         accent={accent}
                         language={language}
-                        onPress={() => openDocument(document, company?.name ?? "Company")}
+                        onPress={() => openDocument(document, company?.name ?? uiText(language, "Empresa", "Company"))}
                       />
                     ))
                   ) : (
                     <EmptyState
                       icon="folder-open-outline"
-                      title={language === "pt" ? "Arquivo vazio" : "Empty archive"}
+                      title={uiText(language, "Arquivo vazio", "Empty archive")}
                     />
                   )}
                 </View>
@@ -846,7 +834,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                   key={contract.id}
                   icon="newspaper-outline"
                   title={contract.title}
-                  subtitle={`${worker?.name ?? "Worker"} · ${project?.name ?? companyItem?.name ?? "Company"}`}
+                  subtitle={`${worker?.name ?? uiText(language, "Trabalhador", "Worker")} · ${project?.name ?? companyItem?.name ?? uiText(language, "Empresa", "Company")}`}
                   status={contract.status}
                   accent={accent}
                   language={language}
@@ -858,15 +846,11 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                       content: contract.demo_content,
                       icon: "newspaper-outline",
                       meta: [
-                        project?.name ?? companyItem?.name ?? "Company",
+                        project?.name ?? companyItem?.name ?? uiText(language, "Empresa", "Company"),
                         `${contract.start_date} → ${contract.end_date}`,
                         contract.signed_worker && contract.signed_company
-                          ? language === "pt"
-                            ? "Assinado por ambas as partes"
-                            : "Signed by both parties"
-                          : language === "pt"
-                            ? "Assinatura pendente"
-                            : "Signature pending",
+                          ? uiText(language, "Assinado por ambas as partes", "Signed by both parties")
+                          : uiText(language, "Assinatura pendente", "Signature pending"),
                       ],
                     })
                   }
@@ -892,14 +876,16 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                     id: certificate.id,
                     title: certificate.name,
                     subtitle: certificate.file_name,
-                    content:
-                      language === "pt"
-                        ? `Certificado fictício emitido por ${certificate.issuer}, consultável para demonstrar a validação documental WORKLY.`
-                        : `Fictitious certificate issued by ${certificate.issuer}, viewable to demonstrate WORKLY document validation.`,
+                    content: uiFormat(
+                      language,
+                      "Certificado fictício emitido por {issuer}, consultável para demonstrar a validação documental WORKLY.",
+                      "Fictitious certificate issued by {issuer}, viewable to demonstrate WORKLY document validation.",
+                      { issuer: certificate.issuer },
+                    ),
                     icon: "ribbon-outline",
                     meta: [
                       certificate.workerName,
-                      `${language === "pt" ? "Válido até" : "Valid until"} ${certificate.expires_at}`,
+                      `${uiText(language, "Válido até", "Valid until")} ${certificate.expires_at}`,
                     ],
                   })
                 }
@@ -937,7 +923,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                     {project.location} · {project.year}
                   </Text>
                   <Text style={[styles.openText, { color: accent }]}>
-                    {language === "pt" ? "Ver projeto" : "View project"} →
+                    {uiText(language, "Ver projeto", "View project")} →
                   </Text>
                 </Pressable>
               ))
@@ -945,7 +931,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
               <Card style={{ width: "100%" }}>
                 <EmptyState
                   icon="trophy-outline"
-                  title={language === "pt" ? "Sem projetos em destaque" : "No featured projects"}
+                  title={uiText(language, "Sem projetos em destaque", "No featured projects")}
                 />
               </Card>
             )}
@@ -976,9 +962,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
           <View style={styles.demoNotice}>
             <Ionicons name="information-circle-outline" size={18} color={workspaceColors.yellow} />
             <Text style={styles.demoNoticeText}>
-              {language === "pt"
-                ? "Conteúdo fictício criado exclusivamente para a demonstração WORKLY. Sem validade legal."
-                : "Fictitious content created exclusively for the WORKLY demo. No legal validity."}
+              {uiText(language, "Conteúdo fictício criado exclusivamente para a demonstração WORKLY. Sem validade legal.", "Fictitious content created exclusively for the WORKLY demo. No legal validity.")}
             </Text>
           </View>
         </View>
@@ -1037,14 +1021,14 @@ function ArchiveSection({
       <SectionTitle
         title={title}
         subtitle={
-          language === "pt" ? "Seleciona um item para consultar." : "Select an item to view it."
+          uiText(language, "Seleciona um item para consultar.", "Select an item to view it.")
         }
       />
       <View style={{ gap: 9, marginTop: 15 }}>
         {empty ? (
           <EmptyState
             icon="folder-open-outline"
-            title={language === "pt" ? "Arquivo vazio" : "Empty archive"}
+            title={uiText(language, "Arquivo vazio", "Empty archive")}
           />
         ) : (
           children
@@ -1101,25 +1085,17 @@ function ArchiveRow({
           ]}
         >
           {status === "valid"
-            ? language === "pt"
-              ? "Válido"
-              : "Valid"
+            ? uiText(language, "Válido", "Valid")
             : status === "active"
-              ? language === "pt"
-                ? "Ativo"
-                : "Active"
+              ? uiText(language, "Ativo", "Active")
               : status === "expired"
-                ? language === "pt"
-                  ? "Expirado"
-                  : "Expired"
-                : language === "pt"
-                  ? "Pendente"
-                  : "Pending"}
+                ? uiText(language, "Expirado", "Expired")
+                : uiText(language, "Pendente", "Pending")}
         </Text>
       </View>
       <View style={styles.openAction}>
         <Text style={[styles.openText, { color: accent }]}>
-          {language === "pt" ? "Consultar" : "Open"}
+          {uiText(language, "Consultar", "Open")}
         </Text>
         <Ionicons name="open-outline" size={14} color={accent} />
       </View>

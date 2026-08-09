@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Worker, WorkerStatus } from "@/src/demo/types";
 
 import {
@@ -145,9 +146,7 @@ export function WorkersView() {
         <View style={{ flex: 1, minWidth: 220 }}>
           <Text style={sharedStyles.title}>{t.workers}</Text>
           <Text style={sharedStyles.subtitle}>
-            {language === "pt"
-              ? "Pesquisa, perfis, certificados e atribuições."
-              : "Search, profiles, certificates and assignments."}
+            {uiText(language, "Pesquisa, perfis, certificados e atribuições.", "Search, profiles, certificates and assignments.")}
           </Text>
         </View>
         <View style={styles.searchBox}>
@@ -157,9 +156,7 @@ export function WorkersView() {
             value={query}
             onChangeText={setQuery}
             placeholder={
-              language === "pt"
-                ? "Nome, profissão, competência…"
-                : "Name, trade, skill…"
+              uiText(language, "Nome, profissão, competência…", "Name, trade, skill…")
             }
             placeholderTextColor={workspaceColors.muted}
             style={styles.searchInput}
@@ -167,7 +164,7 @@ export function WorkersView() {
           {query ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={language === "pt" ? "Limpar pesquisa" : "Clear search"}
+              accessibilityLabel={uiText(language, "Limpar pesquisa", "Clear search")}
               onPress={() => setQuery("")}
             >
               <Ionicons
@@ -185,9 +182,7 @@ export function WorkersView() {
           const active = statusFilter === status;
           const label =
             status === "all"
-              ? language === "pt"
-                ? "Todos"
-                : "All"
+              ? uiText(language, "Todos", "All")
               : status === "available"
                 ? t.available
                 : status === "contracted"
@@ -217,7 +212,7 @@ export function WorkersView() {
           );
         })}
         <Text style={styles.resultCount}>
-          {workers.length} {language === "pt" ? "resultados" : "results"}
+          {workers.length} {uiText(language, "resultados", "results")}
         </Text>
       </View>
 
@@ -244,9 +239,7 @@ export function WorkersView() {
               icon="search-outline"
               title={t.noResults}
               description={
-                language === "pt"
-                  ? "Altera os filtros ou procura outra competência."
-                  : "Change filters or search for another skill."
+                uiText(language, "Altera os filtros ou procura outra competência.", "Change filters or search for another skill.")
               }
             />
           </Card>
@@ -350,9 +343,7 @@ export function WorkersView() {
               color={workspaceColors.yellow}
             />
             <Text style={styles.demoNoticeText}>
-              {language === "pt"
-                ? "Ficheiro fictício e consultável apenas para demonstrar o fluxo."
-                : "Fictitious file available only to demonstrate the workflow."}
+              {uiText(language, "Ficheiro fictício e consultável apenas para demonstrar o fluxo.", "Fictitious file available only to demonstrate the workflow.")}
             </Text>
           </View>
         </View>
@@ -491,7 +482,7 @@ function WorkerDetails({
 
       <View style={styles.detailColumns}>
         <Card style={{ flex: 1, minWidth: 250 }}>
-          <SectionTitle title={language === "pt" ? "Competências" : "Skills"} />
+          <SectionTitle title={uiText(language, "Competências", "Skills")} />
           <View style={{ gap: 11, marginTop: 14 }}>
             {worker.skills.map((skill) => (
               <View key={skill.name} style={{ gap: 6 }}>
@@ -574,7 +565,7 @@ function WorkerDetails({
                 <Text style={styles.workerLocation}>{item.file_name}</Text>
               </View>
               <Text style={[styles.openText, { color: accent }]}>
-                {language === "pt" ? "Consultar" : "Open"}
+                {uiText(language, "Consultar", "Open")}
               </Text>
             </Pressable>
           ))}
@@ -583,11 +574,9 @@ function WorkerDetails({
 
       <Card>
         <SectionTitle
-          title={language === "pt" ? "Atribuições" : "Assignments"}
+          title={uiText(language, "Atribuições", "Assignments")}
           subtitle={
-            language === "pt"
-              ? "Adicionar a uma equipa ou obra."
-              : "Add to a team or project."
+            uiText(language, "Adicionar a uma equipa ou obra.", "Add to a team or project.")
           }
         />
         <Text style={sharedStyles.label}>{t.teams}</Text>
@@ -645,26 +634,26 @@ function WorkerEditor({
   return (
     <View style={{ gap: 14 }}>
       <Field
-        label={language === "pt" ? "Profissão" : "Trade"}
+        label={uiText(language, "Profissão", "Trade")}
         value={form.profession}
         onChangeText={(value) => setValue("profession", value)}
       />
       <View style={styles.detailColumns}>
         <Field
           style={{ flex: 1, minWidth: 220 }}
-          label={language === "pt" ? "Localização" : "Location"}
+          label={uiText(language, "Localização", "Location")}
           value={form.location}
           onChangeText={(value) => setValue("location", value)}
         />
         <Field
           style={{ flex: 1, minWidth: 220 }}
-          label={language === "pt" ? "Telefone" : "Phone"}
+          label={uiText(language, "Telefone", "Phone")}
           value={form.phone}
           onChangeText={(value) => setValue("phone", value)}
         />
       </View>
       <Field
-        label={language === "pt" ? "Biografia" : "Bio"}
+        label={uiText(language, "Biografia", "Bio")}
         value={form.bio}
         multiline
         onChangeText={(value) => setValue("bio", value)}
