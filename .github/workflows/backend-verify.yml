@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "api/**"
       - "requirements.txt"
       - "pyproject.toml"
+      - "vercel.json"
       - ".github/workflows/backend-verify.yml"
   push:
     branches:
       - "agent/**"
     paths:
       - "backend/**"
+      - "api/**"
       - "requirements.txt"
       - "pyproject.toml"
+      - "vercel.json"
       - ".github/workflows/backend-verify.yml"
 
 permissions:
@@ -39,7 +43,7 @@ jobs:
       - name: Compile backend
         env:
           PYTHONPATH: .
-        run: python -m compileall -q backend
+        run: python -m compileall -q backend api
 
       - name: Test backend
         env:
