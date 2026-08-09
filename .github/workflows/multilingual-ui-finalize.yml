@@ -1,0 +1,104 @@
+name: Finalize multilingual UI
+
+on:
+  push:
+    branches:
+      - agent/multilingual-ui
+    paths:
+      - .github/workflows/multilingual-ui-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/multilingual-ui
+      - name: Patch language consumers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          context_path = Path('frontend/src/context/WorklyDataContext.tsx')
+          context = context_path.read_text()
+          old = 'if (active && (stored === "pt" || stored === "en")) {'
+          new = 'if (active && (stored === "pt" || stored === "en" || stored === "fr" || stored === "es" || stored === "ro" || stored === "de" || stored === "nl")) {'
+          if old not in context: raise SystemExit('context language guard not found')
+          context_path.write_text(context.replace(old, new, 1))
+          shell_path = Path('frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx')
+          shell = shell_path.read_text()
+          marker = 'import { useAuth } from "@/src/context/AuthContext";\n'
+          if marker not in shell: raise SystemExit('shell import marker not found')
+          shell = shell.replace(marker, 'import { LanguageSelector } from "@/src/components/LanguageSelector";\n' + marker, 1)
+          old_toggle = '          <LanguageToggle\n            language={language}\n            accent={accent}\n            onChange={setLanguage}\n          />'
+          new_toggle = '          <LanguageSelector\n            language={language}\n            accent={accent}\n            onChange={setLanguage}\n          />'
+          if old_toggle not in shell: raise SystemExit('shell toggle usage not found')
+          shell = shell.replace(old_toggle, new_toggle, 1)
+          shell, n = re.subn(r'\nfunction LanguageToggle\([\s\S]*?\n\}\n\nconst styles = StyleSheet\.create\(', '\nconst styles = StyleSheet.create(', shell, count=1)
+          if n != 1: raise SystemExit('shell toggle function not removed')
+          shell_replacements = [
+          ('label: language === "pt" ? "Operações" : "Operations",', 'label: t.operations,'),
+          ('primary: language === "pt" ? "A sincronizar" : "Syncing",', 'primary: t.syncing,'),
+          ('          activeWorkers > 0\n            ? language === "pt"\n              ? `${activeWorkers} em obra agora`\n              : `${activeWorkers} on site now`\n            : language === "pt"\n              ? "Operação pronta"\n              : "Operation ready",', '          activeWorkers > 0 ? `${activeWorkers} ${t.onSiteNow}` : t.operationReady,'),
+          ('        secondary:\n          language === "pt"\n            ? `${activeProjects} obras ativas`\n            : `${activeProjects} active projects`,', '        secondary: `${activeProjects} ${t.activeProjects}`,'),
+          ('      primary: activeAttendance\n        ? language === "pt"\n          ? "Sessão em obra ativa"\n          : "Active on-site session"\n        : language === "pt"\n          ? "Pronto para check-in"\n          : "Ready to check in",', '      primary: activeAttendance ? t.activeSession : t.readyCheckIn,'),
+          ('        (language === "pt" ? "Sem obra selecionada" : "No project selected"),', '        t.noProject,'),
+          ('            {language === "pt" ? "Ligação indisponível" : "Connection unavailable"}', '            {t.connectionUnavailable}'),
+          ('            label={language === "pt" ? "Tentar novamente" : "Try again"}', '            label={t.tryAgain}'),
+          ('            role === "company"\n              ? language === "pt"\n                ? "Abrir mapa operacional"\n                : "Open operations map"\n              : language === "pt"\n                ? "Abrir presenças"\n                : "Open attendance"', '            role === "company" ? t.openOperations : t.openAttendance'),
+          ('              label={language === "pt" ? "em obra" : "on site"}', '              label={t.onSite}'),
+          ('              label={language === "pt" ? "obras" : "projects"}', '              label={t.projects}')]
+          for a, b in shell_replacements:
+              if a not in shell: raise SystemExit('shell translation marker missing: ' + a[:60])
+              shell = shell.replace(a, b, 1)
+          shell_path.write_text(shell)
+          login_path = Path('frontend/app/login.tsx')
+          login = login_path.read_text()
+          auth_import = 'import { type UserRole, useAuth } from "@/src/context/AuthContext";\n'
+          if auth_import not in login: raise SystemExit('login import marker not found')
+          login = login.replace(auth_import, 'import { LanguageSelector } from "@/src/components/LanguageSelector";\n' + auth_import + 'import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";\n', 1)
+          login = login.replace('type Language = "pt" | "en";\n', '', 1)
+          login, n = re.subn(r'const labels = \{[\s\S]*?\} as const;\n\nfunction readableError\([\s\S]*?\n\}\n\nexport default function Login\(\)', 'export default function Login()', login, count=1)
+          if n != 1: raise SystemExit('login local i18n block not removed')
+          login = login.replace('  const text = labels[language];', '  const text = loginCopy[language];', 1)
+          login = login.replace('      setError(readableError(message, language));', '      setError(readableAuthError(message, language));', 1)
+          login, n = re.subn(r'          <View style=\{styles\.languageSwitch\}>[\s\S]*?          </View>\n', '          <LanguageSelector language={language} onChange={setLanguage} accent={workspaceColors.blue} />\n', login, count=1)
+          if n != 1: raise SystemExit('login language switch not replaced')
+          login_path.write_text(login)
+          PY
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify backend
+        shell: bash
+        run: |
+          python -m pip install -r requirements.txt pytest httpx
+          PYTHONPATH=. python -m compileall -q backend api
+          PYTHONPATH=. pytest -q backend/tests
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify frontend
+        shell: bash
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npm run lint
+          npm run build:web
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add frontend/src/context/WorklyDataContext.tsx frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx frontend/app/login.tsx
+          git commit -m "Enable seven-language WORKLY interface"
+          git push
