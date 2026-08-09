@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "frontend/**"
-      - "backend/**"
-      - "vercel.json"
-      - "requirements.txt"
-      - "pyproject.toml"
-      - ".github/workflows/deploy-vercel.yml"
   pull_request:
     paths:
       - ".github/workflows/deploy-vercel.yml"
