@@ -24,8 +24,35 @@ jobs:
           node-version: 24
       - run: npm install --global vercel@latest
       - run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
       - name: Deploy preview
+        id: deploy
+        shell: bash
         run: |
           url="$(vercel deploy --yes --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "$url"
           printf '### Static routing preview\n%s\n' "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify frontend and API routing
+        shell: bash
+        run: |
+          url="${{ steps.deploy.outputs.url }}"
+
+          root="$(vercel curl / --deployment "$url" --token="$VERCEL_TOKEN")"
+          login="$(vercel curl /login --deployment "$url" --token="$VERCEL_TOKEN")"
+          workspace="$(vercel curl /workspace --deployment "$url" --token="$VERCEL_TOKEN")"
+          health="$(vercel curl /api/health --deployment "$url" --token="$VERCEL_TOKEN")"
+          asset="$(vercel curl /_expo/static/js/web/entry-2f6263c107f351f8326b44aa963f8355.js --deployment "$url" --token="$VERCEL_TOKEN")"
+
+          grep -q '<title>WORKLY</title>' <<< "$root"
+          grep -q 'entry-2f6263c107f351f8326b44aa963f8355.js' <<< "$root"
+          grep -q '<title>WORKLY</title>' <<< "$login"
+          grep -q '<title>WORKLY</title>' <<< "$workspace"
+          grep -q '"status":"ok"' <<< "$health"
+          grep -q 'WORKLY API' <<< "$health"
+          test "${#asset}" -gt 1000000
+
+          echo "Frontend HTML: OK"
+          echo "Expo bundle: OK (${#asset} bytes)"
+          echo "FastAPI health: OK"
