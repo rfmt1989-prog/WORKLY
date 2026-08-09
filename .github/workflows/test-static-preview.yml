@@ -1,0 +1,31 @@
+name: Test Static Routing Preview
+
+on:
+  push:
+    branches:
+      - agent/test-static-routing
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: team_5LSRDYKDIDDttNfiidfjplCI
+  VERCEL_PROJECT_ID: prj_i2O5wxHnnL3WaI4OstDogjOBEpFg
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --global vercel@latest
+      - run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+      - name: Deploy preview
+        run: |
+          url="$(vercel deploy --yes --token="$VERCEL_TOKEN")"
+          echo "$url"
+          printf '### Static routing preview\n%s\n' "$url" >> "$GITHUB_STEP_SUMMARY"
