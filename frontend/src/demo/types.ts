@@ -1,7 +1,7 @@
 export type UserRole = "worker" | "company";
 export type WorkerStatus = "available" | "contracted" | "on_site";
 export type ProjectStatus = "planned" | "active" | "paused" | "completed";
-export type LanguageCode = "pt" | "en";
+export type LanguageCode = "pt" | "en" | "fr" | "es" | "ro" | "de" | "nl";
 
 export type Skill = {
   name: string;
