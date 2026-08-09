@@ -69,6 +69,11 @@ jobs:
           login, n = re.subn(r'          <View style=\{styles\.languageSwitch\}>[\s\S]*?          </View>\n', '          <LanguageSelector language={language} onChange={setLanguage} accent={workspaceColors.blue} />\n', login, count=1)
           if n != 1: raise SystemExit('login language switch not replaced')
           login_path.write_text(login)
+          for path in Path('frontend').rglob('*'):
+              if path.suffix not in {'.ts', '.tsx'}: continue
+              text = path.read_text()
+              widened = text.replace('"pt" | "en"', 'import("@/src/demo/types").LanguageCode')
+              if widened != text: path.write_text(widened)
           PY
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -99,6 +104,6 @@ jobs:
         run: |
           git config user.name "rfmt1989-prog"
           git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
-          git add frontend/src/context/WorklyDataContext.tsx frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx frontend/app/login.tsx
+          git add frontend
           git commit -m "Enable seven-language WORKLY interface"
           git push
