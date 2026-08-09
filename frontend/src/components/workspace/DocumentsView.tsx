@@ -503,7 +503,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
 
             {scope === "workers" ? (
               <View style={[styles.archiveSplit, splitCompact ? styles.archiveSplitCompact : null]}>
-                <Card style={[styles.folderPane, splitCompact ? styles.folderPaneCompact : null]}>
+                <Card style={splitCompact ? styles.folderPaneCompact : styles.folderPane}>
                   <SectionTitle
                     title={
                       user.role === "worker"
@@ -629,7 +629,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
 
             {scope === "projects" ? (
               <View style={[styles.archiveSplit, splitCompact ? styles.archiveSplitCompact : null]}>
-                <Card style={[styles.folderPane, splitCompact ? styles.folderPaneCompact : null]}>
+                <Card style={splitCompact ? styles.folderPaneCompact : styles.folderPane}>
                   <SectionTitle
                     title={language === "pt" ? "Obras" : "Projects"}
                     subtitle={
@@ -1281,7 +1281,6 @@ const styles = StyleSheet.create({
     color: workspaceColors.text,
     fontSize: 11,
     paddingVertical: 9,
-    outlineStyle: "none",
   },
   archiveSplit: {
     flexDirection: "row",
@@ -1297,9 +1296,10 @@ const styles = StyleSheet.create({
     minWidth: 300,
   },
   folderPaneCompact: {
-    maxWidth: undefined,
-    minWidth: undefined,
     flexBasis: "auto",
+    maxWidth: "100%",
+    minWidth: 0,
+    width: "100%",
   },
   detailPane: {
     flex: 1,
