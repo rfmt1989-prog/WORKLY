@@ -367,8 +367,8 @@ function Sidebar({
   onNavigate: (section: WorkspaceSection) => void;
   accent: string;
   role: "worker" | "company";
-  language: "pt" | "en";
-  onLanguage: (language: "pt" | "en") => void;
+  language: import("@/src/demo/types").LanguageCode;
+  onLanguage: (language: import("@/src/demo/types").LanguageCode) => void;
   onReset: () => void;
   onLogout: () => void;
   resetBusy: boolean;
@@ -507,8 +507,8 @@ function TopBar({
   accent: string;
   role: "worker" | "company";
   userName: string;
-  language: "pt" | "en";
-  onLanguage: (language: "pt" | "en") => void;
+  language: import("@/src/demo/types").LanguageCode;
+  onLanguage: (language: import("@/src/demo/types").LanguageCode) => void;
   isDesktop: boolean;
   onReset: () => void;
   onLogout: () => void;
@@ -581,9 +581,9 @@ function LanguageSwitch({
   accent,
   onLanguage,
 }: {
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
-  onLanguage: (language: "pt" | "en") => void;
+  onLanguage: (language: import("@/src/demo/types").LanguageCode) => void;
 }) {
   return (
     <View style={styles.languageSwitch}>
@@ -730,7 +730,7 @@ function LoadingState({
   language,
   accent,
 }: {
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   return (
@@ -755,7 +755,7 @@ function ErrorState({
   onRetry,
 }: {
   message: string;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
   onRetry: () => void;
 }) {

@@ -39,7 +39,7 @@ type LocationPreview = {
   within: boolean | null;
 };
 
-function formatDate(value: string, language: "pt" | "en") {
+function formatDate(value: string, language: import("@/src/demo/types").LanguageCode) {
   return new Date(value).toLocaleDateString(language === "pt" ? "pt-PT" : "en-GB", {
     day: "2-digit",
     month: "short",
@@ -47,7 +47,7 @@ function formatDate(value: string, language: "pt" | "en") {
   });
 }
 
-function formatTime(value: string, language: "pt" | "en") {
+function formatTime(value: string, language: import("@/src/demo/types").LanguageCode) {
   return new Date(value).toLocaleTimeString(language === "pt" ? "pt-PT" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -117,7 +117,7 @@ function geofenceFor(
   };
 }
 
-function nextShiftDate(language: "pt" | "en") {
+function nextShiftDate(language: import("@/src/demo/types").LanguageCode) {
   const date = new Date();
   date.setDate(date.getDate() + 1);
   return {
@@ -614,7 +614,7 @@ function CompanyAttendanceRow({
   record: Attendance;
   worker?: Worker;
   project?: Project;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   const active = record.check_out === null;
@@ -674,7 +674,7 @@ function WorkerAttendanceRow({
 }: {
   record: Attendance;
   project?: Project;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   const geofence = geofenceFor(
@@ -729,7 +729,7 @@ function GeofenceBadge({
   language,
 }: {
   geofence: LocationPreview;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
 }) {
   const demo = geofence.mode === "demo";
   const outside = geofence.within === false;

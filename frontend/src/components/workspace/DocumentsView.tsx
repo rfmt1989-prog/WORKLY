@@ -98,7 +98,7 @@ function initials(name: string) {
     .join("");
 }
 
-function categoryLabel(category: string, language: "pt" | "en") {
+function categoryLabel(category: string, language: import("@/src/demo/types").LanguageCode) {
   const labels: Record<string, [string, string]> = {
     identity: ["Identificação", "Identity"],
     insurance: ["Seguro", "Insurance"],
@@ -1029,7 +1029,7 @@ function ArchiveSection({
 }: {
   title: string;
   empty: boolean;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   children: React.ReactNode;
 }) {
   return (
@@ -1068,7 +1068,7 @@ function ArchiveRow({
   subtitle: string;
   status: string;
   accent: string;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   onPress: () => void;
 }) {
   const isGood = status === "valid" || status === "active";

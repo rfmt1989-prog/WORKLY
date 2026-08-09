@@ -568,7 +568,7 @@ function MonitorRow({
   worker: Worker;
   project: Project | undefined;
   checkedAt: string;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   const time = new Date(checkedAt).toLocaleTimeString(

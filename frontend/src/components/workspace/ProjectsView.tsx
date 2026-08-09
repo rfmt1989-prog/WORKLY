@@ -391,7 +391,7 @@ function ProjectCard({
   project: Project;
   teamsCount: number;
   workersCount: number;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
   onPress: () => void;
 }) {
@@ -474,7 +474,7 @@ function ProjectEditor({
 }: {
   form: ProjectForm;
   setForm: React.Dispatch<React.SetStateAction<ProjectForm>>;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   accent: string;
 }) {
   const t = copy[language];
@@ -600,7 +600,7 @@ function ProjectDetails({
 }: {
   project: Project;
   state: NonNullable<ReturnType<typeof useWorklyData>["state"]>;
-  language: "pt" | "en";
+  language: import("@/src/demo/types").LanguageCode;
   role: "worker" | "company";
   accent: string;
   busy: boolean;
