@@ -1,0 +1,350 @@
+name: Build persistence foundation
+
+on:
+  push:
+    branches:
+      - agent/persistent-backend-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/persistent-backend-foundation
+          fetch-depth: 0
+
+      - name: Implement PostgreSQL persistence bridge
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          persistence = r'''"""Durable persistence bridge for the WORKLY operational state.
+
+          The current application still exposes the existing dict-based domain model to keep
+          the Expo/Web demo stable. When a PostgreSQL connection URL is present, this module
+          stores that state and registered accounts in PostgreSQL so Vercel cold starts do not
+          reset the product. This bridge is intentionally small and can later be replaced by
+          normalized multi-tenant tables without changing the frontend contract.
+          """
+
+          from __future__ import annotations
+
+          import os
+          from copy import deepcopy
+          from typing import Any
+
+          try:
+              import psycopg
+              from psycopg.types.json import Jsonb
+          except ImportError:  # pragma: no cover - dependency is installed in production/CI
+              psycopg = None
+              Jsonb = None
+
+
+          DATABASE_ENV_KEYS = (
+              "DATABASE_URL",
+              "POSTGRES_URL",
+              "NEON_DATABASE_URL",
+              "NEON_POSTGRES_URL",
+          )
+
+
+          def resolve_database_url() -> str | None:
+              for key in DATABASE_ENV_KEYS:
+                  value = os.getenv(key, "").strip()
+                  if value:
+                      return value
+              return None
+
+
+          class PersistenceStore:
+              def __init__(self, database_url: str | None = None) -> None:
+                  self.database_url = database_url or resolve_database_url()
+                  self.connected = False
+                  self.last_error: str | None = None
+
+              @property
+              def enabled(self) -> bool:
+                  return bool(self.database_url)
+
+              @property
+              def mode(self) -> str:
+                  return "postgres" if self.enabled else "memory"
+
+              def health(self) -> dict[str, Any]:
+                  return {
+                      "mode": self.mode,
+                      "configured": self.enabled,
+                      "connected": self.connected,
+                      "status": "ready" if self.connected else ("not_configured" if not self.enabled else "degraded"),
+                  }
+
+              def _connect(self):
+                  if not self.enabled:
+                      raise RuntimeError("PostgreSQL is not configured")
+                  if psycopg is None:
+                      raise RuntimeError("psycopg is not installed")
+                  return psycopg.connect(self.database_url, connect_timeout=5)
+
+              @staticmethod
+              def _ensure_schema(conn) -> None:
+                  conn.execute(
+                      """
+                      CREATE TABLE IF NOT EXISTS workly_runtime_state (
+                          id SMALLINT PRIMARY KEY CHECK (id = 1),
+                          payload JSONB NOT NULL,
+                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                      )
+                      """
+                  )
+                  conn.execute(
+                      """
+                      CREATE TABLE IF NOT EXISTS workly_registered_users (
+                          email TEXT PRIMARY KEY,
+                          payload JSONB NOT NULL,
+                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                      )
+                      """
+                  )
+
+              def load(
+                  self,
+                  default_state: dict[str, Any],
+              ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+                  fallback = deepcopy(default_state)
+                  if not self.enabled:
+                      return fallback, {}
+                  try:
+                      with self._connect() as conn:
+                          self._ensure_schema(conn)
+                          row = conn.execute(
+                              "SELECT payload FROM workly_runtime_state WHERE id = 1"
+                          ).fetchone()
+                          if row is None:
+                              conn.execute(
+                                  "INSERT INTO workly_runtime_state (id, payload) VALUES (1, %s)",
+                                  (Jsonb(fallback),),
+                              )
+                              state = fallback
+                          else:
+                              state = row[0]
+                          user_rows = conn.execute(
+                              "SELECT email, payload FROM workly_registered_users"
+                          ).fetchall()
+                          conn.commit()
+                      self.connected = True
+                      self.last_error = None
+                      return deepcopy(state), {
+                          str(email): deepcopy(payload) for email, payload in user_rows
+                      }
+                  except Exception as exc:  # keep the public demo available if storage is degraded
+                      self.connected = False
+                      self.last_error = type(exc).__name__
+                      return fallback, {}
+
+              def save(
+                  self,
+                  state: dict[str, Any],
+                  registered_users: dict[str, dict[str, Any]],
+              ) -> bool:
+                  if not self.enabled:
+                      return False
+                  try:
+                      with self._connect() as conn:
+                          self._ensure_schema(conn)
+                          conn.execute(
+                              """
+                              INSERT INTO workly_runtime_state (id, payload, updated_at)
+                              VALUES (1, %s, NOW())
+                              ON CONFLICT (id) DO UPDATE
+                              SET payload = EXCLUDED.payload, updated_at = NOW()
+                              """,
+                              (Jsonb(state),),
+                          )
+                          conn.execute("DELETE FROM workly_registered_users")
+                          if registered_users:
+                              conn.executemany(
+                                  """
+                                  INSERT INTO workly_registered_users (email, payload, updated_at)
+                                  VALUES (%s, %s, NOW())
+                                  """,
+                                  [
+                                      (email, Jsonb(payload))
+                                      for email, payload in registered_users.items()
+                                  ],
+                              )
+                          conn.commit()
+                      self.connected = True
+                      self.last_error = None
+                      return True
+                  except Exception as exc:  # preserve availability and expose degraded state in /health
+                      self.connected = False
+                      self.last_error = type(exc).__name__
+                      return False
+          '''
+          Path('backend/app/persistence.py').write_text(persistence, encoding='utf-8')
+
+          main_path = Path('backend/app/main.py')
+          main = main_path.read_text(encoding='utf-8')
+
+          import_marker = '''from .demo_data import (
+              COMPANY_DEMO_EMAIL,
+              DEMO_PASSWORD,
+              WORKER_DEMO_EMAIL,
+              fresh_demo_state,
+          )
+          '''
+          import_replacement = import_marker + '\nfrom .persistence import PersistenceStore\n'
+          if 'from .persistence import PersistenceStore' not in main:
+              if import_marker not in main:
+                  raise SystemExit('demo_data import marker not found')
+              main = main.replace(import_marker, import_replacement, 1)
+
+          old_state = '''_state_lock = threading.RLock()
+          _state = fresh_demo_state()
+          _registered_users: dict[str, dict[str, Any]] = {}
+          '''
+          new_state = '''_state_lock = threading.RLock()
+          _persistence = PersistenceStore()
+          _state, _registered_users = _persistence.load(fresh_demo_state())
+          '''
+          if old_state in main:
+              main = main.replace(old_state, new_state, 1)
+          elif '_persistence = PersistenceStore()' not in main:
+              raise SystemExit('state initialization marker not found')
+
+          middleware_marker = new_state + '\n'
+          middleware = r'''_state_lock = threading.RLock()
+          _persistence = PersistenceStore()
+          _state, _registered_users = _persistence.load(fresh_demo_state())
+
+
+          @app.middleware("http")
+          async def persist_successful_mutations(request, call_next):
+              """Persist successful API mutations without changing endpoint contracts."""
+              response = await call_next(request)
+              if (
+                  request.url.path.startswith(API_PREFIX)
+                  and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+                  and response.status_code < 400
+              ):
+                  with _state_lock:
+                      _persistence.save(_state, _registered_users)
+              return response
+
+          '''
+          if 'async def persist_successful_mutations' not in main:
+              if middleware_marker not in main:
+                  raise SystemExit('middleware insertion marker not found')
+              main = main.replace(middleware_marker, middleware, 1)
+
+          old_health = '''        "version": "1.0.0-demo",
+                  "data_version": _state["version"],
+              }
+          '''
+          new_health = '''        "version": "1.0.0-demo",
+                  "data_version": _state["version"],
+                  "persistence": _persistence.health(),
+              }
+          '''
+          if old_health in main:
+              main = main.replace(old_health, new_health, 1)
+          elif '"persistence": _persistence.health()' not in main:
+              raise SystemExit('health marker not found')
+
+          main = main.replace('"persistence": "client_snapshot",', '"persistence": _persistence.mode,')
+          main_path.write_text(main, encoding='utf-8')
+
+          for path in ['requirements.txt', 'backend/requirements.txt']:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              dep = 'psycopg[binary]>=3.2.0,<4.0'
+              if dep not in text:
+                  text = text.rstrip() + '\n' + dep + '\n'
+              p.write_text(text, encoding='utf-8')
+
+          pyproject = Path('pyproject.toml')
+          text = pyproject.read_text(encoding='utf-8')
+          marker = '  "email-validator>=2.2.0,<3.0",\n'
+          dep_line = '  "psycopg[binary]>=3.2.0,<4.0",\n'
+          if dep_line not in text:
+              if marker not in text:
+                  raise SystemExit('pyproject dependency marker not found')
+              text = text.replace(marker, marker + dep_line, 1)
+          pyproject.write_text(text, encoding='utf-8')
+
+          test = r'''from __future__ import annotations
+
+          from copy import deepcopy
+
+          from backend.app.persistence import PersistenceStore, resolve_database_url
+
+
+          def test_persistence_disabled_without_database_url(monkeypatch):
+              for key in ("DATABASE_URL", "POSTGRES_URL", "NEON_DATABASE_URL", "NEON_POSTGRES_URL"):
+                  monkeypatch.delenv(key, raising=False)
+              store = PersistenceStore()
+              state = {"version": 1, "workers": []}
+              loaded, users = store.load(state)
+              assert store.enabled is False
+              assert store.mode == "memory"
+              assert loaded == state
+              assert loaded is not state
+              assert users == {}
+              assert store.health()["status"] == "not_configured"
+
+
+          def test_database_url_resolution_priority(monkeypatch):
+              for key in ("DATABASE_URL", "POSTGRES_URL", "NEON_DATABASE_URL", "NEON_POSTGRES_URL"):
+                  monkeypatch.delenv(key, raising=False)
+              monkeypatch.setenv("POSTGRES_URL", "postgresql://secondary")
+              monkeypatch.setenv("DATABASE_URL", "postgresql://primary")
+              assert resolve_database_url() == "postgresql://primary"
+
+
+          def test_failed_database_connection_falls_back_without_mutating_input(monkeypatch):
+              state = {"version": 7, "workers": [{"id": "worker-1"}]}
+              original = deepcopy(state)
+              store = PersistenceStore("postgresql://127.0.0.1:1/workly")
+              loaded, users = store.load(state)
+              assert loaded == original
+              assert state == original
+              assert users == {}
+              assert store.connected is False
+              assert store.health()["status"] == "degraded"
+          '''
+          Path('backend/tests/test_persistence.py').write_text(test, encoding='utf-8')
+          PY
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt pytest httpx
+
+      - name: Compile backend
+        env:
+          PYTHONPATH: .
+        run: python -m compileall -q backend api
+
+      - name: Test backend
+        env:
+          PYTHONPATH: .
+        run: pytest -q backend/tests
+
+      - name: Commit verified implementation
+        run: |
+          rm -f .github/workflows/persistence-foundation.yml
+          git config user.name "rfmt1989-prog"
+          git config user.email "300776272+rfmt1989-prog@users.noreply.github.com"
+          git add backend/app/main.py backend/app/persistence.py backend/tests/test_persistence.py requirements.txt backend/requirements.txt pyproject.toml .github/workflows
+          git commit -m "Add PostgreSQL persistence foundation"
+          git push origin HEAD:agent/persistent-backend-foundation
