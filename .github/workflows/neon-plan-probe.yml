@@ -1,0 +1,35 @@
+name: Probe Neon Plan
+
+on:
+  push:
+    branches:
+      - agent/neon-plan-probe
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: team_5LSRDYKDIDDttNfiidfjplCI
+  VERCEL_PROJECT_ID: prj_i2O5wxHnnL3WaI4OstDogjOBEpFg
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Link project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Show Neon provisioning options
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel integration add neon --help --token="$VERCEL_TOKEN" || true
+          echo '--- INSTALLED RESOURCES ---'
+          vercel integration list --format=json --token="$VERCEL_TOKEN" || true
