@@ -8,11 +8,16 @@ from fastapi.testclient import TestClient
 def test_health_and_cors(client: TestClient) -> None:
     health = client.get("/api/health")
     assert health.status_code == 200
-    assert health.json() == {
-        "status": "ok",
-        "service": "WORKLY API",
-        "version": "1.0.0-demo",
-        "data_version": 1,
+    payload = health.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "WORKLY API"
+    assert payload["version"] == "1.0.0-demo"
+    assert payload["data_version"] == 1
+    assert payload["persistence"] == {
+        "mode": "memory",
+        "configured": False,
+        "connected": False,
+        "status": "not_configured",
     }
 
     preflight = client.options(
