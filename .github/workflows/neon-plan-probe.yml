@@ -26,7 +26,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Provision free Neon PostgreSQL
+      - name: Provision free Neon PostgreSQL non-interactively
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
@@ -35,20 +35,22 @@ jobs:
           if printf '%s' "$EXISTING" | grep -q 'workly-postgres'; then
             echo 'workly-postgres already exists; skipping creation.'
           else
-            vercel integration add neon \
+            timeout 90s vercel integration add neon \
               --name workly-postgres \
               --plan free_v3 \
               --metadata region=fra1 \
               --metadata auth=false \
               --environment production \
               --format=json \
+              --non-interactive \
               --token="$VERCEL_TOKEN"
           fi
       - name: Verify resource and environment variable names
+        if: always()
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           echo '--- RESOURCES ---'
-          vercel integration list --format=json --token="$VERCEL_TOKEN"
+          vercel integration list --format=json --token="$VERCEL_TOKEN" || true
           echo '--- PRODUCTION ENV NAMES ---'
-          vercel env ls production --token="$VERCEL_TOKEN"
+          vercel env ls production --token="$VERCEL_TOKEN" || true
