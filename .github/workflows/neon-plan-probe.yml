@@ -1,4 +1,4 @@
-name: Probe Neon Plan
+name: Provision WORKLY Neon
 
 on:
   push:
@@ -13,7 +13,7 @@ env:
   VERCEL_PROJECT_ID: prj_i2O5wxHnnL3WaI4OstDogjOBEpFg
 
 jobs:
-  probe:
+  provision:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,10 +26,29 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Show Neon provisioning options
+      - name: Provision free Neon PostgreSQL
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          vercel integration add neon --help --token="$VERCEL_TOKEN" || true
-          echo '--- INSTALLED RESOURCES ---'
-          vercel integration list --format=json --token="$VERCEL_TOKEN" || true
+          set -e
+          EXISTING="$(vercel integration list --format=json --token="$VERCEL_TOKEN")"
+          if printf '%s' "$EXISTING" | grep -q 'workly-postgres'; then
+            echo 'workly-postgres already exists; skipping creation.'
+          else
+            vercel integration add neon \
+              --name workly-postgres \
+              --plan free_v3 \
+              --metadata region=fra1 \
+              --metadata auth=false \
+              --environment production \
+              --format=json \
+              --token="$VERCEL_TOKEN"
+          fi
+      - name: Verify resource and environment variable names
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo '--- RESOURCES ---'
+          vercel integration list --format=json --token="$VERCEL_TOKEN"
+          echo '--- PRODUCTION ENV NAMES ---'
+          vercel env ls production --token="$VERCEL_TOKEN"
