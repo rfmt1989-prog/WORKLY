@@ -32,6 +32,8 @@ from .demo_data import (
     fresh_demo_state,
 )
 
+from .persistence import PersistenceStore
+
 
 API_PREFIX = "/api"
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
@@ -67,8 +69,22 @@ app.add_middleware(
 )
 
 _state_lock = threading.RLock()
-_state = fresh_demo_state()
-_registered_users: dict[str, dict[str, Any]] = {}
+_persistence = PersistenceStore()
+_state, _registered_users = _persistence.load(fresh_demo_state())
+
+
+@app.middleware("http")
+async def persist_successful_mutations(request, call_next):
+    """Persist successful API mutations without changing endpoint contracts."""
+    response = await call_next(request)
+    if (
+        request.url.path.startswith(API_PREFIX)
+        and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+        and response.status_code < 400
+    ):
+        with _state_lock:
+            _persistence.save(_state, _registered_users)
+    return response
 
 
 class LoginInput(BaseModel):
@@ -307,6 +323,7 @@ def health() -> dict[str, Any]:
         "service": "WORKLY API",
         "version": "1.0.0-demo",
         "data_version": _state["version"],
+        "persistence": _persistence.health(),
     }
 
 
@@ -416,7 +433,7 @@ def bootstrap(
         "worker_email": WORKER_DEMO_EMAIL,
         "company_email": COMPANY_DEMO_EMAIL,
         "password": DEMO_PASSWORD,
-        "persistence": "client_snapshot",
+        "persistence": _persistence.mode,
     }
     return payload
 
