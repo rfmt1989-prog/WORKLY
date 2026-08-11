@@ -79,3 +79,5 @@ jobs:
       - name: Report skipped deployment
         if: steps.auth.outputs.enabled != 'true'
         run: echo "Deployment workflow is ready; VERCEL_TOKEN is not configured yet."
+
+# A new production deployment is required after Marketplace environment changes.
