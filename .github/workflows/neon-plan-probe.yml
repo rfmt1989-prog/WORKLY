@@ -54,3 +54,5 @@ jobs:
           vercel integration list --format=json --token="$VERCEL_TOKEN" || true
           echo '--- PRODUCTION ENV NAMES ---'
           vercel env ls production --token="$VERCEL_TOKEN" || true
+
+# Retry triggered after Neon Marketplace terms acceptance.
