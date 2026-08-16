@@ -1,11 +1,10 @@
-name: Build Company Access Control
+name: Finalize Company Access Control
 
 on:
   push:
     branches:
       - agent/company-access-control
     paths:
-      - scripts/apply_company_access.py
       - .github/workflows/company-access-migration.yml
 
 permissions:
@@ -15,7 +14,7 @@ env:
   PYTHONPATH: .
 
 jobs:
-  migrate-and-verify:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,37 +27,161 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Harden migration script
+      - name: Localize permission labels and dates
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/apply_company_access.py')
+
+          path = Path('frontend/src/components/workspace/AccessView.tsx')
           text = path.read_text()
-          old = r"        rf'@app\.(?:get|post|patch|delete)\(.*?\)\ndef {name}\(.*?(?=\n\n@app\.)',"
-          new = r"        rf'@app\.(?:get|post|patch|delete)\([^\n]*\)\ndef {name}\(.*?(?=\n\n@app\.)',"
-          if old not in text:
-              raise SystemExit('Could not patch endpoint selector')
-          text = text.replace(old, new, 1)
-          for source, target in (
-              ('/company/members/{member_id}', '/company/members/{{member_id}}'),
-              ('/workers/{worker_id}', '/workers/{{worker_id}}'),
-              ('/companies/{company_id}', '/companies/{{company_id}}'),
-              ('/projects/{project_id}', '/projects/{{project_id}}'),
-              ('maria@workly.test', 'maria.access@worklyapp.com'),
-              ('rh@workly.test', 'rh.access@worklyapp.com'),
-          ):
-              text = text.replace(source, target)
+          text = text.replace(
+              'import type { CompanyAccessRole, LanguageCode } from "@/src/demo/types";',
+              'import type { CompanyAccessRole, CompanyPermission, LanguageCode } from "@/src/demo/types";',
+          )
+          text = text.replace(
+              '  permissions: string[];\n  members: AccessMember[];\n  invitations: AccessInvitation[];\n  role_catalog: Record<CompanyAccessRole, string[]>;',
+              '  permissions: CompanyPermission[];\n  members: AccessMember[];\n  invitations: AccessInvitation[];\n  role_catalog: Record<CompanyAccessRole, CompanyPermission[]>;',
+          )
+          anchor = 'const roleOrder: CompanyAccessRole[] = ["admin", "manager", "hr", "supervisor"];'
+          if anchor not in text:
+              raise SystemExit('Missing roleOrder anchor')
+          permission_block = '''const permissionCopy: Record<LanguageCode, Record<CompanyPermission, string>> = {
+            pt: {
+              "access.manage": "Gerir acessos",
+              "company.manage": "Gerir empresa",
+              "workers.read": "Ver trabalhadores",
+              "workers.manage": "Gerir trabalhadores",
+              "teams.read": "Ver equipas",
+              "teams.manage": "Gerir equipas",
+              "projects.read": "Ver obras",
+              "projects.manage": "Gerir obras",
+              "attendance.read": "Ver presenças",
+              "documents.read": "Ver documentos",
+              "documents.manage": "Gerir documentos",
+              "operations.read": "Ver operações",
+            },
+            en: {
+              "access.manage": "Manage access",
+              "company.manage": "Manage company",
+              "workers.read": "View workers",
+              "workers.manage": "Manage workers",
+              "teams.read": "View teams",
+              "teams.manage": "Manage teams",
+              "projects.read": "View projects",
+              "projects.manage": "Manage projects",
+              "attendance.read": "View attendance",
+              "documents.read": "View documents",
+              "documents.manage": "Manage documents",
+              "operations.read": "View operations",
+            },
+            fr: {
+              "access.manage": "Gérer les accès",
+              "company.manage": "Gérer l’entreprise",
+              "workers.read": "Voir les travailleurs",
+              "workers.manage": "Gérer les travailleurs",
+              "teams.read": "Voir les équipes",
+              "teams.manage": "Gérer les équipes",
+              "projects.read": "Voir les chantiers",
+              "projects.manage": "Gérer les chantiers",
+              "attendance.read": "Voir les présences",
+              "documents.read": "Voir les documents",
+              "documents.manage": "Gérer les documents",
+              "operations.read": "Voir les opérations",
+            },
+            es: {
+              "access.manage": "Gestionar accesos",
+              "company.manage": "Gestionar empresa",
+              "workers.read": "Ver trabajadores",
+              "workers.manage": "Gestionar trabajadores",
+              "teams.read": "Ver equipos",
+              "teams.manage": "Gestionar equipos",
+              "projects.read": "Ver obras",
+              "projects.manage": "Gestionar obras",
+              "attendance.read": "Ver asistencia",
+              "documents.read": "Ver documentos",
+              "documents.manage": "Gestionar documentos",
+              "operations.read": "Ver operaciones",
+            },
+            ro: {
+              "access.manage": "Gestionează accesul",
+              "company.manage": "Gestionează compania",
+              "workers.read": "Vezi lucrătorii",
+              "workers.manage": "Gestionează lucrătorii",
+              "teams.read": "Vezi echipele",
+              "teams.manage": "Gestionează echipele",
+              "projects.read": "Vezi șantierele",
+              "projects.manage": "Gestionează șantierele",
+              "attendance.read": "Vezi prezența",
+              "documents.read": "Vezi documentele",
+              "documents.manage": "Gestionează documentele",
+              "operations.read": "Vezi operațiunile",
+            },
+            de: {
+              "access.manage": "Zugriffe verwalten",
+              "company.manage": "Unternehmen verwalten",
+              "workers.read": "Mitarbeiter ansehen",
+              "workers.manage": "Mitarbeiter verwalten",
+              "teams.read": "Teams ansehen",
+              "teams.manage": "Teams verwalten",
+              "projects.read": "Baustellen ansehen",
+              "projects.manage": "Baustellen verwalten",
+              "attendance.read": "Anwesenheit ansehen",
+              "documents.read": "Dokumente ansehen",
+              "documents.manage": "Dokumente verwalten",
+              "operations.read": "Betrieb ansehen",
+            },
+            nl: {
+              "access.manage": "Toegang beheren",
+              "company.manage": "Bedrijf beheren",
+              "workers.read": "Werknemers bekijken",
+              "workers.manage": "Werknemers beheren",
+              "teams.read": "Teams bekijken",
+              "teams.manage": "Teams beheren",
+              "projects.read": "Projecten bekijken",
+              "projects.manage": "Projecten beheren",
+              "attendance.read": "Aanwezigheid bekijken",
+              "documents.read": "Documenten bekijken",
+              "documents.manage": "Documenten beheren",
+              "operations.read": "Operaties bekijken",
+            },
+          };
+
+          const dateLocale: Record<LanguageCode, string> = {
+            pt: "pt-PT",
+            en: "en-GB",
+            fr: "fr-FR",
+            es: "es-ES",
+            ro: "ro-RO",
+            de: "de-DE",
+            nl: "nl-NL",
+          };
+
+          ''' + anchor
+          text = text.replace(anchor, permission_block, 1)
+          old_permissions = '''  const permissionLabels = useMemo(
+            () => (payload?.permissions ?? []).map((item) => item.replace(".", " · ")),
+            [payload?.permissions],
+          );'''
+          new_permissions = '''  const permissionLabels = useMemo(
+            () => (payload?.permissions ?? []).map((item) => permissionCopy[language][item]),
+            [language, payload?.permissions],
+          );'''
+          if old_permissions not in text:
+              raise SystemExit('Missing permission labels anchor')
+          text = text.replace(old_permissions, new_permissions, 1)
+          text = text.replace(
+              '<Text style={styles.eyebrow}>WORKLY · COMPANY ACCESS</Text>',
+              '<Text style={styles.eyebrow}>{`WORKLY · ${text.title.toUpperCase()}`}</Text>',
+              1,
+          )
+          text = text.replace(
+              'new Date(invitation.expires_at).toLocaleDateString()',
+              'new Date(invitation.expires_at).toLocaleDateString(dateLocale[language])',
+          )
           path.write_text(text)
           PY
-      - name: Apply integration
-        run: python scripts/apply_company_access.py
-      - name: Normalize React Native font weight
-        run: |
-          sed -i 's/fontWeight: "850"/fontWeight: "800"/g' frontend/src/components/workspace/AccessView.tsx
-      - name: Install backend dependencies
+      - name: Install backend test dependencies
         run: python -m pip install -r requirements.txt pytest httpx
-      - name: Compile backend
-        run: python -m compileall -q backend api
       - name: Backend tests
         run: pytest -q backend/tests
       - name: Install frontend dependencies
@@ -73,10 +196,11 @@ jobs:
       - name: Export web
         working-directory: frontend
         run: npm run build:web
-      - name: Commit integration
+      - name: Remove temporary migration tooling and commit
         run: |
           git config user.name "WORKLY Agent"
           git config user.email "actions@users.noreply.github.com"
-          git add backend frontend
-          git commit -m "[access-generated] Add multi-company roles and permissions"
+          git add frontend/src/components/workspace/AccessView.tsx
+          git rm scripts/apply_company_access.py .github/workflows/company-access-migration.yml
+          git commit -m "Finalize multi-company access control"
           git push origin HEAD:agent/company-access-control
