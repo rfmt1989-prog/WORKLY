@@ -1,0 +1,55 @@
+name: Build Company Access Control
+
+on:
+  push:
+    branches:
+      - agent/company-access-control
+    paths:
+      - scripts/apply_company_access.py
+      - .github/workflows/company-access-migration.yml
+
+permissions:
+  contents: write
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  migrate-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/company-access-control
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply integration
+        run: python scripts/apply_company_access.py
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+      - name: Backend tests
+        run: pytest -q backend/tests
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+      - name: Commit integration
+        run: |
+          git config user.name "WORKLY Agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend frontend
+          git commit -m "[access-generated] Add multi-company roles and permissions"
+          git push origin HEAD:agent/company-access-control
