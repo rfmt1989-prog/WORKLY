@@ -45,6 +45,7 @@ type AuthState = {
     email: string,
     password: string,
     role: UserRole,
+    inviteToken?: string,
   ) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<User | null>;
@@ -141,12 +142,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string,
       password: string,
       role: UserRole,
+      inviteToken?: string,
     ): Promise<User> => {
       const response = await requestRegister({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password,
         user_type: role,
+        invite_token: inviteToken?.trim() || undefined,
       });
       const nextUser = response.user as User;
       await persistSession(response.access_token, nextUser);

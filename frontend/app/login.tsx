@@ -34,6 +34,16 @@ const DEMO_ACCOUNTS: Record<UserRole, string> = {
   company: "company.demo@workly.app",
 };
 
+const INVITE_CODE_LABEL = {
+  pt: "Código de convite (opcional)",
+  en: "Invitation code (optional)",
+  fr: "Code d’invitation (facultatif)",
+  es: "Código de invitación (opcional)",
+  ro: "Cod de invitație (opțional)",
+  de: "Einladungscode (optional)",
+  nl: "Uitnodigingscode (optioneel)",
+} as const;
+
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -48,6 +58,7 @@ export default function Login() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -85,7 +96,13 @@ export default function Login() {
     try {
       setSubmitting(demoRole ? `demo-${demoRole}` : "form");
       if (mode === "register" && !demoRole) {
-        await register(cleanName, cleanEmail, cleanPassword, selectedRole);
+        await register(
+          cleanName,
+          cleanEmail,
+          cleanPassword,
+          selectedRole,
+          selectedRole === "company" ? inviteToken : undefined,
+        );
       } else {
         await login(cleanEmail, cleanPassword, selectedRole);
       }
@@ -333,6 +350,24 @@ export default function Login() {
                   />
                 </View>
               </View>
+              {mode === "register" && role === "company" ? (
+                <View style={styles.inputWrap}>
+                  <Text style={styles.inputLabel}>{INVITE_CODE_LABEL[language]}</Text>
+                  <View style={styles.inputShell}>
+                    <Ionicons name="key-outline" color={workspaceColors.muted} size={18} />
+                    <TextInput
+                      accessibilityLabel={INVITE_CODE_LABEL[language]}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      value={inviteToken}
+                      onChangeText={setInviteToken}
+                      placeholder="WLY-XXXXXXXXXXXX"
+                      placeholderTextColor={workspaceColors.muted}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+              ) : null}
               <View style={styles.inputWrap}>
                 <Text style={styles.inputLabel}>{text.password}</Text>
                 <View style={styles.inputShell}>

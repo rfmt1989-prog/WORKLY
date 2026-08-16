@@ -16,6 +16,7 @@ def deterministic_demo() -> Iterator[None]:
     with main._state_lock:
         main._state = fresh_demo_state()
         main._registered_users.clear()
+        main._persistence.reset_access_cache()
     yield
 
 

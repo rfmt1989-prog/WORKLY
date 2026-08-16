@@ -10,6 +10,7 @@ export type LoginPayload = {
 
 export type RegisterPayload = LoginPayload & {
   name: string;
+  invite_token?: string;
 };
 
 export type LoginResponse = {
@@ -20,6 +21,8 @@ export type LoginResponse = {
   email: string;
   user_type: UserRole;
   company_id: string | null;
+  company_role?: AuthUser["company_role"];
+  permissions?: AuthUser["permissions"];
   user: AuthUser;
 };
 
