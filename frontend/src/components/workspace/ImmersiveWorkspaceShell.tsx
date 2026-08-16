@@ -18,7 +18,9 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { uiText } from "@/src/demo/fullUi";
+import type { CompanyPermission } from "@/src/demo/types";
 
+import { AccessView, accessNavLabel } from "./AccessView";
 import { AttendanceView } from "./AttendanceView";
 import { DashboardView } from "./DashboardView";
 import { DocumentsView } from "./DocumentsView";
@@ -38,6 +40,7 @@ type NavItem = {
   icon: IconName;
   companyOnly?: boolean;
   workerOnly?: boolean;
+  permission?: CompanyPermission;
 };
 
 export function ImmersiveWorkspaceShell() {
@@ -85,22 +88,26 @@ export function ImmersiveWorkspaceShell() {
       label: t.operations,
       icon: "map-outline",
       companyOnly: true,
+      permission: "operations.read",
     },
     {
       id: "workers",
       label: t.workers,
       icon: "people-outline",
       companyOnly: true,
+      permission: "workers.read",
     },
     {
       id: "teams",
       label: t.teams,
       icon: "git-network-outline",
       companyOnly: true,
+      permission: "teams.read",
     },
-    { id: "projects", label: t.projects, icon: "business-outline" },
-    { id: "attendance", label: t.attendance, icon: "radio-outline" },
-    { id: "documents", label: t.documents, icon: "folder-open-outline" },
+    { id: "projects", label: t.projects, icon: "business-outline", permission: "projects.read" },
+    { id: "attendance", label: t.attendance, icon: "radio-outline", permission: "attendance.read" },
+    { id: "documents", label: t.documents, icon: "folder-open-outline", permission: "documents.read" },
+    { id: "access", label: accessNavLabel(language), icon: "key-outline", companyOnly: true },
     {
       id: "certificates",
       label: t.certificates,
@@ -118,7 +125,8 @@ export function ImmersiveWorkspaceShell() {
   const navItems = allNavItems.filter(
     (item) =>
       (!item.companyOnly || role === "company") &&
-      (!item.workerOnly || role === "worker"),
+      (!item.workerOnly || role === "worker") &&
+      (role !== "company" || !item.permission || user.permissions?.includes(item.permission)),
   );
 
   const operational = (() => {
@@ -236,6 +244,8 @@ export function ImmersiveWorkspaceShell() {
         return <AttendanceView />;
       case "documents":
         return <DocumentsView key="archive" mode="archive" />;
+      case "access":
+        return <AccessView />;
       case "certificates":
         return <DocumentsView key="certificates" mode="certificates" />;
       case "best-projects":

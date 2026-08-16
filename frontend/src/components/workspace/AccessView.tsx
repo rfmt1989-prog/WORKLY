@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   avatar: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#10151E" },
   avatarText: { color: workspaceColors.text, fontSize: 11, fontWeight: "900" },
   memberCopy: { minWidth: 0 },
-  memberName: { color: workspaceColors.text, fontSize: 13, fontWeight: "850" },
+  memberName: { color: workspaceColors.text, fontSize: 13, fontWeight: "800" },
   memberEmail: { color: workspaceColors.muted, fontSize: 10, marginTop: 2 },
   memberActions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 8, flex: 1 },
   statusPill: { borderWidth: 1, borderColor: "#183729", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 5 },

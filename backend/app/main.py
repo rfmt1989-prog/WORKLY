@@ -18,6 +18,7 @@ import threading
 import time
 import uuid
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
@@ -32,6 +33,12 @@ from .demo_data import (
     fresh_demo_state,
 )
 
+from .access_control import (
+    COMPANY_ACCESS_ROLES,
+    normalize_company_access_role,
+    permissions_for_role,
+    role_has_permission,
+)
 from .persistence import PersistenceStore
 
 
@@ -87,6 +94,26 @@ async def persist_successful_mutations(request, call_next):
     return response
 
 
+
+@app.middleware("http")
+async def enforce_company_permissions(request, call_next):
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        try:
+            payload = _decode_token(authorization.split(" ", 1)[1].strip())
+        except HTTPException:
+            payload = None
+        if payload and payload.get("role") == "company":
+            permission = _company_route_permission(request.method, request.url.path)
+            if permission:
+                try:
+                    _require_company_permission(payload, permission)
+                except HTTPException as exc:
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
+
+
 class LoginInput(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
@@ -100,6 +127,7 @@ class RegisterInput(BaseModel):
     password: str = Field(min_length=6, max_length=128)
     user_type: str | None = None
     role: str | None = None
+    invite_token: str | None = Field(default=None, max_length=120)
 
 
 class EntityPatch(BaseModel):
@@ -151,6 +179,16 @@ class ContractSignInput(BaseModel):
     signature: str = Field(min_length=2, max_length=120)
 
 
+class CompanyInvitationInput(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+    access_role: str = Field(default="manager", max_length=30)
+
+
+class CompanyMemberPatch(BaseModel):
+    access_role: str = Field(max_length=30)
+
+
 def _b64encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
@@ -166,6 +204,7 @@ def _issue_token(user: dict[str, Any]) -> str:
         "email": user["email"],
         "role": user["role"],
         "company_id": user.get("company_id"),
+        "company_role": user.get("company_role"),
         "exp": int(time.time()) + TOKEN_TTL_SECONDS,
     }
     encoded = _b64encode(
@@ -222,7 +261,7 @@ def _public_auth_user(user: dict[str, Any]) -> dict[str, Any]:
 
 
 def _login_response(user: dict[str, Any]) -> dict[str, Any]:
-    public_user = _public_auth_user(user)
+    public_user = _enrich_auth_user(user)
     return {
         "access_token": _issue_token(public_user),
         "token_type": "bearer",
@@ -231,6 +270,8 @@ def _login_response(user: dict[str, Any]) -> dict[str, Any]:
         "email": public_user["email"],
         "user_type": public_user["role"],
         "company_id": public_user.get("company_id"),
+        "company_role": public_user.get("company_role"),
+        "permissions": public_user.get("permissions", []),
         "user": public_user,
     }
 
@@ -257,6 +298,158 @@ def _role_from_input(user_type: str | None, role: str | None) -> str:
     if resolved not in {"worker", "company"}:
         raise HTTPException(status_code=422, detail="Escolha Worker ou Company.")
     return resolved
+
+
+
+
+def _membership_id(company_id: str, user_id: str) -> str:
+    return f"membership-{company_id}-{user_id}"
+
+
+def _ensure_company_membership(user: dict[str, Any]) -> dict[str, Any] | None:
+    if user.get("role") != "company":
+        return None
+    company_id = str(user.get("company_id") or user.get("id") or user.get("sub") or "")
+    user_id = str(user.get("id") or user.get("sub") or "")
+    if not company_id or not user_id:
+        return None
+    existing = _persistence.get_membership(company_id, user_id)
+    if existing:
+        return existing
+    if user.get("access_revoked"):
+        return None
+    role = normalize_company_access_role(user.get("company_role"), "admin")
+    return _persistence.upsert_membership(
+        {
+            "id": _membership_id(company_id, user_id),
+            "company_id": company_id,
+            "user_id": user_id,
+            "email": str(user.get("email") or "").lower(),
+            "name": str(user.get("name") or "WORKLY"),
+            "access_role": role,
+            "status": "active",
+        }
+    )
+
+
+def _company_access_role(user: dict[str, Any]) -> str:
+    if user.get("role") != "company":
+        raise HTTPException(status_code=403, detail="Acesso reservado à empresa.")
+    membership = _ensure_company_membership(user)
+    if not membership or membership.get("status") != "active":
+        raise HTTPException(status_code=403, detail="Acesso à empresa desativado.")
+    return normalize_company_access_role(str(membership.get("access_role") or "admin"))
+
+
+def _require_company_permission(user: dict[str, Any], permission: str) -> None:
+    role = _company_access_role(user)
+    if not role_has_permission(role, permission):
+        raise HTTPException(status_code=403, detail="Sem permissão para esta operação.")
+
+
+def _enrich_auth_user(user: dict[str, Any]) -> dict[str, Any]:
+    public = _public_auth_user(user)
+    if public.get("role") == "company":
+        membership = _ensure_company_membership(public)
+        if not membership or membership.get("status") != "active":
+            raise HTTPException(status_code=403, detail="Acesso à empresa desativado.")
+        public["company_id"] = membership["company_id"]
+        public["company_role"] = membership["access_role"]
+        public["permissions"] = permissions_for_role(membership["access_role"])
+    else:
+        public["permissions"] = []
+    return public
+
+
+def _company_worker_ids(company_id: str) -> set[str]:
+    worker_ids = {
+        str(item["id"])
+        for item in _state["workers"]
+        if item.get("company_id") == company_id
+    }
+    for project in _state["projects"]:
+        if project.get("company_id") == company_id:
+            worker_ids.update(str(item) for item in project.get("worker_ids", []))
+    for team in _state["teams"]:
+        if team.get("company_id") == company_id:
+            worker_ids.update(str(item) for item in team.get("member_ids", []))
+    for contract in _state["contracts"]:
+        if contract.get("company_id") == company_id and contract.get("worker_id"):
+            worker_ids.add(str(contract["worker_id"]))
+    return worker_ids
+
+
+def _company_ids_for_worker(worker_id: str) -> set[str]:
+    company_ids = {
+        str(item.get("company_id"))
+        for item in _state["workers"]
+        if item.get("id") == worker_id and item.get("company_id")
+    }
+    for project in _state["projects"]:
+        if worker_id in project.get("worker_ids", []):
+            company_ids.add(str(project["company_id"]))
+    for contract in _state["contracts"]:
+        if contract.get("worker_id") == worker_id:
+            company_ids.add(str(contract["company_id"]))
+    return company_ids
+
+
+def _assert_worker_visible(user: dict[str, Any], worker_id: str) -> None:
+    if user["role"] == "worker":
+        if user["sub"] != worker_id:
+            raise HTTPException(status_code=403, detail="Trabalhador não autorizado.")
+        return
+    _require_company_permission(user, "workers.read")
+    if worker_id not in _company_worker_ids(str(user.get("company_id") or "")):
+        raise HTTPException(status_code=403, detail="Trabalhador de outra empresa.")
+
+
+def _assert_project_visible(user: dict[str, Any], project: dict[str, Any]) -> None:
+    if user["role"] == "worker":
+        if user["sub"] not in project.get("worker_ids", []):
+            raise HTTPException(status_code=403, detail="Obra não autorizada.")
+        return
+    _require_company_permission(user, "projects.read")
+    if project.get("company_id") != user.get("company_id"):
+        raise HTTPException(status_code=403, detail="Obra de outra empresa.")
+
+
+def _invitation_expired(invitation: dict[str, Any]) -> bool:
+    raw = invitation.get("expires_at")
+    if not raw:
+        return True
+    try:
+        expires = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    return expires <= datetime.now(timezone.utc)
+
+
+def _company_route_permission(method: str, path: str) -> str | None:
+    method = method.upper()
+    if path.startswith(f"{API_PREFIX}/company/"):
+        return "access.manage" if method in {"POST", "PATCH", "DELETE"} else None
+    if path.startswith(f"{API_PREFIX}/teams"):
+        return "teams.manage" if method in {"POST", "PATCH", "DELETE"} else "teams.read"
+    if path.startswith(f"{API_PREFIX}/projects"):
+        return "projects.manage" if method in {"POST", "PATCH", "DELETE"} else "projects.read"
+    if path.startswith(f"{API_PREFIX}/workers"):
+        return "workers.manage" if method in {"PATCH", "POST", "DELETE"} else "workers.read"
+    if path.startswith(f"{API_PREFIX}/attendance"):
+        return "attendance.read" if method == "GET" else None
+    if path.startswith(f"{API_PREFIX}/documents") or path.startswith(f"{API_PREFIX}/certificates"):
+        return "documents.manage" if method in {"POST", "PATCH", "DELETE"} else "documents.read"
+    if path.startswith(f"{API_PREFIX}/contracts"):
+        return "documents.manage" if method in {"POST", "PATCH", "DELETE"} else "documents.read"
+    if path.startswith(f"{API_PREFIX}/dashboard"):
+        return "operations.read"
+    if path.startswith(f"{API_PREFIX}/search"):
+        return "workers.read"
+    if path.startswith(f"{API_PREFIX}/companies") and method in {"PATCH", "POST", "DELETE"}:
+        return "company.manage"
+    return None
 
 
 def get_current_user(
@@ -350,18 +543,41 @@ def login(data: LoginInput) -> dict[str, Any]:
 @app.post(f"{API_PREFIX}/auth/register", tags=["Authentication"])
 def register(data: RegisterInput) -> dict[str, Any]:
     email = str(data.email).strip().lower()
-    role = _role_from_input(data.user_type, data.role)
+    invite_token = (data.invite_token or "").strip()
+    invitation = _persistence.get_invitation(invite_token) if invite_token else None
+    if invitation:
+        if invitation.get("status") != "pending" or _invitation_expired(invitation):
+            raise HTTPException(status_code=410, detail="Convite expirado ou já utilizado.")
+        if str(invitation.get("email") or "").lower() != email:
+            raise HTTPException(status_code=403, detail="O convite pertence a outro email.")
+        role = "company"
+    else:
+        role = _role_from_input(data.user_type, data.role)
+        if invite_token:
+            raise HTTPException(status_code=404, detail="Código de convite inválido.")
     if email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL} or email in _registered_users:
         raise HTTPException(status_code=409, detail="Este email já está registado.")
-    user_id = f"{role}-{uuid.uuid4().hex[:10]}"
+
+    if invitation:
+        user_id = f"company-user-{uuid.uuid4().hex[:10]}"
+        company_id = str(invitation["company_id"])
+        company_role = normalize_company_access_role(str(invitation["access_role"]))
+        display_name = data.name.strip() or str(invitation.get("name") or "WORKLY")
+    else:
+        user_id = f"{role}-{uuid.uuid4().hex[:10]}"
+        company_id = user_id if role == "company" else None
+        company_role = "admin" if role == "company" else None
+        display_name = data.name.strip()
+
     user = {
         "id": user_id,
-        "name": data.name.strip(),
+        "name": display_name,
         "email": email,
         "role": role,
-        "company_id": user_id if role == "company" else None,
+        "company_id": company_id,
+        "company_role": company_role,
         "avatar": "",
-        "title": "Novo trabalhador" if role == "worker" else "Nova empresa",
+        "title": "Novo trabalhador" if role == "worker" else "Utilizador da empresa",
         "trust_score": 5.0,
         "productivity_score": 5.0,
         "password_record": _password_record(data.password),
@@ -393,7 +609,7 @@ def register(data: RegisterInput) -> dict[str, Any]:
                     "schedule": "08:00–17:00",
                 }
             )
-        else:
+        elif not invitation:
             _state["companies"].append(
                 {
                     **_public_auth_user(user),
@@ -407,6 +623,20 @@ def register(data: RegisterInput) -> dict[str, Any]:
                     "documents": [],
                 }
             )
+    if role == "company":
+        _persistence.upsert_membership(
+            {
+                "id": _membership_id(str(company_id), user_id),
+                "company_id": str(company_id),
+                "user_id": user_id,
+                "email": email,
+                "name": display_name,
+                "access_role": str(company_role),
+                "status": "active",
+            }
+        )
+        if invitation:
+            _persistence.consume_invitation(invite_token, user_id)
     return _login_response(user)
 
 
@@ -416,9 +646,93 @@ def me(user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, 
     if current:
         if current["role"] == "company":
             current["company_id"] = current["id"]
-        return current
+        return _enrich_auth_user(current)
     registered = _registered_users.get(user["email"])
-    return _public_auth_user(registered or user)
+    return _enrich_auth_user(registered or user)
+
+
+@app.get(f"{API_PREFIX}/company/access", tags=["Company Access"])
+def company_access(user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+    role = _company_access_role(user)
+    company_id = str(user.get("company_id") or "")
+    members = [
+        item for item in _persistence.list_memberships(company_id)
+        if item.get("status") == "active"
+    ]
+    return {
+        "current_role": role,
+        "permissions": permissions_for_role(role),
+        "members": members,
+        "invitations": _persistence.list_invitations(company_id),
+        "role_catalog": {item: permissions_for_role(item) for item in COMPANY_ACCESS_ROLES},
+    }
+
+
+@app.post(f"{API_PREFIX}/company/invitations", tags=["Company Access"])
+def create_company_invitation(
+    data: CompanyInvitationInput,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    _require_company_permission(user, "access.manage")
+    access_role = normalize_company_access_role(data.access_role)
+    if access_role == "admin":
+        raise HTTPException(status_code=422, detail="Crie o acesso e promova-o depois a Admin.")
+    email = str(data.email).strip().lower()
+    if email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL} or email in _registered_users:
+        raise HTTPException(status_code=409, detail="Este email já possui uma conta WORKLY.")
+    invitation = {
+        "token": f"WLY-{uuid.uuid4().hex[:12].upper()}",
+        "company_id": str(user.get("company_id") or ""),
+        "email": email,
+        "name": data.name.strip(),
+        "access_role": access_role,
+        "status": "pending",
+        "invited_by": str(user["sub"]),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+    }
+    return _persistence.create_invitation(invitation)
+
+
+@app.patch(f"{API_PREFIX}/company/members/{{member_id}}", tags=["Company Access"])
+def update_company_member(
+    member_id: str,
+    patch: CompanyMemberPatch,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    _require_company_permission(user, "access.manage")
+    if member_id == user["sub"]:
+        raise HTTPException(status_code=409, detail="Não pode alterar a sua própria função.")
+    company_id = str(user.get("company_id") or "")
+    membership = _persistence.get_membership(company_id, member_id)
+    if not membership or membership.get("status") != "active":
+        raise HTTPException(status_code=404, detail="Membro não encontrado.")
+    access_role = normalize_company_access_role(patch.access_role)
+    membership["access_role"] = access_role
+    updated = _persistence.upsert_membership(membership)
+    for registered in _registered_users.values():
+        if registered.get("id") == member_id:
+            registered["company_role"] = access_role
+    return updated
+
+
+@app.delete(f"{API_PREFIX}/company/members/{{member_id}}", tags=["Company Access"])
+def remove_company_member(
+    member_id: str,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, bool]:
+    _require_company_permission(user, "access.manage")
+    if member_id == user["sub"]:
+        raise HTTPException(status_code=409, detail="Não pode remover o seu próprio acesso.")
+    company_id = str(user.get("company_id") or "")
+    membership = _persistence.get_membership(company_id, member_id)
+    if not membership or membership.get("status") != "active":
+        raise HTTPException(status_code=404, detail="Membro não encontrado.")
+    membership["status"] = "revoked"
+    _persistence.upsert_membership(membership)
+    for registered in _registered_users.values():
+        if registered.get("id") == member_id:
+            registered["access_revoked"] = True
+    return {"ok": True}
 
 
 @app.get(f"{API_PREFIX}/bootstrap", tags=["Demo"])
@@ -428,7 +742,7 @@ def bootstrap(
     with _state_lock:
         payload = deepcopy(_state)
     current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user
-    payload["current_user"] = _public_auth_user(current)
+    payload["current_user"] = _enrich_auth_user(current)
     payload["demo"] = {
         "worker_email": WORKER_DEMO_EMAIL,
         "company_email": COMPANY_DEMO_EMAIL,
@@ -456,39 +770,37 @@ def list_workers(
     q: str = Query(default="", max_length=80),
     status_filter: str | None = Query(default=None, alias="status"),
 ) -> list[dict[str, Any]]:
-    del user
     query = q.strip().lower()
     with _state_lock:
         workers = deepcopy(_state["workers"])
+        if user["role"] == "company":
+            visible = _company_worker_ids(str(user.get("company_id") or ""))
+            workers = [item for item in workers if item["id"] in visible]
+        else:
+            workers = [item for item in workers if item["id"] == user["sub"]]
     if query:
         workers = [
-            item
-            for item in workers
-            if query
-            in " ".join(
-                [
-                    item.get("name", ""),
-                    item.get("profession", ""),
-                    item.get("country", ""),
-                    item.get("location", ""),
-                    " ".join(skill["name"] for skill in item.get("skills", [])),
-                ]
-            ).lower()
+            item for item in workers
+            if query in " ".join([
+                item.get("name", ""),
+                item.get("profession", ""),
+                item.get("country", ""),
+                item.get("location", ""),
+                " ".join(skill["name"] for skill in item.get("skills", [])),
+            ]).lower()
         ]
     if status_filter:
         workers = [item for item in workers if item.get("status") == status_filter]
     return workers
-
 
 @app.get(f"{API_PREFIX}/workers/{{worker_id}}", tags=["Workers"])
 def get_worker(
     worker_id: str,
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    del user
     with _state_lock:
+        _assert_worker_visible(user, worker_id)
         return deepcopy(_find("workers", worker_id))
-
 
 @app.patch(f"{API_PREFIX}/workers/{{worker_id}}", tags=["Workers"])
 def update_worker(
@@ -496,8 +808,11 @@ def update_worker(
     patch: EntityPatch,
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    if user["role"] == "worker" and user["sub"] != worker_id:
-        raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")
+    if user["role"] == "worker":
+        if user["sub"] != worker_id:
+            raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")
+    else:
+        _assert_worker_visible(user, worker_id)
     allowed = {
         "name",
         "age",
@@ -528,20 +843,26 @@ def update_worker(
 def list_companies(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> list[dict[str, Any]]:
-    del user
     with _state_lock:
-        return deepcopy(_state["companies"])
-
+        companies = deepcopy(_state["companies"])
+        if user["role"] == "company":
+            own_id = str(user.get("company_id") or "")
+            return [item for item in companies if item["id"] == own_id]
+        visible = _company_ids_for_worker(str(user["sub"]))
+        return [item for item in companies if item["id"] in visible]
 
 @app.get(f"{API_PREFIX}/companies/{{company_id}}", tags=["Companies"])
 def get_company(
     company_id: str,
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    del user
     with _state_lock:
+        if user["role"] == "company":
+            if company_id != user.get("company_id"):
+                raise HTTPException(status_code=403, detail="Empresa não autorizada.")
+        elif company_id not in _company_ids_for_worker(str(user["sub"])):
+            raise HTTPException(status_code=403, detail="Empresa não autorizada.")
         return deepcopy(_find("companies", company_id))
-
 
 @app.patch(f"{API_PREFIX}/companies/{{company_id}}", tags=["Companies"])
 def update_company(
@@ -720,10 +1041,10 @@ def get_project(
     project_id: str,
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    del user
     with _state_lock:
-        return deepcopy(_find("projects", project_id))
-
+        project = _find("projects", project_id)
+        _assert_project_visible(user, project)
+        return deepcopy(project)
 
 @app.post(f"{API_PREFIX}/projects", tags=["Projects"])
 def create_project(
@@ -1031,23 +1352,20 @@ def list_documents(
             documents.extend(deepcopy(worker.get("documents", [])))
         for company in _state["companies"]:
             documents.extend(deepcopy(company.get("documents", [])))
-    if owner_id:
-        return [item for item in documents if item.get("owner_id") == owner_id]
     if user["role"] == "worker":
-        return [item for item in documents if item.get("owner_id") == user["sub"]]
-    own_company_id = user.get("company_id")
-    associated_worker_ids = {
-        item["id"]
-        for item in _state["workers"]
-        if item.get("company_id") == own_company_id
-    }
+        target = owner_id or str(user["sub"])
+        if target != user["sub"]:
+            raise HTTPException(status_code=403, detail="Documentos não autorizados.")
+        return [item for item in documents if item.get("owner_id") == target]
+    company_id = str(user.get("company_id") or "")
+    worker_ids = _company_worker_ids(company_id)
+    if owner_id and owner_id != company_id and owner_id not in worker_ids:
+        raise HTTPException(status_code=403, detail="Documentos de outra empresa.")
     return [
-        item
-        for item in documents
-        if item.get("owner_id") == own_company_id
-        or item.get("owner_id") in associated_worker_ids
+        item for item in documents
+        if (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
+        or (owner_id and item.get("owner_id") == owner_id)
     ]
-
 
 @app.get(f"{API_PREFIX}/certificates", tags=["Documents"])
 def list_certificates(
@@ -1057,17 +1375,20 @@ def list_certificates(
     target_id = worker_id or (user["sub"] if user["role"] == "worker" else None)
     with _state_lock:
         workers = deepcopy(_state["workers"])
-    if target_id:
-        worker = next((item for item in workers if item["id"] == target_id), None)
-        if not worker:
-            raise HTTPException(status_code=404, detail="Trabalhador não encontrado.")
-        return worker.get("certificates", [])
-    certificates: list[dict[str, Any]] = []
-    for worker in workers:
-        for certificate in worker.get("certificates", []):
-            certificates.append({**certificate, "worker_id": worker["id"]})
-    return certificates
-
+        if target_id:
+            _assert_worker_visible(user, str(target_id))
+            worker = next((item for item in workers if item["id"] == target_id), None)
+            if not worker:
+                raise HTTPException(status_code=404, detail="Trabalhador não encontrado.")
+            return worker.get("certificates", [])
+        visible = _company_worker_ids(str(user.get("company_id") or ""))
+        certificates: list[dict[str, Any]] = []
+        for worker in workers:
+            if worker["id"] not in visible:
+                continue
+            for certificate in worker.get("certificates", []):
+                certificates.append({**certificate, "worker_id": worker["id"]})
+        return certificates
 
 @app.get(f"{API_PREFIX}/best-projects", tags=["Workers"])
 def list_best_projects(
@@ -1078,8 +1399,8 @@ def list_best_projects(
     if not target_id:
         return []
     with _state_lock:
-        return deepcopy(_find("workers", target_id).get("best_projects", []))
-
+        _assert_worker_visible(user, str(target_id))
+        return deepcopy(_find("workers", str(target_id)).get("best_projects", []))
 
 @app.get(f"{API_PREFIX}/dashboard", tags=["Dashboard"])
 def dashboard(
@@ -1144,25 +1465,15 @@ def search(
     query = q.strip().lower()
     with _state_lock:
         if user["role"] == "company":
-            results = deepcopy(_state["workers"])
+            visible = _company_worker_ids(str(user.get("company_id") or ""))
+            results = [deepcopy(item) for item in _state["workers"] if item["id"] in visible]
             if query:
-                results = [
-                    item
-                    for item in results
-                    if query
-                    in f"{item['name']} {item['profession']} {item['location']}".lower()
-                ]
+                results = [item for item in results if query in f"{item['name']} {item['profession']} {item['location']}".lower()]
             return {"type": "workers", "results": results}
-        results = deepcopy(_state["projects"])
+        results = [deepcopy(item) for item in _state["projects"] if user["sub"] in item.get("worker_ids", [])]
         if query:
-            results = [
-                item
-                for item in results
-                if query
-                in f"{item['name']} {item['client']} {item['location']}".lower()
-            ]
+            results = [item for item in results if query in f"{item['name']} {item['client']} {item['location']}".lower()]
         return {"type": "jobs", "results": results}
-
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
