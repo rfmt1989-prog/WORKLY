@@ -1,4 +1,18 @@
 export type UserRole = "worker" | "company";
+export type CompanyAccessRole = "admin" | "manager" | "hr" | "supervisor";
+export type CompanyPermission =
+  | "access.manage"
+  | "company.manage"
+  | "workers.read"
+  | "workers.manage"
+  | "teams.read"
+  | "teams.manage"
+  | "projects.read"
+  | "projects.manage"
+  | "attendance.read"
+  | "documents.read"
+  | "documents.manage"
+  | "operations.read";
 export type WorkerStatus = "available" | "contracted" | "on_site";
 export type ProjectStatus = "planned" | "active" | "paused" | "completed";
 export type LanguageCode = "pt" | "en" | "fr" | "es" | "ro" | "de" | "nl";
@@ -180,6 +194,8 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   company_id?: string | null;
+  company_role?: CompanyAccessRole;
+  permissions?: CompanyPermission[];
   avatar?: string;
   avatar_color?: string;
   title?: string;
