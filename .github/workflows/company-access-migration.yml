@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Constrain migration endpoint matching
+      - name: Harden migration script
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -38,7 +38,15 @@ jobs:
           new = r"        rf'@app\.(?:get|post|patch|delete)\([^\n]*\)\ndef {name}\(.*?(?=\n\n@app\.)',"
           if old not in text:
               raise SystemExit('Could not patch endpoint selector')
-          path.write_text(text.replace(old, new, 1))
+          text = text.replace(old, new, 1)
+          for source, target in (
+              ('/company/members/{member_id}', '/company/members/{{member_id}}'),
+              ('/workers/{worker_id}', '/workers/{{worker_id}}'),
+              ('/companies/{company_id}', '/companies/{{company_id}}'),
+              ('/projects/{project_id}', '/projects/{{project_id}}'),
+          ):
+              text = text.replace(source, target)
+          path.write_text(text)
           PY
       - name: Apply integration
         run: python scripts/apply_company_access.py
