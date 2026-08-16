@@ -1,0 +1,931 @@
+name: Build Company Access Control
+
+on:
+  push:
+    branches:
+      - agent/company-access-control
+
+permissions:
+  contents: write
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  migrate-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[access-generated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/company-access-control
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply access-control integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"Missing patch anchor: {label}")
+              return text.replace(old, new, 1)
+
+          def replace_function(text: str, name: str, replacement: str) -> str:
+              pattern = rf"@app\.(?:get|post|patch|delete)\([^\n]+(?:\n[^\n]+)*?\)\ndef {name}\(.*?(?=\n\n@app\.|\n\n@app\.get\(\"/\")"
+              match = re.search(pattern, text, flags=re.S)
+              if not match:
+                  raise SystemExit(f"Could not locate function: {name}")
+              return text[:match.start()] + replacement.rstrip() + text[match.end():]
+
+          main_path = Path("backend/app/main.py")
+          text = main_path.read_text()
+          text = replace_once(
+              text,
+              "import uuid\nfrom copy import deepcopy",
+              "import uuid\nfrom copy import deepcopy\nfrom datetime import datetime, timedelta, timezone",
+              "datetime imports",
+          )
+          text = replace_once(
+              text,
+              "from .persistence import PersistenceStore\n",
+              "from .access_control import (\n    COMPANY_ACCESS_ROLES,\n    normalize_company_access_role,\n    permissions_for_role,\n    role_has_permission,\n)\nfrom .persistence import PersistenceStore\n",
+              "access control import",
+          )
+          text = replace_once(
+              text,
+              "class RegisterInput(BaseModel):\n    name: str = Field(min_length=2, max_length=100)\n    email: EmailStr\n    password: str = Field(min_length=6, max_length=128)\n    user_type: str | None = None\n    role: str | None = None\n",
+              "class RegisterInput(BaseModel):\n    name: str = Field(min_length=2, max_length=100)\n    email: EmailStr\n    password: str = Field(min_length=6, max_length=128)\n    user_type: str | None = None\n    role: str | None = None\n    invite_token: str | None = Field(default=None, max_length=120)\n",
+              "register invite token",
+          )
+          text = replace_once(
+              text,
+              "class ContractSignInput(BaseModel):\n    signature: str = Field(min_length=2, max_length=120)\n",
+              "class ContractSignInput(BaseModel):\n    signature: str = Field(min_length=2, max_length=120)\n\n\nclass CompanyInvitationInput(BaseModel):\n    name: str = Field(min_length=2, max_length=100)\n    email: EmailStr\n    access_role: str = Field(default=\"manager\", max_length=30)\n\n\nclass CompanyMemberPatch(BaseModel):\n    access_role: str = Field(max_length=30)\n",
+              "company access input models",
+          )
+          text = replace_once(
+              text,
+              '        "company_id": user.get("company_id"),\n        "exp": int(time.time()) + TOKEN_TTL_SECONDS,',
+              '        "company_id": user.get("company_id"),\n        "company_role": user.get("company_role"),\n        "exp": int(time.time()) + TOKEN_TTL_SECONDS,',
+              "token company role",
+          )
+          text = replace_once(
+              text,
+              "def _login_response(user: dict[str, Any]) -> dict[str, Any]:\n    public_user = _public_auth_user(user)\n    return {\n",
+              "def _login_response(user: dict[str, Any]) -> dict[str, Any]:\n    public_user = _enrich_auth_user(user)\n    return {\n",
+              "enriched login response",
+          )
+          text = replace_once(
+              text,
+              '        "company_id": public_user.get("company_id"),\n        "user": public_user,',
+              '        "company_id": public_user.get("company_id"),\n        "company_role": public_user.get("company_role"),\n        "permissions": public_user.get("permissions", []),\n        "user": public_user,',
+              "login response permissions",
+          )
+
+          anchor = "def get_current_user(\n"
+          helpers = '''def _membership_id(company_id: str, user_id: str) -> str:
+              return f"membership-{company_id}-{user_id}"
+
+
+          def _ensure_company_membership(user: dict[str, Any]) -> dict[str, Any] | None:
+              if user.get("role") != "company":
+                  return None
+              company_id = str(user.get("company_id") or user.get("id") or user.get("sub") or "")
+              user_id = str(user.get("id") or user.get("sub") or "")
+              if not company_id or not user_id:
+                  return None
+              existing = _persistence.get_membership(company_id, user_id)
+              if existing:
+                  return existing
+              if user.get("access_revoked"):
+                  return None
+              access_role = normalize_company_access_role(user.get("company_role"), "admin")
+              return _persistence.upsert_membership(
+                  {
+                      "id": _membership_id(company_id, user_id),
+                      "company_id": company_id,
+                      "user_id": user_id,
+                      "email": str(user.get("email") or "").lower(),
+                      "name": str(user.get("name") or "WORKLY"),
+                      "access_role": access_role,
+                      "status": "active",
+                  }
+              )
+
+
+          def _company_access_role(user: dict[str, Any]) -> str:
+              if user.get("role") != "company":
+                  raise HTTPException(status_code=403, detail="Acesso reservado à empresa.")
+              membership = _ensure_company_membership(user)
+              if not membership or membership.get("status") != "active":
+                  raise HTTPException(status_code=403, detail="Acesso à empresa desativado.")
+              return normalize_company_access_role(str(membership.get("access_role") or "admin"))
+
+
+          def _company_permissions(user: dict[str, Any]) -> list[str]:
+              return permissions_for_role(_company_access_role(user))
+
+
+          def _require_company_permission(user: dict[str, Any], permission: str) -> None:
+              role = _company_access_role(user)
+              if not role_has_permission(role, permission):
+                  raise HTTPException(status_code=403, detail="Sem permissão para esta operação.")
+
+
+          def _enrich_auth_user(user: dict[str, Any]) -> dict[str, Any]:
+              public = _public_auth_user(user)
+              if public.get("role") == "company":
+                  membership = _ensure_company_membership(public)
+                  if not membership or membership.get("status") != "active":
+                      raise HTTPException(status_code=403, detail="Acesso à empresa desativado.")
+                  public["company_id"] = membership["company_id"]
+                  public["company_role"] = membership["access_role"]
+                  public["permissions"] = permissions_for_role(membership["access_role"])
+              else:
+                  public["permissions"] = []
+              return public
+
+
+          def _company_worker_ids(company_id: str) -> set[str]:
+              worker_ids = {
+                  str(item["id"])
+                  for item in _state["workers"]
+                  if item.get("company_id") == company_id
+              }
+              for project in _state["projects"]:
+                  if project.get("company_id") == company_id:
+                      worker_ids.update(str(item) for item in project.get("worker_ids", []))
+              for team in _state["teams"]:
+                  if team.get("company_id") == company_id:
+                      worker_ids.update(str(item) for item in team.get("member_ids", []))
+              for contract in _state["contracts"]:
+                  if contract.get("company_id") == company_id and contract.get("worker_id"):
+                      worker_ids.add(str(contract["worker_id"]))
+              return worker_ids
+
+
+          def _company_ids_for_worker(worker_id: str) -> set[str]:
+              company_ids = {
+                  str(item.get("company_id"))
+                  for item in _state["workers"]
+                  if item.get("id") == worker_id and item.get("company_id")
+              }
+              for project in _state["projects"]:
+                  if worker_id in project.get("worker_ids", []):
+                      company_ids.add(str(project["company_id"]))
+              for contract in _state["contracts"]:
+                  if contract.get("worker_id") == worker_id:
+                      company_ids.add(str(contract["company_id"]))
+              return company_ids
+
+
+          def _assert_worker_visible(user: dict[str, Any], worker_id: str) -> None:
+              if user["role"] == "worker":
+                  if user["sub"] != worker_id:
+                      raise HTTPException(status_code=403, detail="Trabalhador não autorizado.")
+                  return
+              _require_company_permission(user, "workers.read")
+              company_id = str(user.get("company_id") or "")
+              if worker_id not in _company_worker_ids(company_id):
+                  raise HTTPException(status_code=403, detail="Trabalhador de outra empresa.")
+
+
+          def _assert_project_visible(user: dict[str, Any], project: dict[str, Any]) -> None:
+              if user["role"] == "worker":
+                  if user["sub"] not in project.get("worker_ids", []):
+                      raise HTTPException(status_code=403, detail="Obra não autorizada.")
+                  return
+              _require_company_permission(user, "projects.read")
+              if project.get("company_id") != user.get("company_id"):
+                  raise HTTPException(status_code=403, detail="Obra de outra empresa.")
+
+
+          def _invitation_expired(invitation: dict[str, Any]) -> bool:
+              raw = invitation.get("expires_at")
+              if not raw:
+                  return True
+              try:
+                  expires = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+              except ValueError:
+                  return True
+              if expires.tzinfo is None:
+                  expires = expires.replace(tzinfo=timezone.utc)
+              return expires <= datetime.now(timezone.utc)
+
+
+          '''
+          text = replace_once(text, anchor, helpers + anchor, "company helper block")
+
+          register_pattern = re.compile(r'@app\.post\(f"\{API_PREFIX\}/auth/register".*?(?=\n\n@app\.get\(f"\{API_PREFIX\}/auth/me")', re.S)
+          register_replacement = '''@app.post(f"{API_PREFIX}/auth/register", tags=["Authentication"])
+          def register(data: RegisterInput) -> dict[str, Any]:
+              email = str(data.email).strip().lower()
+              invite_token = (data.invite_token or "").strip()
+              invitation = _persistence.get_invitation(invite_token) if invite_token else None
+              if invitation:
+                  if invitation.get("status") != "pending" or _invitation_expired(invitation):
+                      raise HTTPException(status_code=410, detail="Convite expirado ou já utilizado.")
+                  if str(invitation.get("email") or "").lower() != email:
+                      raise HTTPException(status_code=403, detail="O convite pertence a outro email.")
+                  role = "company"
+              else:
+                  role = _role_from_input(data.user_type, data.role)
+                  if invite_token:
+                      raise HTTPException(status_code=404, detail="Código de convite inválido.")
+              if email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL} or email in _registered_users:
+                  raise HTTPException(status_code=409, detail="Este email já está registado.")
+
+              if invitation:
+                  user_id = f"company-user-{uuid.uuid4().hex[:10]}"
+                  company_id = str(invitation["company_id"])
+                  company_role = normalize_company_access_role(str(invitation["access_role"]))
+                  display_name = data.name.strip() or str(invitation.get("name") or "WORKLY")
+              else:
+                  user_id = f"{role}-{uuid.uuid4().hex[:10]}"
+                  company_id = user_id if role == "company" else None
+                  company_role = "admin" if role == "company" else None
+                  display_name = data.name.strip()
+
+              user = {
+                  "id": user_id,
+                  "name": display_name,
+                  "email": email,
+                  "role": role,
+                  "company_id": company_id,
+                  "company_role": company_role,
+                  "avatar": "",
+                  "title": "Novo trabalhador" if role == "worker" else "Utilizador da empresa",
+                  "trust_score": 5.0,
+                  "productivity_score": 5.0,
+                  "password_record": _password_record(data.password),
+              }
+              _registered_users[email] = user
+              with _state_lock:
+                  if role == "worker":
+                      _state["workers"].append(
+                          {
+                              **_public_auth_user(user),
+                              "avatar_color": "#1B6CFF",
+                              "age": 18,
+                              "country": "Portugal",
+                              "flag": "🇵🇹",
+                              "profession": "Novo trabalhador",
+                              "experience_years": 0,
+                              "location": "Portugal",
+                              "phone": "",
+                              "bio": "Perfil criado na demonstração WORKLY.",
+                              "skills": [],
+                              "certificates": [],
+                              "availability": True,
+                              "status": "available",
+                              "rating": 5.0,
+                              "best_projects": [],
+                              "documents": [],
+                              "languages": ["Português"],
+                              "current_project_id": None,
+                              "schedule": "08:00–17:00",
+                          }
+                      )
+                  elif not invitation:
+                      _state["companies"].append(
+                          {
+                              **_public_auth_user(user),
+                              "avatar_color": "#FF3B30",
+                              "industry": "Nova empresa",
+                              "description": "Perfil criado na demonstração WORKLY.",
+                              "location": "Portugal",
+                              "phone": "",
+                              "website": "",
+                              "tax_id": "",
+                              "documents": [],
+                          }
+                      )
+              if role == "company":
+                  _persistence.upsert_membership(
+                      {
+                          "id": _membership_id(str(company_id), user_id),
+                          "company_id": str(company_id),
+                          "user_id": user_id,
+                          "email": email,
+                          "name": display_name,
+                          "access_role": str(company_role),
+                          "status": "active",
+                      }
+                  )
+                  if invitation:
+                      _persistence.consume_invitation(invite_token, user_id)
+              return _login_response(user)
+          '''
+          text, count = register_pattern.subn(register_replacement.strip(), text, count=1)
+          if count != 1:
+              raise SystemExit("Could not replace register endpoint")
+
+          me_pattern = re.compile(r'@app\.get\(f"\{API_PREFIX\}/auth/me".*?(?=\n\n@app\.get\(f"\{API_PREFIX\}/bootstrap")', re.S)
+          me_replacement = '''@app.get(f"{API_PREFIX}/auth/me", tags=["Authentication"])
+          def me(user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+              current = _demo_auth_user(user["email"])
+              if current:
+                  if current["role"] == "company":
+                      current["company_id"] = current["id"]
+                  return _enrich_auth_user(current)
+              registered = _registered_users.get(user["email"])
+              return _enrich_auth_user(registered or user)
+
+
+          @app.get(f"{API_PREFIX}/company/access", tags=["Company Access"])
+          def company_access(user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+              role = _company_access_role(user)
+              company_id = str(user.get("company_id") or "")
+              members = [item for item in _persistence.list_memberships(company_id) if item.get("status") == "active"]
+              return {
+                  "current_role": role,
+                  "permissions": permissions_for_role(role),
+                  "members": members,
+                  "invitations": _persistence.list_invitations(company_id),
+                  "role_catalog": {item: permissions_for_role(item) for item in COMPANY_ACCESS_ROLES},
+              }
+
+
+          @app.post(f"{API_PREFIX}/company/invitations", tags=["Company Access"])
+          def create_company_invitation(
+              data: CompanyInvitationInput,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, Any]:
+              _require_company_permission(user, "access.manage")
+              access_role = normalize_company_access_role(data.access_role)
+              if access_role == "admin":
+                  raise HTTPException(status_code=422, detail="Crie primeiro o acesso e promova-o depois a Admin.")
+              email = str(data.email).strip().lower()
+              if email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL} or email in _registered_users:
+                  raise HTTPException(status_code=409, detail="Este email já possui uma conta WORKLY.")
+              token = f"WLY-{uuid.uuid4().hex[:12].upper()}"
+              invitation = {
+                  "token": token,
+                  "company_id": str(user.get("company_id") or ""),
+                  "email": email,
+                  "name": data.name.strip(),
+                  "access_role": access_role,
+                  "status": "pending",
+                  "invited_by": str(user["sub"]),
+                  "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+              }
+              return _persistence.create_invitation(invitation)
+
+
+          @app.patch(f"{API_PREFIX}/company/members/{member_id}", tags=["Company Access"])
+          def update_company_member(
+              member_id: str,
+              patch: CompanyMemberPatch,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, Any]:
+              _require_company_permission(user, "access.manage")
+              if member_id == user["sub"]:
+                  raise HTTPException(status_code=409, detail="Não pode alterar a sua própria função.")
+              company_id = str(user.get("company_id") or "")
+              membership = _persistence.get_membership(company_id, member_id)
+              if not membership or membership.get("status") != "active":
+                  raise HTTPException(status_code=404, detail="Membro não encontrado.")
+              access_role = normalize_company_access_role(patch.access_role)
+              membership["access_role"] = access_role
+              updated = _persistence.upsert_membership(membership)
+              for registered in _registered_users.values():
+                  if registered.get("id") == member_id:
+                      registered["company_role"] = access_role
+              return updated
+
+
+          @app.delete(f"{API_PREFIX}/company/members/{member_id}", tags=["Company Access"])
+          def remove_company_member(
+              member_id: str,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, bool]:
+              _require_company_permission(user, "access.manage")
+              if member_id == user["sub"]:
+                  raise HTTPException(status_code=409, detail="Não pode remover o seu próprio acesso.")
+              company_id = str(user.get("company_id") or "")
+              membership = _persistence.get_membership(company_id, member_id)
+              if not membership or membership.get("status") != "active":
+                  raise HTTPException(status_code=404, detail="Membro não encontrado.")
+              membership["status"] = "revoked"
+              _persistence.upsert_membership(membership)
+              for registered in _registered_users.values():
+                  if registered.get("id") == member_id:
+                      registered["access_revoked"] = True
+              return {"ok": True}
+          '''
+          text, count = me_pattern.subn(me_replacement.strip(), text, count=1)
+          if count != 1:
+              raise SystemExit("Could not replace auth/me block")
+
+          text = replace_once(
+              text,
+              '    current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user\n    payload["current_user"] = _public_auth_user(current)',
+              '    current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user\n    payload["current_user"] = _enrich_auth_user(current)',
+              "bootstrap enriched user",
+          )
+
+          for function_name, permission in {
+              "update_company": "company.manage",
+              "create_team": "teams.manage",
+              "update_team": "teams.manage",
+              "delete_team": "teams.manage",
+              "add_team_member": "teams.manage",
+              "remove_team_member": "teams.manage",
+              "set_team_leader": "teams.manage",
+              "create_project": "projects.manage",
+              "update_project": "projects.manage",
+              "delete_project": "projects.manage",
+              "assign_to_project": "projects.manage",
+          }.items():
+              pattern = rf'(def {function_name}\(.*?\n\) -> [^:]+:\n)    _require_role\(user, "company"\)'
+              text, count = re.subn(pattern, rf'\1    _require_company_permission(user, "{permission}")', text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"Could not replace company guard for {function_name}")
+
+          list_workers = '''@app.get(f"{API_PREFIX}/workers", tags=["Workers"])
+          def list_workers(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+              q: str = Query(default="", max_length=80),
+              status_filter: str | None = Query(default=None, alias="status"),
+          ) -> list[dict[str, Any]]:
+              query = q.strip().lower()
+              with _state_lock:
+                  workers = deepcopy(_state["workers"])
+                  if user["role"] == "company":
+                      _require_company_permission(user, "workers.read")
+                      visible_ids = _company_worker_ids(str(user.get("company_id") or ""))
+                      workers = [item for item in workers if item["id"] in visible_ids]
+                  else:
+                      workers = [item for item in workers if item["id"] == user["sub"]]
+              if query:
+                  workers = [
+                      item for item in workers
+                      if query in " ".join([
+                          item.get("name", ""), item.get("profession", ""),
+                          item.get("country", ""), item.get("location", ""),
+                          " ".join(skill["name"] for skill in item.get("skills", [])),
+                      ]).lower()
+                  ]
+              if status_filter:
+                  workers = [item for item in workers if item.get("status") == status_filter]
+              return workers
+          '''
+          text = replace_function(text, "list_workers", list_workers)
+
+          get_worker = '''@app.get(f"{API_PREFIX}/workers/{worker_id}", tags=["Workers"])
+          def get_worker(
+              worker_id: str,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, Any]:
+              with _state_lock:
+                  _assert_worker_visible(user, worker_id)
+                  return deepcopy(_find("workers", worker_id))
+          '''
+          text = replace_function(text, "get_worker", get_worker)
+
+          text = replace_once(
+              text,
+              '    if user["role"] == "worker" and user["sub"] != worker_id:\n        raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")',
+              '    if user["role"] == "worker":\n        if user["sub"] != worker_id:\n            raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")\n    else:\n        _require_company_permission(user, "workers.manage")\n        _assert_worker_visible(user, worker_id)',
+              "worker update permission",
+          )
+
+          companies = '''@app.get(f"{API_PREFIX}/companies", tags=["Companies"])
+          def list_companies(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> list[dict[str, Any]]:
+              with _state_lock:
+                  companies = deepcopy(_state["companies"])
+                  if user["role"] == "company":
+                      own_id = str(user.get("company_id") or "")
+                      return [item for item in companies if item["id"] == own_id]
+                  visible = _company_ids_for_worker(str(user["sub"]))
+                  return [item for item in companies if item["id"] in visible]
+          '''
+          text = replace_function(text, "list_companies", companies)
+
+          get_company = '''@app.get(f"{API_PREFIX}/companies/{company_id}", tags=["Companies"])
+          def get_company(
+              company_id: str,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, Any]:
+              with _state_lock:
+                  if user["role"] == "company":
+                      if company_id != user.get("company_id"):
+                          raise HTTPException(status_code=403, detail="Empresa não autorizada.")
+                  elif company_id not in _company_ids_for_worker(str(user["sub"])):
+                      raise HTTPException(status_code=403, detail="Empresa não autorizada.")
+                  return deepcopy(_find("companies", company_id))
+          '''
+          text = replace_function(text, "get_company", get_company)
+
+          get_project = '''@app.get(f"{API_PREFIX}/projects/{project_id}", tags=["Projects"])
+          def get_project(
+              project_id: str,
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+          ) -> dict[str, Any]:
+              with _state_lock:
+                  project = _find("projects", project_id)
+                  _assert_project_visible(user, project)
+                  return deepcopy(project)
+          '''
+          text = replace_function(text, "get_project", get_project)
+
+          text = replace_once(
+              text,
+              '    with _state_lock:\n        teams = deepcopy(_state["teams"])\n    if user["role"] == "company":\n        return [item for item in teams if item["company_id"] == user.get("company_id")]',
+              '    with _state_lock:\n        teams = deepcopy(_state["teams"])\n    if user["role"] == "company":\n        _require_company_permission(user, "teams.read")\n        return [item for item in teams if item["company_id"] == user.get("company_id")]',
+              "teams read permission",
+          )
+          text = replace_once(
+              text,
+              '    with _state_lock:\n        projects = deepcopy(_state["projects"])\n    if user["role"] == "company":\n        return [',
+              '    with _state_lock:\n        projects = deepcopy(_state["projects"])\n    if user["role"] == "company":\n        _require_company_permission(user, "projects.read")\n        return [',
+              "projects read permission",
+          )
+          text = replace_once(
+              text,
+              '    with _state_lock:\n        records = deepcopy(_state["attendance"])\n    if user["role"] == "worker":',
+              '    with _state_lock:\n        records = deepcopy(_state["attendance"])\n    if user["role"] == "worker":',
+              "attendance anchor",
+          )
+          text = replace_once(
+              text,
+              '    return [\n        item for item in records if item.get("company_id") == user.get("company_id")\n    ]\n\n\n@app.post(f"{API_PREFIX}/attendance/check-in"',
+              '    _require_company_permission(user, "attendance.read")\n    return [\n        item for item in records if item.get("company_id") == user.get("company_id")\n    ]\n\n\n@app.post(f"{API_PREFIX}/attendance/check-in"',
+              "attendance company permission",
+          )
+
+          documents = '''@app.get(f"{API_PREFIX}/documents", tags=["Documents"])
+          def list_documents(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+              owner_id: str | None = None,
+          ) -> list[dict[str, Any]]:
+              with _state_lock:
+                  documents: list[dict[str, Any]] = []
+                  for worker in _state["workers"]:
+                      documents.extend(deepcopy(worker.get("documents", [])))
+                  for company in _state["companies"]:
+                      documents.extend(deepcopy(company.get("documents", [])))
+              if user["role"] == "worker":
+                  target = owner_id or str(user["sub"])
+                  if target != user["sub"]:
+                      raise HTTPException(status_code=403, detail="Documentos não autorizados.")
+                  return [item for item in documents if item.get("owner_id") == target]
+              _require_company_permission(user, "documents.read")
+              company_id = str(user.get("company_id") or "")
+              worker_ids = _company_worker_ids(company_id)
+              if owner_id and owner_id != company_id and owner_id not in worker_ids:
+                  raise HTTPException(status_code=403, detail="Documentos de outra empresa.")
+              return [
+                  item for item in documents
+                  if (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
+                  or (owner_id and item.get("owner_id") == owner_id)
+              ]
+          '''
+          text = replace_function(text, "list_documents", documents)
+
+          certificates = '''@app.get(f"{API_PREFIX}/certificates", tags=["Documents"])
+          def list_certificates(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+              worker_id: str | None = None,
+          ) -> list[dict[str, Any]]:
+              target_id = worker_id or (user["sub"] if user["role"] == "worker" else None)
+              with _state_lock:
+                  workers = deepcopy(_state["workers"])
+                  if target_id:
+                      _assert_worker_visible(user, str(target_id))
+                      worker = next((item for item in workers if item["id"] == target_id), None)
+                      if not worker:
+                          raise HTTPException(status_code=404, detail="Trabalhador não encontrado.")
+                      return worker.get("certificates", [])
+                  _require_company_permission(user, "documents.read")
+                  visible = _company_worker_ids(str(user.get("company_id") or ""))
+                  certificates: list[dict[str, Any]] = []
+                  for worker in workers:
+                      if worker["id"] not in visible:
+                          continue
+                      for certificate in worker.get("certificates", []):
+                          certificates.append({**certificate, "worker_id": worker["id"]})
+                  return certificates
+          '''
+          text = replace_function(text, "list_certificates", certificates)
+
+          best_projects = '''@app.get(f"{API_PREFIX}/best-projects", tags=["Workers"])
+          def list_best_projects(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+              worker_id: str | None = None,
+          ) -> list[dict[str, Any]]:
+              target_id = worker_id or (user["sub"] if user["role"] == "worker" else None)
+              if not target_id:
+                  return []
+              with _state_lock:
+                  _assert_worker_visible(user, str(target_id))
+                  return deepcopy(_find("workers", str(target_id)).get("best_projects", []))
+          '''
+          text = replace_function(text, "list_best_projects", best_projects)
+
+          search_block = '''@app.get(f"{API_PREFIX}/search", tags=["Search"])
+          def search(
+              user: Annotated[dict[str, Any], Depends(get_current_user)],
+              q: str = "",
+          ) -> dict[str, Any]:
+              query = q.strip().lower()
+              with _state_lock:
+                  if user["role"] == "company":
+                      _require_company_permission(user, "workers.read")
+                      visible = _company_worker_ids(str(user.get("company_id") or ""))
+                      results = [deepcopy(item) for item in _state["workers"] if item["id"] in visible]
+                      if query:
+                          results = [item for item in results if query in f"{item['name']} {item['profession']} {item['location']}".lower()]
+                      return {"type": "workers", "results": results}
+                  results = [deepcopy(item) for item in _state["projects"] if user["sub"] in item.get("worker_ids", [])]
+                  if query:
+                      results = [item for item in results if query in f"{item['name']} {item['client']} {item['location']}".lower()]
+                  return {"type": "jobs", "results": results}
+          '''
+          text = replace_function(text, "search", search_block)
+
+          text = replace_once(
+              text,
+              '        company_id = user.get("company_id")\n        projects = [',
+              '        _require_company_permission(user, "operations.read")\n        company_id = user.get("company_id")\n        projects = [',
+              "dashboard operations permission",
+          )
+          text = replace_once(
+              text,
+              '        else:\n            if contract["company_id"] != user.get("company_id"):\n                raise HTTPException(status_code=403, detail="Contrato não autorizado.")\n            contract["signed_company"] = True',
+              '        else:\n            _require_company_permission(user, "documents.manage")\n            if contract["company_id"] != user.get("company_id"):\n                raise HTTPException(status_code=403, detail="Contrato não autorizado.")\n            contract["signed_company"] = True',
+              "contract signing permission",
+          )
+
+          main_path.write_text(text)
+
+          auth_api = Path("frontend/src/api/auth.ts")
+          text = auth_api.read_text()
+          text = replace_once(
+              text,
+              "export type RegisterPayload = LoginPayload & {\n  name: string;\n};",
+              "export type RegisterPayload = LoginPayload & {\n  name: string;\n  invite_token?: string;\n};",
+              "frontend register payload",
+          )
+          text = replace_once(
+              text,
+              "  company_id: string | null;\n  user: AuthUser;",
+              "  company_id: string | null;\n  company_role?: AuthUser[\"company_role\"];\n  permissions?: AuthUser[\"permissions\"];\n  user: AuthUser;",
+              "frontend login response access fields",
+          )
+          auth_api.write_text(text)
+
+          auth_context = Path("frontend/src/context/AuthContext.tsx")
+          text = auth_context.read_text()
+          text = replace_once(
+              text,
+              "    role: UserRole,\n  ) => Promise<User>;",
+              "    role: UserRole,\n    inviteToken?: string,\n  ) => Promise<User>;",
+              "auth state register signature",
+          )
+          text = replace_once(
+              text,
+              "      role: UserRole,\n    ): Promise<User> => {",
+              "      role: UserRole,\n      inviteToken?: string,\n    ): Promise<User> => {",
+              "register callback signature",
+          )
+          text = replace_once(
+              text,
+              "        user_type: role,\n      });",
+              "        user_type: role,\n        invite_token: inviteToken?.trim() || undefined,\n      });",
+              "register request invite token",
+          )
+          auth_context.write_text(text)
+
+          shell = Path("frontend/src/components/workspace/ImmersiveWorkspaceShell.tsx")
+          text = shell.read_text()
+          text = replace_once(
+              text,
+              'import { AttendanceView } from "./AttendanceView";',
+              'import { AccessView, accessNavLabel } from "./AccessView";\nimport { AttendanceView } from "./AttendanceView";',
+              "shell access import",
+          )
+          text = replace_once(
+              text,
+              'import { uiText } from "@/src/demo/fullUi";',
+              'import { uiText } from "@/src/demo/fullUi";\nimport type { CompanyPermission } from "@/src/demo/types";',
+              "shell permission type",
+          )
+          text = replace_once(
+              text,
+              "  workerOnly?: boolean;\n};",
+              "  workerOnly?: boolean;\n  permission?: CompanyPermission;\n};",
+              "nav item permission",
+          )
+          text = text.replace('companyOnly: true,\n    },', 'companyOnly: true,\n      permission: "operations.read",\n    },', 1)
+          text = text.replace('companyOnly: true,\n    },', 'companyOnly: true,\n      permission: "workers.read",\n    },', 1)
+          text = text.replace('companyOnly: true,\n    },', 'companyOnly: true,\n      permission: "teams.read",\n    },', 1)
+          text = replace_once(
+              text,
+              '    { id: "projects", label: t.projects, icon: "business-outline" },\n    { id: "attendance", label: t.attendance, icon: "radio-outline" },\n    { id: "documents", label: t.documents, icon: "folder-open-outline" },',
+              '    { id: "projects", label: t.projects, icon: "business-outline", permission: "projects.read" },\n    { id: "attendance", label: t.attendance, icon: "radio-outline", permission: "attendance.read" },\n    { id: "documents", label: t.documents, icon: "folder-open-outline", permission: "documents.read" },\n    { id: "access", label: accessNavLabel(language), icon: "key-outline", companyOnly: true },',
+              "access nav item",
+          )
+          text = replace_once(
+              text,
+              "      (!item.companyOnly || role === \"company\") &&\n      (!item.workerOnly || role === \"worker\"),",
+              "      (!item.companyOnly || role === \"company\") &&\n      (!item.workerOnly || role === \"worker\") &&\n      (role !== \"company\" || !item.permission || user.permissions?.includes(item.permission)),",
+              "permission nav filter",
+          )
+          text = replace_once(
+              text,
+              '      case "documents":\n        return <DocumentsView key="archive" mode="archive" />;',
+              '      case "documents":\n        return <DocumentsView key="archive" mode="archive" />;\n      case "access":\n        return <AccessView />;',
+              "access content",
+          )
+          shell.write_text(text)
+
+          login = Path("frontend/app/login.tsx")
+          text = login.read_text()
+          text = replace_once(
+              text,
+              'const DEMO_ACCOUNTS: Record<UserRole, string> = {\n  worker: "worker.demo@workly.app",\n  company: "company.demo@workly.app",\n};',
+              'const DEMO_ACCOUNTS: Record<UserRole, string> = {\n  worker: "worker.demo@workly.app",\n  company: "company.demo@workly.app",\n};\n\nconst INVITE_CODE_LABEL = {\n  pt: "Código de convite (opcional)",\n  en: "Invitation code (optional)",\n  fr: "Code d’invitation (facultatif)",\n  es: "Código de invitación (opcional)",\n  ro: "Cod de invitație (opțional)",\n  de: "Einladungscode (optional)",\n  nl: "Uitnodigingscode (optioneel)",\n} as const;',
+              "invite translations",
+          )
+          text = replace_once(
+              text,
+              '  const [password, setPassword] = useState("");',
+              '  const [password, setPassword] = useState("");\n  const [inviteToken, setInviteToken] = useState("");',
+              "invite token state",
+          )
+          text = replace_once(
+              text,
+              "        await register(cleanName, cleanEmail, cleanPassword, selectedRole);",
+              "        await register(\n          cleanName,\n          cleanEmail,\n          cleanPassword,\n          selectedRole,\n          selectedRole === \"company\" ? inviteToken : undefined,\n        );",
+              "invite registration",
+          )
+          password_block = '''              <View style={styles.inputWrap}>
+                <Text style={styles.inputLabel}>{text.password}</Text>'''
+          invite_field = '''              {mode === "register" && role === "company" ? (
+                <View style={styles.inputWrap}>
+                  <Text style={styles.inputLabel}>{INVITE_CODE_LABEL[language]}</Text>
+                  <View style={styles.inputShell}>
+                    <Ionicons name="key-outline" color={workspaceColors.muted} size={18} />
+                    <TextInput
+                      accessibilityLabel={INVITE_CODE_LABEL[language]}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      value={inviteToken}
+                      onChangeText={setInviteToken}
+                      placeholder="WLY-XXXXXXXXXXXX"
+                      placeholderTextColor={workspaceColors.muted}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+              ) : null}
+'''
+          text = replace_once(text, password_block, invite_field + password_block, "invite code field")
+          login.write_text(text)
+
+          conftest = Path("backend/tests/conftest.py")
+          text = conftest.read_text()
+          text = replace_once(
+              text,
+              "        main._registered_users.clear()\n    yield",
+              "        main._registered_users.clear()\n        main._persistence.reset_access_cache()\n    yield",
+              "reset ACL fixture",
+          )
+          conftest.write_text(text)
+
+          Path("backend/tests/test_company_access.py").write_text(r'''"""Multi-company access-control behaviour."""
+
+
+def test_demo_company_is_admin(client, company_auth):
+    response = client.get("/api/company/access", headers=company_auth["headers"])
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["current_role"] == "admin"
+    assert "access.manage" in payload["permissions"]
+    assert payload["members"][0]["user_id"] == company_auth["user"]["id"]
+
+
+def test_company_admin_can_invite_and_invited_user_joins_same_company(client, company_auth):
+    invite = client.post(
+        "/api/company/invitations",
+        headers=company_auth["headers"],
+        json={"name": "Maria Costa", "email": "maria@workly.test", "access_role": "hr"},
+    )
+    assert invite.status_code == 200, invite.text
+    token = invite.json()["token"]
+
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Maria Costa",
+            "email": "maria@workly.test",
+            "password": "StrongPass123!",
+            "user_type": "company",
+            "invite_token": token,
+        },
+    )
+    assert registered.status_code == 200, registered.text
+    user = registered.json()["user"]
+    assert user["company_id"] == company_auth["user"]["company_id"]
+    assert user["company_role"] == "hr"
+    assert "workers.manage" in user["permissions"]
+    assert "projects.manage" not in user["permissions"]
+
+
+def test_hr_cannot_create_projects_but_can_read_workers(client, company_auth):
+    invite = client.post(
+        "/api/company/invitations",
+        headers=company_auth["headers"],
+        json={"name": "RH User", "email": "rh@workly.test", "access_role": "hr"},
+    ).json()
+    registration = client.post(
+        "/api/auth/register",
+        json={
+            "name": "RH User",
+            "email": "rh@workly.test",
+            "password": "StrongPass123!",
+            "user_type": "company",
+            "invite_token": invite["token"],
+        },
+    ).json()
+    headers = {"Authorization": f"Bearer {registration['access_token']}"}
+
+    workers = client.get("/api/workers", headers=headers)
+    assert workers.status_code == 200, workers.text
+
+    project = client.post(
+        "/api/projects",
+        headers=headers,
+        json={
+            "name": "Blocked project",
+            "location": "Porto",
+            "start_date": "2026-08-01",
+            "end_date": "2026-09-01",
+        },
+    )
+    assert project.status_code == 403
+
+
+def test_company_cannot_read_foreign_project_by_id(client, company_auth):
+    from backend.app import main
+
+    with main._state_lock:
+        foreign = dict(main._state["projects"][0])
+        foreign["id"] = "project-foreign"
+        foreign["company_id"] = "company-other"
+        main._state["projects"].append(foreign)
+
+    response = client.get("/api/projects/project-foreign", headers=company_auth["headers"])
+    assert response.status_code == 403
+
+
+def test_company_cannot_read_foreign_worker_by_id(client, company_auth):
+    from backend.app import main
+
+    with main._state_lock:
+        foreign = dict(main._state["workers"][0])
+        foreign["id"] = "worker-foreign"
+        foreign["company_id"] = "company-other"
+        main._state["workers"].append(foreign)
+
+    response = client.get("/api/workers/worker-foreign", headers=company_auth["headers"])
+    assert response.status_code == 403
+''')
+          PY
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+      - name: Backend tests
+        run: pytest -q backend/tests
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+      - name: Commit generated integration
+        run: |
+          git config user.name "WORKLY Agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend frontend
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "[access-generated] Add multi-company roles and permissions"
+            git push origin HEAD:agent/company-access-control
+          fi
