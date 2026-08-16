@@ -158,17 +158,13 @@ jobs:
 
           ''' + anchor
           text = text.replace(anchor, permission_block, 1)
-          old_permissions = '''  const permissionLabels = useMemo(
-            () => (payload?.permissions ?? []).map((item) => item.replace(".", " · ")),
-            [payload?.permissions],
-          );'''
-          new_permissions = '''  const permissionLabels = useMemo(
-            () => (payload?.permissions ?? []).map((item) => permissionCopy[language][item]),
-            [language, payload?.permissions],
-          );'''
-          if old_permissions not in text:
-              raise SystemExit('Missing permission labels anchor')
-          text = text.replace(old_permissions, new_permissions, 1)
+          old_map = '    () => (payload?.permissions ?? []).map((item) => item.replace(".", " · ")),'
+          new_map = '    () => (payload?.permissions ?? []).map((item) => permissionCopy[language][item]),'
+          old_deps = '    [payload?.permissions],'
+          new_deps = '    [language, payload?.permissions],'
+          if old_map not in text or old_deps not in text:
+              raise SystemExit('Missing permission label lines')
+          text = text.replace(old_map, new_map, 1).replace(old_deps, new_deps, 1)
           text = text.replace(
               '<Text style={styles.eyebrow}>WORKLY · COMPANY ACCESS</Text>',
               '<Text style={styles.eyebrow}>{`WORKLY · ${text.title.toUpperCase()}`}</Text>',
