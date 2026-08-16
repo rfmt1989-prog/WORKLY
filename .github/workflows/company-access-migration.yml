@@ -34,8 +34,8 @@ jobs:
           from pathlib import Path
           path = Path('scripts/apply_company_access.py')
           text = path.read_text()
-          old = "        rf'@app\\\\.(?:get|post|patch|delete)\\\\(.*?\\\\)\\\\ndef {name}\\\\(.*?(?=\\\\n\\\\n@app\\\\.)',"
-          new = "        rf'@app\\\\.(?:get|post|patch|delete)\\\\([^\\\\n]*\\\\)\\\\ndef {name}\\\\(.*?(?=\\\\n\\\\n@app\\\\.)',"
+          old = r"        rf'@app\.(?:get|post|patch|delete)\(.*?\)\ndef {name}\(.*?(?=\n\n@app\.)',"
+          new = r"        rf'@app\.(?:get|post|patch|delete)\([^\n]*\)\ndef {name}\(.*?(?=\n\n@app\.)',"
           if old not in text:
               raise SystemExit('Could not patch endpoint selector')
           path.write_text(text.replace(old, new, 1))
