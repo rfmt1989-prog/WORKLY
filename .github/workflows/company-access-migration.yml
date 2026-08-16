@@ -52,6 +52,8 @@ jobs:
           PY
       - name: Apply integration
         run: python scripts/apply_company_access.py
+      - name: Normalize React Native font weight
+        run: sed -i 's/fontWeight: "850"/fontWeight: "800"/g' frontend/src/components/workspace/AccessView.tsx
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt pytest httpx
       - name: Compile backend
