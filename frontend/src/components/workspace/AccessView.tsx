@@ -13,7 +13,7 @@ import {
 import { api } from "@/src/api/client";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
-import type { CompanyAccessRole, LanguageCode } from "@/src/demo/types";
+import type { CompanyAccessRole, CompanyPermission, LanguageCode } from "@/src/demo/types";
 
 import { roleAccent, workspaceColors } from "./primitives";
 
@@ -39,10 +39,10 @@ type AccessInvitation = {
 
 type AccessPayload = {
   current_role: CompanyAccessRole;
-  permissions: string[];
+  permissions: CompanyPermission[];
   members: AccessMember[];
   invitations: AccessInvitation[];
-  role_catalog: Record<CompanyAccessRole, string[]>;
+  role_catalog: Record<CompanyAccessRole, CompanyPermission[]>;
 };
 
 type AccessCopy = {
@@ -289,6 +289,117 @@ const accessCopy: Record<LanguageCode, AccessCopy> = {
   },
 };
 
+const permissionCopy: Record<LanguageCode, Record<CompanyPermission, string>> = {
+  pt: {
+    "access.manage": "Gerir acessos",
+    "company.manage": "Gerir empresa",
+    "workers.read": "Ver trabalhadores",
+    "workers.manage": "Gerir trabalhadores",
+    "teams.read": "Ver equipas",
+    "teams.manage": "Gerir equipas",
+    "projects.read": "Ver obras",
+    "projects.manage": "Gerir obras",
+    "attendance.read": "Ver presenças",
+    "documents.read": "Ver documentos",
+    "documents.manage": "Gerir documentos",
+    "operations.read": "Ver operações",
+  },
+  en: {
+    "access.manage": "Manage access",
+    "company.manage": "Manage company",
+    "workers.read": "View workers",
+    "workers.manage": "Manage workers",
+    "teams.read": "View teams",
+    "teams.manage": "Manage teams",
+    "projects.read": "View projects",
+    "projects.manage": "Manage projects",
+    "attendance.read": "View attendance",
+    "documents.read": "View documents",
+    "documents.manage": "Manage documents",
+    "operations.read": "View operations",
+  },
+  fr: {
+    "access.manage": "Gérer les accès",
+    "company.manage": "Gérer l’entreprise",
+    "workers.read": "Voir les travailleurs",
+    "workers.manage": "Gérer les travailleurs",
+    "teams.read": "Voir les équipes",
+    "teams.manage": "Gérer les équipes",
+    "projects.read": "Voir les chantiers",
+    "projects.manage": "Gérer les chantiers",
+    "attendance.read": "Voir les présences",
+    "documents.read": "Voir les documents",
+    "documents.manage": "Gérer les documents",
+    "operations.read": "Voir les opérations",
+  },
+  es: {
+    "access.manage": "Gestionar accesos",
+    "company.manage": "Gestionar empresa",
+    "workers.read": "Ver trabajadores",
+    "workers.manage": "Gestionar trabajadores",
+    "teams.read": "Ver equipos",
+    "teams.manage": "Gestionar equipos",
+    "projects.read": "Ver obras",
+    "projects.manage": "Gestionar obras",
+    "attendance.read": "Ver asistencia",
+    "documents.read": "Ver documentos",
+    "documents.manage": "Gestionar documentos",
+    "operations.read": "Ver operaciones",
+  },
+  ro: {
+    "access.manage": "Gestionează accesul",
+    "company.manage": "Gestionează compania",
+    "workers.read": "Vezi lucrătorii",
+    "workers.manage": "Gestionează lucrătorii",
+    "teams.read": "Vezi echipele",
+    "teams.manage": "Gestionează echipele",
+    "projects.read": "Vezi șantierele",
+    "projects.manage": "Gestionează șantierele",
+    "attendance.read": "Vezi prezența",
+    "documents.read": "Vezi documentele",
+    "documents.manage": "Gestionează documentele",
+    "operations.read": "Vezi operațiunile",
+  },
+  de: {
+    "access.manage": "Zugriffe verwalten",
+    "company.manage": "Unternehmen verwalten",
+    "workers.read": "Mitarbeiter ansehen",
+    "workers.manage": "Mitarbeiter verwalten",
+    "teams.read": "Teams ansehen",
+    "teams.manage": "Teams verwalten",
+    "projects.read": "Baustellen ansehen",
+    "projects.manage": "Baustellen verwalten",
+    "attendance.read": "Anwesenheit ansehen",
+    "documents.read": "Dokumente ansehen",
+    "documents.manage": "Dokumente verwalten",
+    "operations.read": "Betrieb ansehen",
+  },
+  nl: {
+    "access.manage": "Toegang beheren",
+    "company.manage": "Bedrijf beheren",
+    "workers.read": "Werknemers bekijken",
+    "workers.manage": "Werknemers beheren",
+    "teams.read": "Teams bekijken",
+    "teams.manage": "Teams beheren",
+    "projects.read": "Projecten bekijken",
+    "projects.manage": "Projecten beheren",
+    "attendance.read": "Aanwezigheid bekijken",
+    "documents.read": "Documenten bekijken",
+    "documents.manage": "Documenten beheren",
+    "operations.read": "Operaties bekijken",
+  },
+};
+
+const dateLocale: Record<LanguageCode, string> = {
+  pt: "pt-PT",
+  en: "en-GB",
+  fr: "fr-FR",
+  es: "es-ES",
+  ro: "ro-RO",
+  de: "de-DE",
+  nl: "nl-NL",
+};
+
 const roleOrder: CompanyAccessRole[] = ["admin", "manager", "hr", "supervisor"];
 
 export function accessNavLabel(language: LanguageCode): string {
@@ -334,8 +445,8 @@ export function AccessView() {
   );
 
   const permissionLabels = useMemo(
-    () => (payload?.permissions ?? []).map((item) => item.replace(".", " · ")),
-    [payload?.permissions],
+    () => (payload?.permissions ?? []).map((item) => permissionCopy[language][item]),
+    [language, payload?.permissions],
   );
 
   const createInvitation = async () => {
@@ -414,7 +525,7 @@ export function AccessView() {
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>WORKLY · COMPANY ACCESS</Text>
+          <Text style={styles.eyebrow}>{`WORKLY · ${text.title.toUpperCase()}`}</Text>
           <Text style={styles.title}>{text.title}</Text>
           <Text style={styles.subtitle}>{text.subtitle}</Text>
         </View>
@@ -566,7 +677,7 @@ export function AccessView() {
             </View>
             <View style={styles.invitationMeta}>
               <Text style={[styles.currentRole, { color: accent }]}>{roleLabel(invitation.access_role)}</Text>
-              <Text style={styles.memberEmail}>{text.expires}: {new Date(invitation.expires_at).toLocaleDateString()}</Text>
+              <Text style={styles.memberEmail}>{text.expires}: {new Date(invitation.expires_at).toLocaleDateString(dateLocale[language])}</Text>
               <Text selectable style={styles.codeSmall}>{invitation.token}</Text>
             </View>
           </View>
