@@ -44,6 +44,8 @@ jobs:
               ('/workers/{worker_id}', '/workers/{{worker_id}}'),
               ('/companies/{company_id}', '/companies/{{company_id}}'),
               ('/projects/{project_id}', '/projects/{{project_id}}'),
+              ('maria@workly.test', 'maria.access@worklyapp.com'),
+              ('rh@workly.test', 'rh.access@worklyapp.com'),
           ):
               text = text.replace(source, target)
           path.write_text(text)
