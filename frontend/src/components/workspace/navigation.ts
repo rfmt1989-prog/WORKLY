@@ -5,6 +5,7 @@ export type WorkspaceSection =
   | "teams"
   | "projects"
   | "attendance"
+  | "compliance"
   | "documents"
   | "access"
   | "certificates"

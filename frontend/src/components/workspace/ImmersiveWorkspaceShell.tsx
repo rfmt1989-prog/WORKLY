@@ -22,6 +22,7 @@ import type { CompanyPermission } from "@/src/demo/types";
 
 import { AccessView, accessNavLabel } from "./AccessView";
 import { AttendanceView } from "./AttendanceView";
+import { ComplianceView, complianceNavLabel } from "./ComplianceView";
 import { DashboardView } from "./DashboardView";
 import { DocumentsView } from "./DocumentsView";
 import { OperationsMapView } from "./OperationsMapView";
@@ -106,6 +107,7 @@ export function ImmersiveWorkspaceShell() {
     },
     { id: "projects", label: t.projects, icon: "business-outline", permission: "projects.read" },
     { id: "attendance", label: t.attendance, icon: "radio-outline", permission: "attendance.read" },
+    { id: "compliance", label: complianceNavLabel(language), icon: "shield-checkmark-outline", permission: "documents.read" },
     { id: "documents", label: t.documents, icon: "folder-open-outline", permission: "documents.read" },
     { id: "access", label: accessNavLabel(language), icon: "key-outline", companyOnly: true },
     {
@@ -242,6 +244,8 @@ export function ImmersiveWorkspaceShell() {
         return <ProjectsView />;
       case "attendance":
         return <AttendanceView />;
+      case "compliance":
+        return <ComplianceView />;
       case "documents":
         return <DocumentsView key="archive" mode="archive" />;
       case "access":

@@ -133,6 +133,7 @@ export type Project = {
   team_ids: string[];
   worker_ids: string[];
   documents?: DemoDocument[];
+  compliance_requirements?: { documents: string[]; certificates: string[] };
 };
 
 export type Attendance = {

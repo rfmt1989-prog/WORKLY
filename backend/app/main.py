@@ -39,6 +39,7 @@ from .access_control import (
     permissions_for_role,
     role_has_permission,
 )
+from .compliance import evaluate_worker_compliance
 from .persistence import PersistenceStore
 
 
@@ -160,6 +161,7 @@ class ProjectInput(BaseModel):
     team_ids: list[str] = Field(default_factory=list)
     worker_ids: list[str] = Field(default_factory=list)
     documents: list[dict[str, Any]] = Field(default_factory=list)
+    compliance_requirements: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class AssignmentInput(BaseModel):
@@ -437,6 +439,8 @@ def _company_route_permission(method: str, path: str) -> str | None:
         return "projects.manage" if method in {"POST", "PATCH", "DELETE"} else "projects.read"
     if path.startswith(f"{API_PREFIX}/workers"):
         return "workers.manage" if method in {"PATCH", "POST", "DELETE"} else "workers.read"
+    if path.startswith(f"{API_PREFIX}/compliance"):
+        return "documents.read"
     if path.startswith(f"{API_PREFIX}/attendance"):
         return "attendance.read" if method == "GET" else None
     if path.startswith(f"{API_PREFIX}/documents") or path.startswith(f"{API_PREFIX}/certificates"):
@@ -1087,6 +1091,7 @@ def update_project(
         "team_ids",
         "worker_ids",
         "documents",
+        "compliance_requirements",
     }
     with _state_lock:
         project = _find("projects", project_id)
@@ -1163,6 +1168,57 @@ def assign_to_project(
         return deepcopy(project)
 
 
+@app.get(f"{API_PREFIX}/compliance", tags=["Compliance"])
+def compliance_center(
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    if user["role"] == "company":
+        _require_company_permission(user, "documents.read")
+        projects = [
+            item for item in _state["projects"]
+            if item.get("company_id") == user.get("company_id")
+        ]
+    else:
+        projects = [
+            item for item in _state["projects"]
+            if user["sub"] in item.get("worker_ids", [])
+        ]
+
+    rows: list[dict[str, Any]] = []
+    with _state_lock:
+        for project in projects:
+            worker_ids = (
+                project.get("worker_ids", [])
+                if user["role"] == "company"
+                else [user["sub"]]
+            )
+            for worker_id in worker_ids:
+                worker = next(
+                    (item for item in _state["workers"] if item.get("id") == worker_id),
+                    None,
+                )
+                if not worker:
+                    continue
+                evaluation = evaluate_worker_compliance(worker, project)
+                rows.append(
+                    {
+                        **evaluation,
+                        "worker_name": worker.get("name", "WORKLY"),
+                        "worker_profession": worker.get("profession", ""),
+                        "worker_avatar": worker.get("avatar", ""),
+                        "project_name": project.get("name", ""),
+                    }
+                )
+
+    summary = {
+        "total": len(rows),
+        "fit": sum(1 for item in rows if item["status"] == "fit"),
+        "attention": sum(1 for item in rows if item["status"] == "attention"),
+        "blocked": sum(1 for item in rows if item["status"] == "blocked"),
+    }
+    return {"summary": summary, "rows": rows}
+
+
 @app.get(f"{API_PREFIX}/attendance", tags=["Attendance"])
 def list_attendance(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
@@ -1209,6 +1265,19 @@ def check_in(
         if not project_id:
             raise HTTPException(status_code=422, detail="Não existe obra atribuída.")
         project = _find("projects", project_id)
+        if user["sub"] not in project.get("worker_ids", []):
+            raise HTTPException(status_code=403, detail="Trabalhador não atribuído a esta obra.")
+        compliance = evaluate_worker_compliance(worker, project)
+        if not compliance["fit_for_check_in"]:
+            issue = next(
+                (item for item in compliance["issues"] if item["severity"] == "blocked"),
+                None,
+            )
+            label = issue.get("label") if issue else "requisito obrigatório"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Conformidade bloqueada: {label}. Regularize antes do check-in.",
+            )
         geofence_radius_m = float(project.get("geofence_radius_m") or GEOFENCE_RADIUS_M)
         distance_m: float | None = None
         within_geofence: bool | None = None
