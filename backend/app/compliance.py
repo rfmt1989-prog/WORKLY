@@ -5,6 +5,10 @@ from typing import Any
 
 
 DEFAULT_DOCUMENT_REQUIREMENTS = ["identity", "insurance", "medical"]
+DEMO_CERTIFICATE_REQUIREMENTS = {
+    "project-1": ["Trabalho em altura"],
+    "project-2": ["Heavy Equipment Operator"],
+}
 WARNING_DAYS = 60
 CRITICAL_DAYS = 30
 
@@ -29,10 +33,14 @@ def _normalise(value: Any) -> str:
 def project_requirements(project: dict[str, Any]) -> dict[str, list[str]]:
     configured = project.get("compliance_requirements") or {}
     documents = configured.get("documents") or DEFAULT_DOCUMENT_REQUIREMENTS
-    certificates = configured.get("certificates") or []
+    certificates = (
+        configured.get("certificates")
+        if "certificates" in configured
+        else DEMO_CERTIFICATE_REQUIREMENTS.get(str(project.get("id") or ""), [])
+    )
     return {
         "documents": [str(item) for item in documents],
-        "certificates": [str(item) for item in certificates],
+        "certificates": [str(item) for item in (certificates or [])],
     }
 
 
