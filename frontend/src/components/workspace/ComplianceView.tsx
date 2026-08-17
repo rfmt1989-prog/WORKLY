@@ -173,7 +173,7 @@ export function ComplianceView() {
                 const color = statusColor(row.status);
                 return (
                   <Pressable key={key} onPress={() => setSelected(key)} style={[styles.row, active ? { borderColor: `${color}88`, backgroundColor: `${color}0E` } : null]}>
-                    <Avatar name={row.worker_name} uri={row.worker_avatar} size={38} accent={color} />
+                    <Avatar name={row.worker_name} size={38} accent={color} />
                     <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.name} numberOfLines={1}>{row.worker_name}</Text><Text style={styles.meta} numberOfLines={1}>{row.project_name}</Text></View>
                     <View style={styles.score}><Text style={[styles.scoreValue, { color }]}>{row.score}%</Text><Text style={[styles.status, { color }]}>{text[row.status]}</Text></View>
                   </Pressable>

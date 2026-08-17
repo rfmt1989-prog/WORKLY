@@ -248,7 +248,7 @@ def build_demo_state() -> dict:
             [("Estrutura metálica", 95), ("LSF", 88), ("Leitura de desenho", 93)],
             [
                 _certificate("Montagem de estruturas", "Scuola Edile", "2028-08-22"),
-                _certificate("Trabalho em altura", "Sicurezza+", "2027-07-12"),
+                _certificate("Trabalho em altura", "Sicurezza+", "2026-09-20"),
             ],
             [_project_item("best-7", "Nave Industrial Atlântico", "Setúbal, Portugal", 2025)],
             status="contracted",
@@ -392,6 +392,10 @@ def build_demo_state() -> dict:
             "start_date": "2026-05-04",
             "end_date": "2026-09-18",
             "schedule": "08:00–17:00",
+            "compliance_requirements": {
+                "documents": ["identity", "insurance", "medical"],
+                "certificates": ["Trabalho em altura"],
+            },
             "team_ids": ["team-1"],
             "worker_ids": ["worker-1", "worker-4", "worker-6", "worker-8"],
             "documents": [
@@ -415,6 +419,10 @@ def build_demo_state() -> dict:
             "start_date": "2026-08-12",
             "end_date": "2026-12-04",
             "schedule": "07:30–16:30",
+            "compliance_requirements": {
+                "documents": ["identity", "insurance", "medical"],
+                "certificates": ["Heavy Equipment Operator"],
+            },
             "team_ids": ["team-2"],
             "worker_ids": ["worker-7"],
             "documents": [
@@ -437,6 +445,10 @@ def build_demo_state() -> dict:
             "start_date": "2026-04-20",
             "end_date": "2026-10-30",
             "schedule": "08:00–17:00",
+            "compliance_requirements": {
+                "documents": ["identity", "insurance", "medical"],
+                "certificates": [],
+            },
             "team_ids": [],
             "worker_ids": ["worker-2", "worker-3", "worker-5"],
             "documents": [
