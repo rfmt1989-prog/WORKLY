@@ -6,8 +6,6 @@ on:
       - "frontend/**"
       - "vercel.json"
       - ".github/workflows/frontend-verify.yml"
-      - "scripts/apply_timesheet_attendance.py"
-      - "scripts/apply_timesheet_access_copy.py"
   push:
     branches:
       - main
@@ -16,11 +14,9 @@ on:
       - "frontend/**"
       - "vercel.json"
       - ".github/workflows/frontend-verify.yml"
-      - "scripts/apply_timesheet_attendance.py"
-      - "scripts/apply_timesheet_access_copy.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -31,19 +27,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: agent/timesheets-approval
-          fetch-depth: 0
-
-      - name: Apply timesheet attendance UI
-        working-directory: .
-        run: |
-          if [ -f scripts/apply_timesheet_attendance.py ]; then
-            python scripts/apply_timesheet_attendance.py
-          fi
-          if [ -f scripts/apply_timesheet_access_copy.py ]; then
-            python scripts/apply_timesheet_access_copy.py
-          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -63,16 +46,3 @@ jobs:
 
       - name: Export web
         run: npm run build:web
-
-      - name: Materialize validated timesheet UI
-        if: github.event_name == 'pull_request' && hashFiles('scripts/apply_timesheet_attendance.py') != ''
-        working-directory: .
-        run: |
-          git config user.name "WORKLY Agent"
-          git config user.email "actions@users.noreply.github.com"
-          git add frontend
-          git rm scripts/apply_timesheet_attendance.py scripts/apply_timesheet_access_copy.py
-          git checkout origin/main -- .github/workflows/frontend-verify.yml
-          git add .github/workflows/frontend-verify.yml
-          git commit -m "Integrate timesheet approval into attendance"
-          git push origin HEAD:agent/timesheets-approval
