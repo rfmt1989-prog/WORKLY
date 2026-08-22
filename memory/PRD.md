@@ -16,10 +16,9 @@ iOS.
 ## Arquitetura implementada
 
 - **Frontend:** Expo SDK 54, React Native Web, Expo Router e TypeScript.
-- **Estado:** contexto autenticado e snapshot local versionado para preservar a
-  demonstração após refresh/cold start.
-- **Backend:** FastAPI sem dependências externas, tokens HMAC e seed
-  determinístico.
+- **Estado:** contexto autenticado, cache local versionada para arranque rápido
+  e reconciliação automática Worker–Company a cada 4 segundos.
+- **Backend:** FastAPI, PostgreSQL, tokens HMAC e seed determinístico.
 - **Deploy:** exportação Expo Web estática e FastAPI serverless no mesmo projeto
   Vercel.
 
@@ -33,8 +32,8 @@ iOS.
 
 ## Limites assumidos da demonstração
 
-- Os dados não usam uma base de dados partilhada; o servidor mantém estado em
-  memória e o browser/dispositivo mantém o seu próprio snapshot persistente.
+- O PostgreSQL partilhado é a fonte principal, mas o estado operacional ainda
+  usa uma ponte JSONB que deverá evoluir para tabelas normalizadas por empresa.
 - GPS real depende da permissão e suporte do browser; existe fallback explícito
   para localização simulada.
 - Documentos e contratos têm conteúdo demonstrativo e não são ficheiros legais.
