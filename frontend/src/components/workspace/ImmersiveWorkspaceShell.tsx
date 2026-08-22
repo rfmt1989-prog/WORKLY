@@ -23,7 +23,7 @@ import type { CompanyPermission } from "@/src/demo/types";
 import { AccessView, accessNavLabel } from "./AccessView";
 import { AttendanceView } from "./AttendanceView";
 import { ComplianceView, complianceNavLabel } from "./ComplianceView";
-import { DashboardView } from "./DashboardView";
+import { PremiumDashboardView } from "./PremiumDashboardView";
 import { DocumentsView } from "./DocumentsView";
 import { OperationsMapView } from "./OperationsMapView";
 import type { WorkspaceSection } from "./navigation";
@@ -32,6 +32,7 @@ import { ProjectsView } from "./ProjectsView";
 import { Avatar, Button, roleAccent, workspaceColors } from "./primitives";
 import { TeamsView } from "./TeamsView";
 import { WorkersView } from "./WorkersView";
+import { WorkspaceMoreMenu } from "./WorkspaceMoreMenu";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -62,6 +63,7 @@ export function ImmersiveWorkspaceShell() {
   const [activeSection, setActiveSection] =
     useState<WorkspaceSection>("dashboard");
   const [resetBusy, setResetBusy] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
@@ -125,12 +127,23 @@ export function ImmersiveWorkspaceShell() {
     },
     { id: "profile", label: t.profile, icon: "person-circle-outline" },
   ];
-  const navItems = allNavItems.filter(
+  const visibleNavItems = allNavItems.filter(
     (item) =>
       (!item.companyOnly || role === "company") &&
       (!item.workerOnly || role === "worker") &&
       (role !== "company" || !item.permission || user.permissions?.includes(item.permission)),
   );
+  const primaryIds: WorkspaceSection[] =
+    role === "company"
+      ? ["dashboard", "operations", "workers", "projects", "compliance"]
+      : ["dashboard", "attendance", "compliance", "documents", "profile"];
+  const primaryNavItems = primaryIds
+    .map((id) => visibleNavItems.find((item) => item.id === id))
+    .filter((item): item is NavItem => Boolean(item));
+  const secondaryNavItems = visibleNavItems.filter(
+    (item) => !primaryIds.includes(item.id),
+  );
+  const secondaryActive = secondaryNavItems.some((item) => item.id === activeSection);
 
   const operational = (() => {
     if (!state) {
@@ -258,7 +271,7 @@ export function ImmersiveWorkspaceShell() {
       case "profile":
         return <ProfileView />;
       default:
-        return <DashboardView onNavigate={navigate} />;
+        return <PremiumDashboardView onNavigate={navigate} />;
     }
   })();
 
@@ -326,23 +339,6 @@ export function ImmersiveWorkspaceShell() {
             </Text>
           </View>
         </Pressable>
-
-        {!compact ? (
-          <View style={styles.metricStrip}>
-            <MetricMini
-              icon="people-outline"
-              value={operational.activeWorkers}
-              label={t.onSite}
-              accent={accent}
-            />
-            <MetricMini
-              icon="business-outline"
-              value={operational.activeProjects}
-              label={t.projects}
-              accent={accent}
-            />
-          </View>
-        ) : null}
 
         <View style={styles.topActions}>
           <LanguageSelector
@@ -412,7 +408,7 @@ export function ImmersiveWorkspaceShell() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.dockContent}
         >
-          {navItems.map((item) => {
+          {primaryNavItems.map((item) => {
             const active = activeSection === item.id;
             return (
               <Pressable
@@ -459,8 +455,61 @@ export function ImmersiveWorkspaceShell() {
               </Pressable>
             );
           })}
+          {secondaryNavItems.length ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={uiText(language, "Mais", "More")}
+              accessibilityState={{ selected: secondaryActive }}
+              onPress={() => setMoreOpen(true)}
+              style={({ pressed }) => [
+                styles.dockButton,
+                secondaryActive
+                  ? {
+                      borderColor: `${accent}66`,
+                      backgroundColor: `${accent}16`,
+                    }
+                  : null,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
+            >
+              <View
+                style={[
+                  styles.dockIcon,
+                  secondaryActive ? { backgroundColor: `${accent}22` } : null,
+                ]}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={20}
+                  color={secondaryActive ? accent : workspaceColors.muted}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.dockLabel,
+                  secondaryActive ? { color: workspaceColors.text } : null,
+                ]}
+                numberOfLines={1}
+              >
+                {uiText(language, "Mais", "More")}
+              </Text>
+              {secondaryActive ? (
+                <View style={[styles.activeLine, { backgroundColor: accent }]} />
+              ) : null}
+            </Pressable>
+          ) : null}
         </ScrollView>
       </View>
+
+      <WorkspaceMoreMenu
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onNavigate={navigate}
+        items={secondaryNavItems}
+        activeSection={activeSection}
+        accent={accent}
+        language={language}
+      />
 
       {toast ? (
         <View style={[styles.toast, { borderColor: `${accent}55` }]}>
@@ -474,26 +523,6 @@ export function ImmersiveWorkspaceShell() {
           <Text style={styles.toastText}>{toast.message}</Text>
         </View>
       ) : null}
-    </View>
-  );
-}
-
-function MetricMini({
-  icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: IconName;
-  value: number;
-  label: string;
-  accent: string;
-}) {
-  return (
-    <View style={styles.metricMini}>
-      <Ionicons name={icon} size={14} color={accent} />
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }

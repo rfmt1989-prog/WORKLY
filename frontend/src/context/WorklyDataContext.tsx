@@ -105,6 +105,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const hydratedRef = useRef(false);
   const stateSnapshotRef = useRef("");
+  const authSnapshotRef = useRef("");
   const syncInFlightRef = useRef(false);
   const toastIdRef = useRef(0);
 
@@ -180,6 +181,13 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         // The local snapshot only makes the first paint fast. The server always
         // reconciles it so Worker and Company never remain on different states.
         const remote = await api.get<WorklyState>("/bootstrap");
+        if (remote.current_user) {
+          const serializedUser = JSON.stringify(remote.current_user);
+          if (serializedUser !== authSnapshotRef.current) {
+            authSnapshotRef.current = serializedUser;
+            setUser(remote.current_user);
+          }
+        }
         const serializedRemote = JSON.stringify(remote);
         if (serializedRemote !== stateSnapshotRef.current) {
           setState(remote);
@@ -203,7 +211,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         if (showLoading) setLoading(false);
       }
     },
-    [language, token, userId],
+    [language, setUser, token, userId],
   );
 
   useEffect(() => {
@@ -212,6 +220,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       setError(null);
       hydratedRef.current = false;
       stateSnapshotRef.current = "";
+      authSnapshotRef.current = "";
       return;
     }
 
