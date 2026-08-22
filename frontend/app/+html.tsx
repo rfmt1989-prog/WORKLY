@@ -11,7 +11,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="theme-color" content="#06080D" />
         <meta
           name="description"
-          content="WORKLY — gestão de trabalhadores, equipas, obras e presenças."
+          content="WORKLY — centro de operações para empresas e perfil profissional digital para trabalhadores da construção."
         />
         <meta
           name="viewport"
