@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { ApiError, api } from "@/src/api/client";
 import { localizeApiError } from "@/src/demo/apiErrorI18n";
@@ -133,6 +133,12 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
     setLanguageState(nextLanguage);
     void storage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   const runMutation = useCallback(
     async function runAuthoritativeMutation<T>(

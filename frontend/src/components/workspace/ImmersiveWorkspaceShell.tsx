@@ -33,6 +33,7 @@ import { Avatar, Button, roleAccent, workspaceColors } from "./primitives";
 import { TeamsView } from "./TeamsView";
 import { WorkersView } from "./WorkersView";
 import { WorkspaceMoreMenu } from "./WorkspaceMoreMenu";
+import { premiumCopy } from "./premiumCopy";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -68,6 +69,7 @@ export function ImmersiveWorkspaceShell() {
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
   const t = copy[language];
+  const p = premiumCopy[language];
   const compact = width < 760;
   const hasSyncError = Boolean(error && state);
 
@@ -86,7 +88,7 @@ export function ImmersiveWorkspaceShell() {
   if (!user) return null;
 
   const allNavItems: NavItem[] = [
-    { id: "dashboard", label: t.dashboard, icon: "grid-outline" },
+    { id: "dashboard", label: role === "company" ? p.companyHome : p.workerHome, icon: "grid-outline" },
     {
       id: "operations",
       label: t.operations,
@@ -131,7 +133,7 @@ export function ImmersiveWorkspaceShell() {
     (item) =>
       (!item.companyOnly || role === "company") &&
       (!item.workerOnly || role === "worker") &&
-      (role !== "company" || !item.permission || user.permissions?.includes(item.permission)),
+      (role !== "company" || !item.permission || !user.permissions || user.permissions.includes(item.permission)),
   );
   const primaryIds: WorkspaceSection[] =
     role === "company"
@@ -458,7 +460,7 @@ export function ImmersiveWorkspaceShell() {
           {secondaryNavItems.length ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={uiText(language, "Mais", "More")}
+              accessibilityLabel={p.more}
               accessibilityState={{ selected: secondaryActive }}
               onPress={() => setMoreOpen(true)}
               style={({ pressed }) => [
@@ -491,7 +493,7 @@ export function ImmersiveWorkspaceShell() {
                 ]}
                 numberOfLines={1}
               >
-                {uiText(language, "Mais", "More")}
+                {p.more}
               </Text>
               {secondaryActive ? (
                 <View style={[styles.activeLine, { backgroundColor: accent }]} />

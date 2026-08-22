@@ -16,7 +16,7 @@ on:
       - ".github/workflows/frontend-verify.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -27,16 +27,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Apply premium copy and session polish
-        working-directory: .
-        run: python scripts/apply_premium_copy_polish.py
-
-      - name: Apply premium visual tokens
-        working-directory: .
-        run: python scripts/apply_visual_tokens.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -56,15 +46,3 @@ jobs:
 
       - name: Export web
         run: npm run build:web
-
-      - name: Commit validated premium product state
-        working-directory: .
-        run: |
-          git config user.name "WORKLY Agent"
-          git config user.email "actions@users.noreply.github.com"
-          git add frontend docs
-          git rm scripts/apply_premium_copy_polish.py scripts/apply_visual_tokens.py .github/workflows/premium-polish-validation.yml
-          git checkout origin/main -- .github/workflows/frontend-verify.yml
-          git add .github/workflows/frontend-verify.yml
-          git commit -m "Polish premium navigation, i18n and visual system"
-          git push origin HEAD:agent/compliance-session-refresh

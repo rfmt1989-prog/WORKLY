@@ -2,10 +2,10 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { uiText } from "@/src/demo/fullUi";
 import type { LanguageCode } from "@/src/demo/types";
 
 import type { WorkspaceSection } from "./navigation";
+import { premiumCopy } from "./premiumCopy";
 import { ModalPanel, workspaceColors } from "./primitives";
 
 type Item = {
@@ -33,16 +33,13 @@ export function WorkspaceMoreMenu({
   accent,
   language,
 }: Props) {
+  const p = premiumCopy[language];
   return (
     <ModalPanel
       visible={visible}
       onClose={onClose}
-      title={uiText(language, "Mais ferramentas", "More tools")}
-      subtitle={uiText(
-        language,
-        "Funções menos frequentes, sem poluir a navegação principal.",
-        "Less frequent tools without cluttering primary navigation.",
-      )}
+      title={p.moreTools}
+      subtitle={p.moreToolsSubtitle}
     >
       <View style={styles.grid}>
         {items.map((item) => {
@@ -75,8 +72,8 @@ export function WorkspaceMoreMenu({
                 <Text style={styles.title}>{item.label}</Text>
                 <Text style={styles.meta}>
                   {active
-                    ? uiText(language, "Área atual", "Current area")
-                    : uiText(language, "Abrir", "Open")}
+                    ? p.currentArea
+                    : p.open}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={17} color={workspaceColors.muted} />

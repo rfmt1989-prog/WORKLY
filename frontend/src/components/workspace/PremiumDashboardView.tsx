@@ -13,10 +13,10 @@ import {
 import { api } from "@/src/api/client";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
-import { uiText } from "@/src/demo/fullUi";
 import { resolveDemoLocation } from "@/src/demo/location";
 
 import type { WorkspaceSection } from "./navigation";
+import { premiumCopy, premiumFormat } from "./premiumCopy";
 import {
   Button,
   Card,
@@ -57,6 +57,7 @@ export function PremiumDashboardView({ onNavigate }: Props) {
   const compact = width < 760;
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
+  const p = premiumCopy[language];
 
   const loadCompliance = useCallback(async () => {
     try {
@@ -92,8 +93,8 @@ export function PremiumDashboardView({ onNavigate }: Props) {
         ? [{
             id: "blocked",
             icon: "shield-outline" as const,
-            title: uiText(language, `${blocked} trabalhador(es) bloqueado(s)`, `${blocked} blocked worker(s)`),
-            detail: uiText(language, "Resolver requisitos antes do próximo check-in.", "Resolve requirements before the next check-in."),
+            title: premiumFormat(p.blockedWorkers, { count: blocked }),
+            detail: p.resolveBeforeCheckin,
             tone: workspaceColors.redSoft,
             target: "compliance" as WorkspaceSection,
           }]
@@ -102,8 +103,8 @@ export function PremiumDashboardView({ onNavigate }: Props) {
         ? [{
             id: "attention",
             icon: "warning-outline" as const,
-            title: uiText(language, `${attention} requisito(s) a acompanhar`, `${attention} requirement(s) need attention`),
-            detail: uiText(language, "Validades próximas ou pendências não críticas.", "Upcoming expiries or non-critical issues."),
+            title: premiumFormat(p.requirementsAttention, { count: attention }),
+            detail: p.upcomingExpiries,
             tone: workspaceColors.yellow,
             target: "compliance" as WorkspaceSection,
           }]
@@ -112,8 +113,8 @@ export function PremiumDashboardView({ onNavigate }: Props) {
         ? [{
             id: "teams",
             icon: "git-network-outline" as const,
-            title: uiText(language, `${unassignedTeams} equipa(s) sem obra`, `${unassignedTeams} team(s) without a site`),
-            detail: uiText(language, "Atribuir equipa a uma frente de trabalho.", "Assign the team to a work front."),
+            title: premiumFormat(p.teamsWithoutSite, { count: unassignedTeams }),
+            detail: p.assignTeam,
             tone: workspaceColors.blueSoft,
             target: "teams" as WorkspaceSection,
           }]
@@ -122,8 +123,8 @@ export function PremiumDashboardView({ onNavigate }: Props) {
         ? [{
             id: "risk",
             icon: "pause-circle-outline" as const,
-            title: uiText(language, `${atRiskProjects} obra(s) pausada(s)`, `${atRiskProjects} paused site(s)`),
-            detail: uiText(language, "Rever estado e planeamento.", "Review status and planning."),
+            title: premiumFormat(p.pausedSites, { count: atRiskProjects }),
+            detail: p.reviewPlanning,
             tone: workspaceColors.orange,
             target: "projects" as WorkspaceSection,
           }]
@@ -135,29 +136,29 @@ export function PremiumDashboardView({ onNavigate }: Props) {
         <View style={[styles.hero, { borderColor: `${accent}55` }]}>
           <View style={[styles.heroGlow, { backgroundColor: `${accent}14` }]} />
           <View style={{ flex: 1, gap: 7 }}>
-            <Text style={sharedStyles.label}>{uiText(language, "CENTRO DE COMANDO", "COMMAND CENTER")}</Text>
-            <Text style={sharedStyles.title}>{uiText(language, "O que precisa da tua atenção", "What needs your attention")}</Text>
+            <Text style={sharedStyles.label}>{p.commandCenter}</Text>
+            <Text style={sharedStyles.title}>{p.attentionTitle}</Text>
             <Text style={sharedStyles.subtitle}>
               {actions.length
-                ? uiText(language, `${actions.length} prioridade(s) operacional(is) agora.`, `${actions.length} operational priority item(s) now.`)
-                : uiText(language, "Sem bloqueios críticos. Operação estável.", "No critical blockers. Operations are stable.")}
+                ? premiumFormat(p.prioritiesNow, { count: actions.length })
+                : p.stableOperation}
             </Text>
           </View>
           <View style={styles.liveBadge}>
             <View style={[styles.liveDot, { backgroundColor: actions.length ? workspaceColors.yellow : workspaceColors.green }]} />
-            <Text style={styles.liveText}>{attendance.length} {uiText(language, "em obra", "on site")}</Text>
+            <Text style={styles.liveText}>{attendance.length} {p.onSite}</Text>
           </View>
         </View>
 
         <View style={styles.signalRow}>
-          <Signal icon="map-outline" value={projects.filter((item) => item.status === "active").length} label={uiText(language, "Obras ativas", "Active sites")} tone={accent} onPress={() => onNavigate("operations")} />
-          <Signal icon="shield-checkmark-outline" value={compliance ? `${compliance.summary.fit}/${compliance.summary.total}` : "—"} label={uiText(language, "Aptos", "Fit")} tone={workspaceColors.green} onPress={() => onNavigate("compliance")} />
-          <Signal icon="radio-outline" value={attendance.length} label={uiText(language, "Em obra", "On site")} tone={workspaceColors.blueSoft} onPress={() => onNavigate("attendance")} />
+          <Signal icon="map-outline" value={projects.filter((item) => item.status === "active").length} label={p.activeSites} tone={accent} onPress={() => onNavigate("operations")} />
+          <Signal icon="shield-checkmark-outline" value={compliance ? `${compliance.summary.fit}/${compliance.summary.total}` : "—"} label={p.fit} tone={workspaceColors.green} onPress={() => onNavigate("compliance")} />
+          <Signal icon="radio-outline" value={attendance.length} label={p.onSite} tone={workspaceColors.blueSoft} onPress={() => onNavigate("attendance")} />
         </View>
 
         <View style={[styles.grid, compact ? styles.gridCompact : null]}>
           <Card style={styles.priorityCard}>
-            <SectionTitle title={uiText(language, "Prioridades", "Priorities")} subtitle={uiText(language, "Só aparece o que exige decisão.", "Only items requiring a decision appear here.")} />
+            <SectionTitle title={p.priorities} subtitle={p.decisionsOnly} />
             <View style={{ gap: 10, marginTop: 14 }}>
               {actions.length ? actions.slice(0, 5).map((item) => (
                 <Pressable key={item.id} onPress={() => onNavigate(item.target)} style={({ pressed }) => [styles.actionRow, pressed ? { opacity: 0.72 } : null]}>
@@ -166,18 +167,18 @@ export function PremiumDashboardView({ onNavigate }: Props) {
                   <Ionicons name="chevron-forward" size={18} color={workspaceColors.muted} />
                 </Pressable>
               )) : (
-                <View style={styles.clearState}><Ionicons name="checkmark-circle-outline" size={24} color={workspaceColors.green} /><View style={{ flex: 1 }}><Text style={styles.actionTitle}>{uiText(language, "Tudo sob controlo", "All clear")}</Text><Text style={styles.actionDetail}>{uiText(language, "Não existem ações urgentes neste momento.", "There are no urgent actions right now.")}</Text></View></View>
+                <View style={styles.clearState}><Ionicons name="checkmark-circle-outline" size={24} color={workspaceColors.green} /><View style={{ flex: 1 }}><Text style={styles.actionTitle}>{p.allClear}</Text><Text style={styles.actionDetail}>{p.noUrgent}</Text></View></View>
               )}
             </View>
           </Card>
 
           <Card style={styles.launcherCard}>
-            <SectionTitle title={uiText(language, "Ações rápidas", "Quick actions")} subtitle={uiText(language, "Vai diretamente ao módulo certo.", "Go directly to the right module.")} />
+            <SectionTitle title={p.quickActions} subtitle={p.rightModule} />
             <View style={styles.launcherGrid}>
-              <Launcher icon="map-outline" label={uiText(language, "Operações", "Operations")} onPress={() => onNavigate("operations")} accent={accent} />
-              <Launcher icon="people-outline" label={uiText(language, "Trabalhadores", "Workers")} onPress={() => onNavigate("workers")} accent={accent} />
-              <Launcher icon="business-outline" label={uiText(language, "Obras", "Projects")} onPress={() => onNavigate("projects")} accent={accent} />
-              <Launcher icon="shield-checkmark-outline" label={uiText(language, "Conformidade", "Compliance")} onPress={() => onNavigate("compliance")} accent={accent} />
+              <Launcher icon="map-outline" label={p.operations} onPress={() => onNavigate("operations")} accent={accent} />
+              <Launcher icon="people-outline" label={p.workers} onPress={() => onNavigate("workers")} accent={accent} />
+              <Launcher icon="business-outline" label={p.projects} onPress={() => onNavigate("projects")} accent={accent} />
+              <Launcher icon="shield-checkmark-outline" label={p.compliance} onPress={() => onNavigate("compliance")} accent={accent} />
             </View>
           </Card>
         </View>
@@ -210,34 +211,34 @@ export function PremiumDashboardView({ onNavigate }: Props) {
       <View style={[styles.hero, { borderColor: `${accent}55` }]}>
         <View style={[styles.heroGlow, { backgroundColor: `${accent}14` }]} />
         <View style={{ flex: 1, gap: 7 }}>
-          <Text style={sharedStyles.label}>{uiText(language, "HOJE", "TODAY")}</Text>
-          <Text style={sharedStyles.title}>{active ? uiText(language, "Sessão de trabalho ativa", "Work session active") : uiText(language, "Pronto para o próximo passo", "Ready for the next step")}</Text>
-          <Text style={sharedStyles.subtitle}>{currentProject ? `${currentProject.name} · ${currentProject.location}` : uiText(language, "Sem obra atribuída", "No assigned site")}</Text>
+          <Text style={sharedStyles.label}>{p.today}</Text>
+          <Text style={sharedStyles.title}>{active ? p.activeWorkSession : p.readyNextStep}</Text>
+          <Text style={sharedStyles.subtitle}>{currentProject ? `${currentProject.name} · ${currentProject.location}` : p.noAssignedSite}</Text>
         </View>
         <View style={[styles.liveBadge, { borderColor: `${blocked ? workspaceColors.redSoft : workspaceColors.green}55` }]}>
           <View style={[styles.liveDot, { backgroundColor: blocked ? workspaceColors.redSoft : workspaceColors.green }]} />
-          <Text style={styles.liveText}>{blocked ? uiText(language, "Check-in bloqueado", "Check-in blocked") : uiText(language, "Apto", "Fit")}</Text>
+          <Text style={styles.liveText}>{blocked ? p.checkinBlocked : p.fit}</Text>
         </View>
       </View>
 
       <View style={[styles.grid, compact ? styles.gridCompact : null]}>
         <Card accent={blocked ? workspaceColors.redSoft : active ? workspaceColors.green : accent} style={styles.todayCard}>
-          <SectionTitle title={uiText(language, "Próxima ação", "Next action")} subtitle={blocked ? uiText(language, "Resolve a conformidade antes de entrar em obra.", "Resolve compliance before entering the site.") : active ? uiText(language, "Quando terminares, regista a saída.", "When you finish, check out.") : uiText(language, "Valida a localização e regista a entrada.", "Validate location and check in.")} />
+          <SectionTitle title={p.nextAction} subtitle={blocked ? p.resolveCompliance : active ? p.checkoutWhenFinish : p.validateLocation} />
           <View style={styles.currentProject}>
             <View style={[styles.bigIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}14` }]}><Ionicons name="business-outline" size={24} color={accent} /></View>
             <View style={{ flex: 1 }}><Text style={styles.projectTitle}>{currentProject?.name ?? "—"}</Text><Text style={styles.actionDetail}>{currentProject?.schedule ?? "—"}</Text></View>
           </View>
           {blocked && ownCompliance?.issues[0] ? <Pressable onPress={() => onNavigate("compliance")} style={styles.blocker}><Ionicons name="alert-circle-outline" size={18} color={workspaceColors.redSoft} /><Text style={styles.blockerText}>{ownCompliance.issues[0].label}</Text><Ionicons name="chevron-forward" size={16} color={workspaceColors.redSoft} /></Pressable> : null}
-          <Button label={active ? uiText(language, "Registar saída", "Check out") : uiText(language, "Registar entrada", "Check in")} icon={active ? "exit-outline" : "navigate-outline"} accent={active ? workspaceColors.green : accent} disabled={!currentProject || blocked} loading={attendanceBusy} onPress={() => void toggleAttendance()} />
+          <Button label={active ? p.checkOut : p.checkIn} icon={active ? "exit-outline" : "navigate-outline"} accent={active ? workspaceColors.green : accent} disabled={!currentProject || blocked} loading={attendanceBusy} onPress={() => void toggleAttendance()} />
         </Card>
 
         <Card style={styles.launcherCard}>
-          <SectionTitle title={uiText(language, "O teu espaço", "Your workspace")} subtitle={uiText(language, "Sem duplicar informação entre áreas.", "No duplicated information between areas.")} />
+          <SectionTitle title={p.yourWorkspace} subtitle={p.noDuplicateInfo} />
           <View style={styles.launcherGrid}>
-            <Launcher icon="shield-checkmark-outline" label={uiText(language, "Conformidade", "Compliance")} onPress={() => onNavigate("compliance")} accent={accent} />
-            <Launcher icon="time-outline" label={uiText(language, "Presenças", "Attendance")} onPress={() => onNavigate("attendance")} accent={accent} />
-            <Launcher icon="folder-open-outline" label={uiText(language, "Documentos", "Documents")} onPress={() => onNavigate("documents")} accent={accent} />
-            <Launcher icon="person-circle-outline" label={uiText(language, "Perfil", "Profile")} onPress={() => onNavigate("profile")} accent={accent} />
+            <Launcher icon="shield-checkmark-outline" label={p.compliance} onPress={() => onNavigate("compliance")} accent={accent} />
+            <Launcher icon="time-outline" label={p.attendance} onPress={() => onNavigate("attendance")} accent={accent} />
+            <Launcher icon="folder-open-outline" label={p.documents} onPress={() => onNavigate("documents")} accent={accent} />
+            <Launcher icon="person-circle-outline" label={p.profile} onPress={() => onNavigate("profile")} accent={accent} />
           </View>
         </Card>
       </View>
