@@ -141,14 +141,12 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
     ): Promise<T> {
       try {
         const result = await request();
-        setError(null);
         return result;
       } catch (requestError) {
         const message =
           requestError instanceof ApiError
             ? localizeApiError(language, requestError.message)
             : uiText(language, fallbackPt, fallbackEn);
-        setError(message);
         notify(message, "error");
         throw requestError instanceof Error
           ? requestError
@@ -166,7 +164,6 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       syncInFlightRef.current = true;
       const showLoading = !hydratedRef.current;
       if (showLoading) setLoading(true);
-      setError(null);
 
       try {
         if (!forceRemote && !hydratedRef.current) {
@@ -189,12 +186,17 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           stateSnapshotRef.current = serializedRemote;
           await storage.setItem(STATE_STORAGE_KEY, serializedRemote);
         }
+        setError(null);
         hydratedRef.current = true;
       } catch (requestError) {
         const message =
-          requestError instanceof Error
-            ? requestError.message
-            : uiText(language, "Não foi possível carregar os dados.", "Could not load the data.");
+          requestError instanceof ApiError
+            ? localizeApiError(language, requestError.message)
+            : uiText(
+                language,
+                "Não foi possível sincronizar os dados.",
+                "Could not synchronize the data.",
+              );
         setError(message);
       } finally {
         syncInFlightRef.current = false;
