@@ -58,3 +58,5 @@ jobs:
           git rm scripts/apply_premium_copy_polish.py scripts/apply_visual_tokens.py .github/workflows/premium-polish-validation.yml
           git commit -m "Polish premium navigation, i18n and visual system"
           git push origin HEAD:agent/compliance-session-refresh
+
+# Trigger validation after premium dashboard consolidation.
