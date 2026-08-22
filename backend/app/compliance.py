@@ -32,14 +32,18 @@ def _normalise(value: Any) -> str:
 
 def project_requirements(project: dict[str, Any]) -> dict[str, list[str]]:
     configured = project.get("compliance_requirements") or {}
-    documents = configured.get("documents") or DEFAULT_DOCUMENT_REQUIREMENTS
+    documents = (
+        configured.get("documents")
+        if "documents" in configured
+        else DEFAULT_DOCUMENT_REQUIREMENTS
+    )
     certificates = (
         configured.get("certificates")
         if "certificates" in configured
         else DEMO_CERTIFICATE_REQUIREMENTS.get(str(project.get("id") or ""), [])
     )
     return {
-        "documents": [str(item) for item in documents],
+        "documents": [str(item) for item in (documents or [])],
         "certificates": [str(item) for item in (certificates or [])],
     }
 
