@@ -41,3 +41,5 @@ jobs:
           git rm scripts/apply_timesheet_backend.py .github/workflows/timesheet-backend-migrate.yml
           git commit -m "Add timesheet approval backend"
           git push origin HEAD:agent/timesheets-approval
+
+# trigger backend migration
