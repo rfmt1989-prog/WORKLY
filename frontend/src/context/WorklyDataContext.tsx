@@ -171,7 +171,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
           const localState = parseStoredState(stored);
           if (localState) {
             setState(localState);
-            stateSnapshotRef.current = stored;
+            stateSnapshotRef.current = stored ?? "";
             hydratedRef.current = true;
             setLoading(false);
           }
