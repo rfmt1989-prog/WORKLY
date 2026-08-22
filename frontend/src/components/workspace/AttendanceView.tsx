@@ -343,6 +343,8 @@ export function AttendanceView() {
       }
 
       await checkIn(currentProject.id, location);
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }

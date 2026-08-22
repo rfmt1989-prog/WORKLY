@@ -126,6 +126,8 @@ export function TeamsView() {
         await updateTeam(selectedTeam.id, form);
         setModal("detail");
       }
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
@@ -139,6 +141,8 @@ export function TeamsView() {
       setConfirmDelete(false);
       setModal(null);
       setSelectedTeamId(null);
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
@@ -265,6 +269,8 @@ export function TeamsView() {
               setBusy(true);
               try {
                 await addTeamMember(selectedTeam.id, workerId);
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }
@@ -273,6 +279,8 @@ export function TeamsView() {
               setBusy(true);
               try {
                 await removeTeamMember(selectedTeam.id, workerId);
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }
@@ -281,6 +289,8 @@ export function TeamsView() {
               setBusy(true);
               try {
                 await setTeamLeader(selectedTeam.id, workerId);
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }
@@ -292,6 +302,8 @@ export function TeamsView() {
                   project_id: projectId,
                   status: projectId ? "assigned" : "available",
                 });
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }

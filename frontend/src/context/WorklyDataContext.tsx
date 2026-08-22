@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 
 import { ApiError, api } from "@/src/api/client";
 import { localizeApiError } from "@/src/demo/apiErrorI18n";
@@ -28,6 +29,7 @@ import { useAuth } from "./AuthContext";
 
 const STATE_STORAGE_KEY = "workly_demo_state:v1";
 const LANGUAGE_STORAGE_KEY = "workly_language:v1";
+const SERVER_SYNC_INTERVAL_MS = 4_000;
 
 type CheckInLocation = {
   latitude: number | null;
@@ -95,12 +97,15 @@ function parseStoredState(raw: string | null): WorklyState | null {
 
 export function WorklyDataProvider({ children }: { children: React.ReactNode }) {
   const { user, token, setUser } = useAuth();
+  const userId = user?.id ?? null;
   const [state, setState] = useState<WorklyState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguageState] = useState<LanguageCode>("pt");
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const hydratedRef = useRef(false);
+  const stateSnapshotRef = useRef("");
+  const syncInFlightRef = useRef(false);
   const toastIdRef = useRef(0);
 
   const notify = useCallback((message: string, tone: ToastTone = "success") => {
@@ -128,52 +133,114 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
     void storage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   }, []);
 
+  const runMutation = useCallback(
+    async function runAuthoritativeMutation<T>(
+      request: () => Promise<T>,
+      fallbackPt: string,
+      fallbackEn: string,
+    ): Promise<T> {
+      try {
+        const result = await request();
+        return result;
+      } catch (requestError) {
+        const message =
+          requestError instanceof ApiError
+            ? localizeApiError(language, requestError.message)
+            : uiText(language, fallbackPt, fallbackEn);
+        notify(message, "error");
+        throw requestError instanceof Error
+          ? requestError
+          : new Error(message);
+      }
+    },
+    [language, notify],
+  );
+
   const reload = useCallback(
     async (forceRemote = false) => {
-      if (!user || !token) return;
-      setLoading(true);
-      setError(null);
+      if (!userId || !token) return;
+      if (syncInFlightRef.current) return;
+
+      syncInFlightRef.current = true;
+      const showLoading = !hydratedRef.current;
+      if (showLoading) setLoading(true);
 
       try {
-        if (!forceRemote) {
+        if (!forceRemote && !hydratedRef.current) {
           const stored = await storage.getItem<string>(STATE_STORAGE_KEY, "");
           const localState = parseStoredState(stored);
           if (localState) {
             setState(localState);
+            stateSnapshotRef.current = stored ?? "";
             hydratedRef.current = true;
             setLoading(false);
-            return;
           }
         }
 
+        // The local snapshot only makes the first paint fast. The server always
+        // reconciles it so Worker and Company never remain on different states.
         const remote = await api.get<WorklyState>("/bootstrap");
-        setState(remote);
+        const serializedRemote = JSON.stringify(remote);
+        if (serializedRemote !== stateSnapshotRef.current) {
+          setState(remote);
+          stateSnapshotRef.current = serializedRemote;
+          await storage.setItem(STATE_STORAGE_KEY, serializedRemote);
+        }
+        setError(null);
         hydratedRef.current = true;
-        await storage.setItem(STATE_STORAGE_KEY, JSON.stringify(remote));
       } catch (requestError) {
         const message =
-          requestError instanceof Error
-            ? requestError.message
-            : uiText(language, "Não foi possível carregar os dados.", "Could not load the data.");
+          requestError instanceof ApiError
+            ? localizeApiError(language, requestError.message)
+            : uiText(
+                language,
+                "Não foi possível sincronizar os dados.",
+                "Could not synchronize the data.",
+              );
         setError(message);
       } finally {
-        setLoading(false);
+        syncInFlightRef.current = false;
+        if (showLoading) setLoading(false);
       }
     },
-    [token, user],
+    [language, token, userId],
   );
 
   useEffect(() => {
-    if (!user || !token) return;
-    if (!state) {
-      void reload(false);
+    if (!userId || !token) {
+      setState(null);
+      setError(null);
+      hydratedRef.current = false;
+      stateSnapshotRef.current = "";
+      return;
     }
-  }, [reload, state, token, user]);
+
+    void reload(false);
+  }, [reload, token, userId]);
+
+  useEffect(() => {
+    if (!userId || !token) return;
+
+    const syncFromServer = () => {
+      void reload(true);
+    };
+    const interval = setInterval(syncFromServer, SERVER_SYNC_INTERVAL_MS);
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") syncFromServer();
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [reload, token, userId]);
 
   useEffect(() => {
     if (!state || !hydratedRef.current) return;
     const handle = setTimeout(() => {
-      void storage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
+      const serializedState = JSON.stringify(state);
+      stateSnapshotRef.current = serializedState;
+      void storage.setItem(STATE_STORAGE_KEY, serializedState);
     }, 80);
     return () => clearTimeout(handle);
   }, [state]);
@@ -190,8 +257,9 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
     try {
       const response = await api.post<{ state: WorklyState }>("/demo/reset");
       setState(response.state);
+      stateSnapshotRef.current = JSON.stringify(response.state);
       hydratedRef.current = true;
-      await storage.setItem(STATE_STORAGE_KEY, JSON.stringify(response.state));
+      await storage.setItem(STATE_STORAGE_KEY, stateSnapshotRef.current);
       notify(
         uiText(language, "Dados demo repostos.", "Demo data reset."),
         "success",
@@ -208,45 +276,42 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
 
   const updateWorker = useCallback(
     async (workerId: string, patch: Partial<Worker>) => {
-      let updated: Worker | null = null;
-      try {
-        updated = await api.patch<Worker>(`/workers/${workerId}`, { data: patch });
-      } catch {
-        // Demo state remains editable in-browser if a serverless instance resets.
-      }
+      const updated = await runMutation(
+        () => api.patch<Worker>(`/workers/${workerId}`, { data: patch }),
+        "Não foi possível atualizar o perfil.",
+        "Could not update the profile.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.workers.find((item) => item.id === workerId);
         if (!existing) return current;
-        const nextWorker = updated ?? { ...existing, ...patch };
-        return { ...current, workers: replaceById(current.workers, nextWorker) };
+        return { ...current, workers: replaceById(current.workers, updated) };
       });
       if (user?.id === workerId) {
         setUser(user ? { ...user, ...patch } : user);
       }
       notify(uiText(language, "Perfil atualizado.", "Profile updated."));
     },
-    [language, notify, setUser, user],
+    [language, notify, runMutation, setUser, user],
   );
 
   const updateCompany = useCallback(
     async (companyId: string, patch: Partial<Company>) => {
-      let updated: Company | null = null;
-      try {
-        updated = await api.patch<Company>(`/companies/${companyId}`, {
-          data: patch,
-        });
-      } catch {
-        // Keep the browser-persistent demo usable during a cold API reset.
-      }
+      const updated = await runMutation(
+        () =>
+          api.patch<Company>(`/companies/${companyId}`, {
+            data: patch,
+          }),
+        "Não foi possível atualizar a empresa.",
+        "Could not update the company.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.companies.find((item) => item.id === companyId);
         if (!existing) return current;
-        const nextCompany = updated ?? { ...existing, ...patch };
         return {
           ...current,
-          companies: replaceById(current.companies, nextCompany),
+          companies: replaceById(current.companies, updated),
         };
       });
       if (user?.id === companyId) {
@@ -254,60 +319,53 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       }
       notify(uiText(language, "Empresa atualizada.", "Company updated."));
     },
-    [language, notify, setUser, user],
+    [language, notify, runMutation, setUser, user],
   );
 
   const createTeam = useCallback(
     async (input: Omit<Team, "id" | "company_id">) => {
-      const companyId = user?.company_id ?? user?.id ?? "company-1";
-      let created: Team;
-      try {
-        created = await api.post<Team>("/teams", input);
-      } catch {
-        created = {
-          ...input,
-          id: `team-local-${Date.now()}`,
-          company_id: companyId,
-        };
-      }
+      const created = await runMutation(
+        () => api.post<Team>("/teams", input),
+        "Não foi possível criar a equipa.",
+        "Could not create the team.",
+      );
       setState((current) =>
         current ? { ...current, teams: [created, ...current.teams] } : current,
       );
       notify(uiText(language, "Equipa criada.", "Team created."));
       return created;
     },
-    [language, notify, user],
+    [language, notify, runMutation],
   );
 
   const updateTeam = useCallback(
     async (teamId: string, patch: Partial<Team>) => {
-      let updated: Team | null = null;
-      try {
-        updated = await api.patch<Team>(`/teams/${teamId}`, { data: patch });
-      } catch {
-        // Local browser persistence is the demo fallback.
-      }
+      const updated = await runMutation(
+        () => api.patch<Team>(`/teams/${teamId}`, { data: patch }),
+        "Não foi possível atualizar a equipa.",
+        "Could not update the team.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.teams.find((item) => item.id === teamId);
         if (!existing) return current;
         return {
           ...current,
-          teams: replaceById(current.teams, updated ?? { ...existing, ...patch }),
+          teams: replaceById(current.teams, updated),
         };
       });
       notify(uiText(language, "Equipa atualizada.", "Team updated."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const deleteTeam = useCallback(
     async (teamId: string) => {
-      try {
-        await api.delete(`/teams/${teamId}`);
-      } catch {
-        // The same action is applied to the local demo snapshot below.
-      }
+      await runMutation(
+        () => api.delete(`/teams/${teamId}`),
+        "Não foi possível eliminar a equipa.",
+        "Could not delete the team.",
+      );
       setState((current) => {
         if (!current) return current;
         return {
@@ -321,111 +379,78 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       });
       notify(uiText(language, "Equipa eliminada.", "Team deleted."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const addTeamMember = useCallback(
     async (teamId: string, workerId: string) => {
-      let updated: Team | null = null;
-      try {
-        updated = await api.post<Team>(`/teams/${teamId}/members`, {
-          worker_id: workerId,
-        });
-      } catch {
-        // Apply locally below.
-      }
+      const updated = await runMutation(
+        () =>
+          api.post<Team>(`/teams/${teamId}/members`, {
+            worker_id: workerId,
+          }),
+        "Não foi possível adicionar o trabalhador.",
+        "Could not add the worker.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.teams.find((item) => item.id === teamId);
         if (!existing) return current;
-        const nextTeam =
-          updated ??
-          ({
-            ...existing,
-            member_ids: Array.from(new Set([...existing.member_ids, workerId])),
-          } satisfies Team);
-        return { ...current, teams: replaceById(current.teams, nextTeam) };
+        return { ...current, teams: replaceById(current.teams, updated) };
       });
       notify(uiText(language, "Trabalhador adicionado.", "Worker added."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const removeTeamMember = useCallback(
     async (teamId: string, workerId: string) => {
-      let updated: Team | null = null;
-      try {
-        updated = await api.delete<Team>(`/teams/${teamId}/members/${workerId}`);
-      } catch {
-        // Apply locally below.
-      }
+      const updated = await runMutation(
+        () => api.delete<Team>(`/teams/${teamId}/members/${workerId}`),
+        "Não foi possível remover o trabalhador.",
+        "Could not remove the worker.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.teams.find((item) => item.id === teamId);
         if (!existing) return current;
-        const memberIds = existing.member_ids.filter((id) => id !== workerId);
-        const nextTeam =
-          updated ??
-          ({
-            ...existing,
-            member_ids: memberIds,
-            leader_id:
-              existing.leader_id === workerId
-                ? (memberIds[0] ?? null)
-                : existing.leader_id,
-          } satisfies Team);
-        return { ...current, teams: replaceById(current.teams, nextTeam) };
+        return { ...current, teams: replaceById(current.teams, updated) };
       });
       notify(uiText(language, "Trabalhador removido.", "Worker removed."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const setTeamLeader = useCallback(
     async (teamId: string, workerId: string) => {
-      let updated: Team | null = null;
-      try {
-        updated = await api.post<Team>(`/teams/${teamId}/leader`, {
-          worker_id: workerId,
-        });
-      } catch {
-        // Apply locally below.
-      }
+      const updated = await runMutation(
+        () =>
+          api.post<Team>(`/teams/${teamId}/leader`, {
+            worker_id: workerId,
+          }),
+        "Não foi possível definir o líder.",
+        "Could not assign the leader.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.teams.find((item) => item.id === teamId);
         if (!existing) return current;
-        const nextTeam =
-          updated ??
-          ({
-            ...existing,
-            leader_id: workerId,
-            member_ids: Array.from(new Set([...existing.member_ids, workerId])),
-          } satisfies Team);
-        return { ...current, teams: replaceById(current.teams, nextTeam) };
+        return { ...current, teams: replaceById(current.teams, updated) };
       });
       notify(uiText(language, "Líder definido.", "Leader assigned."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const createProject = useCallback(
     async (
       input: Omit<Project, "id" | "company_id" | "latitude" | "longitude">,
     ) => {
-      const companyId = user?.company_id ?? user?.id ?? "company-1";
-      let created: Project;
-      try {
-        created = await api.post<Project>("/projects", input);
-      } catch {
-        created = {
-          ...input,
-          id: `project-local-${Date.now()}`,
-          company_id: companyId,
-          latitude: null,
-          longitude: null,
-        };
-      }
+      const created = await runMutation(
+        () => api.post<Project>("/projects", input),
+        "Não foi possível criar a obra.",
+        "Could not create the project.",
+      );
       setState((current) =>
         current
           ? { ...current, projects: [created, ...current.projects] }
@@ -434,43 +459,40 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       notify(uiText(language, "Obra criada.", "Project created."));
       return created;
     },
-    [language, notify, user],
+    [language, notify, runMutation],
   );
 
   const updateProject = useCallback(
     async (projectId: string, patch: Partial<Project>) => {
-      let updated: Project | null = null;
-      try {
-        updated = await api.patch<Project>(`/projects/${projectId}`, {
-          data: patch,
-        });
-      } catch {
-        // Apply locally below.
-      }
+      const updated = await runMutation(
+        () =>
+          api.patch<Project>(`/projects/${projectId}`, {
+            data: patch,
+          }),
+        "Não foi possível atualizar a obra.",
+        "Could not update the project.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.projects.find((item) => item.id === projectId);
         if (!existing) return current;
         return {
           ...current,
-          projects: replaceById(
-            current.projects,
-            updated ?? { ...existing, ...patch },
-          ),
+          projects: replaceById(current.projects, updated),
         };
       });
       notify(uiText(language, "Obra atualizada.", "Project updated."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const deleteProject = useCallback(
     async (projectId: string) => {
-      try {
-        await api.delete(`/projects/${projectId}`);
-      } catch {
-        // Apply locally below.
-      }
+      await runMutation(
+        () => api.delete(`/projects/${projectId}`),
+        "Não foi possível eliminar a obra.",
+        "Could not delete the project.",
+      );
       setState((current) => {
         if (!current) return current;
         return {
@@ -485,7 +507,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       });
       notify(uiText(language, "Obra eliminada.", "Project deleted."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const assignToProject = useCallback(
@@ -493,35 +515,19 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       projectId: string,
       assignment: { worker_id?: string; team_id?: string },
     ) => {
-      let updated: Project | null = null;
-      try {
-        updated = await api.post<Project>(
-          `/projects/${projectId}/assign`,
-          assignment,
-        );
-      } catch {
-        // Apply locally below.
-      }
+      const updated = await runMutation(
+        () =>
+          api.post<Project>(`/projects/${projectId}/assign`, assignment),
+        "Não foi possível concluir a atribuição.",
+        "Could not complete the assignment.",
+      );
       setState((current) => {
         if (!current) return current;
         const existing = current.projects.find((item) => item.id === projectId);
         if (!existing) return current;
-        const nextProject =
-          updated ??
-          ({
-            ...existing,
-            worker_ids: assignment.worker_id
-              ? Array.from(
-                  new Set([...existing.worker_ids, assignment.worker_id]),
-                )
-              : existing.worker_ids,
-            team_ids: assignment.team_id
-              ? Array.from(new Set([...existing.team_ids, assignment.team_id]))
-              : existing.team_ids,
-          } satisfies Project);
         return {
           ...current,
-          projects: replaceById(current.projects, nextProject),
+          projects: replaceById(current.projects, updated),
           teams: assignment.team_id
             ? current.teams.map((team) =>
                 team.id === assignment.team_id
@@ -533,43 +539,28 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       });
       notify(uiText(language, "Atribuição concluída.", "Assignment completed."));
     },
-    [language, notify],
+    [language, notify, runMutation],
   );
 
   const checkIn = useCallback(
     async (projectId: string, location: CheckInLocation) => {
-      if (!user) return;
-      let record: Attendance;
-      try {
-        record = await api.post<Attendance>("/attendance/check-in", {
-          project_id: projectId,
-          ...location,
-        });
-      } catch (error) {
-        if (error instanceof ApiError) {
-          notify(localizeApiError(language, error.message), "error");
-          throw error;
-        }
-        const project = state?.projects.find((item) => item.id === projectId);
-        record = {
-          id: `attendance-local-${Date.now()}`,
-          worker_id: user.id,
-          company_id: project?.company_id ?? null,
-          project_id: projectId,
-          check_in: new Date().toISOString(),
-          check_out: null,
-          ...location,
-          note:
-            uiText(language, "Entrada guardada no modo demo por indisponibilidade de rede.", "Check-in saved in demo mode because the network is unavailable."),
-        };
-      }
+      if (!userId) return;
+      const record = await runMutation(
+        () =>
+          api.post<Attendance>("/attendance/check-in", {
+            project_id: projectId,
+            ...location,
+          }),
+        "Não foi possível registar o check-in.",
+        "Could not record the check-in.",
+      );
       setState((current) => {
         if (!current) return current;
         return {
           ...current,
           attendance: [record, ...current.attendance],
           workers: current.workers.map((worker) =>
-            worker.id === user.id
+            worker.id === userId
               ? {
                   ...worker,
                   status: "on_site",
@@ -585,31 +576,31 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         "success",
       );
     },
-    [language, notify, state?.projects, user],
+    [language, notify, runMutation, userId],
   );
 
   const checkOut = useCallback(async () => {
-    if (!user) return;
-    let updatedRecord: Attendance | null = null;
-    try {
-      updatedRecord = await api.post<Attendance>("/attendance/check-out", {
-        location_mode: "demo",
-      });
-    } catch {
-      // The current local record is closed below.
-    }
-    const checkoutAt = updatedRecord?.check_out ?? new Date().toISOString();
+    if (!userId) return;
+    const updatedRecord = await runMutation(
+      () =>
+        api.post<Attendance>("/attendance/check-out", {
+          location_mode: "demo",
+        }),
+      "Não foi possível registar o check-out.",
+      "Could not record the check-out.",
+    );
+    const checkoutAt = updatedRecord.check_out ?? new Date().toISOString();
     setState((current) => {
       if (!current) return current;
       return {
         ...current,
         attendance: current.attendance.map((record) =>
-          record.worker_id === user.id && record.check_out === null
-            ? { ...(updatedRecord ?? record), check_out: checkoutAt }
+          record.worker_id === userId && record.check_out === null
+            ? { ...updatedRecord, check_out: checkoutAt }
             : record,
         ),
         workers: current.workers.map((worker) =>
-          worker.id === user.id
+          worker.id === userId
             ? {
                 ...worker,
                 status: worker.company_id ? "contracted" : "available",
@@ -622,7 +613,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       uiText(language, "Check-out registado.", "Check-out recorded."),
       "success",
     );
-  }, [language, notify, user]);
+  }, [language, notify, runMutation, userId]);
 
   const value = useMemo<WorklyDataValue>(
     () => ({
@@ -693,4 +684,3 @@ export function useWorklyData() {
   }
   return context;
 }
-

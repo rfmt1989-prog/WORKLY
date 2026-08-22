@@ -28,7 +28,8 @@ A página de login inclui botões diretos para os dois perfis.
 - Check-in/check-out com GPS quando disponível e localização demo como fallback.
 - Horários, histórico de presenças e monitorização Company.
 - Documentos, contratos, certificados e melhores projetos consultáveis.
-- Idiomas português e inglês.
+- Sincronização automática Worker–Company com o servidor como fonte principal.
+- Idiomas português, inglês, francês, espanhol, romeno, alemão e neerlandês.
 - Seed determinístico com 2 empresas, 3 obras, 2 equipas e presenças.
 
 ## Arquitetura
@@ -38,7 +39,7 @@ frontend/                 Expo Router + React Native Web
   app/login.tsx           Autenticação e entradas demo
   app/workspace.tsx       Aplicação autenticada
   src/components/workspace
-  src/context             Sessão e estado demo persistente
+  src/context             Sessão, cache e sincronização com a API
 backend/
   app/main.py             API FastAPI
   app/demo_data.py        Seed determinístico
@@ -47,9 +48,10 @@ pyproject.toml            Dependências e entrypoint FastAPI no Vercel
 vercel.json               Build web e configuração serverless
 ```
 
-As alterações do servidor são mantidas enquanto a instância FastAPI estiver
-ativa. Para uma demonstração estável entre cold starts, o cliente guarda também
-um snapshot versionado no armazenamento local do dispositivo/browser.
+O PostgreSQL mantém o estado operacional entre cold starts e dispositivos. O
+cliente conserva uma cache local apenas para acelerar o primeiro ecrã e volta a
+reconciliar os dados com o servidor a cada 4 segundos. Uma alteração só é
+apresentada como concluída depois de ser aceite pela API.
 
 ## Arranque rápido no Windows
 
@@ -106,13 +108,11 @@ Endpoints úteis:
 
 ## Deploy
 
-O repositório está preparado para um projeto Vercel na raiz. O export web em
-`public/` é versionado para o preset FastAPI o reconhecer como conteúdo
-estático e é regenerado pelo build de produção. O entrypoint
-`backend.app.main:app` é publicado como função FastAPI. O frontend usa `/api`
-em produção; não é necessária uma URL externa nem uma base de dados para
-executar a demonstração.
+O repositório está preparado para um projeto Vercel na raiz. O export web é
+regenerado pelo build de produção e o entrypoint `backend.app.main:app` é
+publicado como função FastAPI. O frontend usa `/api` no mesmo domínio. Em
+produção, `DATABASE_URL` liga a aplicação ao PostgreSQL partilhado.
 
-Nunca devem ser colocados segredos no repositório. Para uma implementação além
-da demonstração, defina `WORKLY_TOKEN_SECRET` no ambiente do Vercel e substitua
-o snapshot local por uma base de dados persistente.
+Nunca devem ser colocados segredos no repositório. Defina
+`WORKLY_TOKEN_SECRET` no ambiente do Vercel e mantenha as credenciais do
+PostgreSQL apenas nas variáveis protegidas do projeto.

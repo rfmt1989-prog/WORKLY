@@ -67,6 +67,7 @@ export function ImmersiveWorkspaceShell() {
   const accent = roleAccent(role);
   const t = copy[language];
   const compact = width < 760;
+  const hasSyncError = Boolean(error && state);
 
   useEffect(() => {
     fade.stopAnimation();
@@ -287,22 +288,41 @@ export function ImmersiveWorkspaceShell() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            role === "company" ? t.openOperations : t.openAttendance
+            hasSyncError
+              ? t.tryAgain
+              : role === "company"
+                ? t.openOperations
+                : t.openAttendance
           }
-          onPress={() => navigate(role === "company" ? "operations" : "attendance")}
+          onPress={() => {
+            if (hasSyncError) {
+              void reload(true);
+              return;
+            }
+            navigate(role === "company" ? "operations" : "attendance");
+          }}
           style={({ pressed }) => [
             styles.liveStrip,
-            { borderColor: `${accent}38` },
+            {
+              borderColor: hasSyncError
+                ? `${workspaceColors.redSoft}66`
+                : `${accent}38`,
+            },
             pressed ? { opacity: 0.76 } : null,
           ]}
         >
-          <View style={styles.liveDot} />
+          <View
+            style={[
+              styles.liveDot,
+              hasSyncError ? styles.liveDotOffline : null,
+            ]}
+          />
           <View style={{ minWidth: 0 }}>
             <Text style={styles.livePrimary} numberOfLines={1}>
-              {operational.primary}
+              {hasSyncError ? t.connectionUnavailable : operational.primary}
             </Text>
             <Text style={styles.liveSecondary} numberOfLines={1}>
-              {operational.secondary}
+              {hasSyncError ? t.tryAgain : operational.secondary}
             </Text>
           </View>
         </Pressable>
@@ -546,6 +566,9 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: workspaceColors.green,
+  },
+  liveDotOffline: {
+    backgroundColor: workspaceColors.redSoft,
   },
   livePrimary: {
     color: workspaceColors.text,
