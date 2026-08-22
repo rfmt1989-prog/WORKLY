@@ -9,7 +9,6 @@ on:
       - "pyproject.toml"
       - "vercel.json"
       - ".github/workflows/backend-verify.yml"
-      - "scripts/apply_timesheet_backend.py"
   push:
     branches:
       - "agent/**"
@@ -20,10 +19,9 @@ on:
       - "pyproject.toml"
       - "vercel.json"
       - ".github/workflows/backend-verify.yml"
-      - "scripts/apply_timesheet_backend.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -31,15 +29,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: agent/timesheets-approval
-          fetch-depth: 0
-
-      - name: Apply timesheet backend migration
-        run: |
-          if [ -f scripts/apply_timesheet_backend.py ]; then
-            python scripts/apply_timesheet_backend.py
-          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -60,15 +49,3 @@ jobs:
         env:
           PYTHONPATH: .
         run: pytest -q backend/tests
-
-      - name: Materialize validated backend
-        if: github.event_name == 'pull_request' && hashFiles('scripts/apply_timesheet_backend.py') != ''
-        run: |
-          git config user.name "WORKLY Agent"
-          git config user.email "actions@users.noreply.github.com"
-          git add backend
-          git rm scripts/apply_timesheet_backend.py .github/workflows/timesheet-backend-migrate.yml
-          git checkout origin/main -- .github/workflows/backend-verify.yml
-          git add .github/workflows/backend-verify.yml
-          git commit -m "Add timesheet approval backend"
-          git push origin HEAD:agent/timesheets-approval

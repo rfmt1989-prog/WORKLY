@@ -177,6 +177,11 @@ class AttendanceInput(BaseModel):
     note: str = ""
 
 
+class AttendanceApprovalInput(BaseModel):
+    status: str = Field(max_length=20)
+    note: str = Field(default="", max_length=500)
+
+
 class ContractSignInput(BaseModel):
     signature: str = Field(min_length=2, max_length=120)
 
@@ -442,7 +447,7 @@ def _company_route_permission(method: str, path: str) -> str | None:
     if path.startswith(f"{API_PREFIX}/compliance"):
         return "documents.read"
     if path.startswith(f"{API_PREFIX}/attendance"):
-        return "attendance.read" if method == "GET" else None
+        return "attendance.read" if method == "GET" else "attendance.manage"
     if path.startswith(f"{API_PREFIX}/documents") or path.startswith(f"{API_PREFIX}/certificates"):
         return "documents.manage" if method in {"POST", "PATCH", "DELETE"} else "documents.read"
     if path.startswith(f"{API_PREFIX}/contracts"):
@@ -1335,6 +1340,31 @@ def check_in(
         return deepcopy(record)
 
 
+@app.patch(f"{API_PREFIX}/attendance/{{attendance_id}}/approval", tags=["Attendance"])
+def approve_attendance_timesheet(
+    attendance_id: str,
+    data: AttendanceApprovalInput,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    _require_role(user, "company")
+    _require_company_permission(user, "attendance.manage")
+    approval_status = data.status.strip().lower()
+    if approval_status not in {"approved", "rejected"}:
+        raise HTTPException(status_code=422, detail="Estado de aprovação inválido.")
+
+    with _state_lock:
+        record = _find("attendance", attendance_id)
+        if record.get("company_id") != user.get("company_id"):
+            raise HTTPException(status_code=403, detail="Registo de outra empresa.")
+        if record.get("check_out") is None:
+            raise HTTPException(status_code=409, detail="A presença ainda está ativa.")
+        record["approval_status"] = approval_status
+        record["approved_by"] = user["sub"]
+        record["approved_at"] = _now_iso()
+        record["approval_note"] = data.note.strip()
+        return deepcopy(record)
+
+
 @app.post(f"{API_PREFIX}/attendance/check-out", tags=["Attendance"])
 @app.post(f"{API_PREFIX}/checkout", tags=["Attendance"])
 def check_out(
@@ -1355,6 +1385,10 @@ def check_out(
         if not active:
             raise HTTPException(status_code=409, detail="Não existe entrada ativa.")
         active["check_out"] = _now_iso()
+        active["approval_status"] = "pending"
+        active["approved_by"] = None
+        active["approved_at"] = None
+        active["approval_note"] = ""
         worker = _find("workers", user["sub"])
         worker["status"] = "contracted" if worker.get("company_id") else "available"
         return deepcopy(active)
