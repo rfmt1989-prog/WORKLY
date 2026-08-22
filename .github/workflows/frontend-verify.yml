@@ -7,6 +7,7 @@ on:
       - "vercel.json"
       - ".github/workflows/frontend-verify.yml"
       - "scripts/apply_timesheet_attendance.py"
+      - "scripts/apply_timesheet_access_copy.py"
   push:
     branches:
       - main
@@ -16,6 +17,7 @@ on:
       - "vercel.json"
       - ".github/workflows/frontend-verify.yml"
       - "scripts/apply_timesheet_attendance.py"
+      - "scripts/apply_timesheet_access_copy.py"
 
 permissions:
   contents: write
@@ -38,6 +40,9 @@ jobs:
         run: |
           if [ -f scripts/apply_timesheet_attendance.py ]; then
             python scripts/apply_timesheet_attendance.py
+          fi
+          if [ -f scripts/apply_timesheet_access_copy.py ]; then
+            python scripts/apply_timesheet_access_copy.py
           fi
 
       - name: Setup Node
@@ -66,7 +71,7 @@ jobs:
           git config user.name "WORKLY Agent"
           git config user.email "actions@users.noreply.github.com"
           git add frontend
-          git rm scripts/apply_timesheet_attendance.py
+          git rm scripts/apply_timesheet_attendance.py scripts/apply_timesheet_access_copy.py
           git checkout origin/main -- .github/workflows/frontend-verify.yml
           git add .github/workflows/frontend-verify.yml
           git commit -m "Integrate timesheet approval into attendance"
