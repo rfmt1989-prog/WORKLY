@@ -148,6 +148,8 @@ export function ProjectsView() {
         await updateProject(selectedProject.id, input);
         setModal("detail");
       }
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
@@ -161,6 +163,8 @@ export function ProjectsView() {
       setConfirmDelete(false);
       setSelectedId(null);
       setModal(null);
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
@@ -312,6 +316,8 @@ export function ProjectsView() {
                     worker_id: workerId,
                   });
                 }
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }
@@ -328,6 +334,8 @@ export function ProjectsView() {
                 } else {
                   await assignToProject(selectedProject.id, { team_id: teamId });
                 }
+              } catch {
+                // WorklyDataContext already presents the request error.
               } finally {
                 setBusy(false);
               }
