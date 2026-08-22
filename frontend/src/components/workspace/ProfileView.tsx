@@ -136,6 +136,8 @@ export function ProfileView() {
         skills,
       });
       setEditing(false);
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
@@ -155,6 +157,8 @@ export function ProfileView() {
         tax_id: companyForm.tax_id.trim(),
       });
       setEditing(false);
+    } catch {
+      // WorklyDataContext already presents the request error to the user.
     } finally {
       setBusy(false);
     }
