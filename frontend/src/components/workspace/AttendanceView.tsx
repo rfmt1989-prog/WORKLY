@@ -27,6 +27,7 @@ import {
   sharedStyles,
   workspaceColors,
 } from "./primitives";
+import { TimesheetStatus, timesheetStatus } from "./TimesheetStatus";
 
 const DEFAULT_GEOFENCE_RADIUS_M = 250;
 
@@ -62,6 +63,12 @@ function duration(record: Attendance) {
   const minutes = Math.max(0, Math.round(milliseconds / 60_000));
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+function durationHours(record: Attendance) {
+  if (!record.check_out) return 0;
+  const milliseconds = new Date(record.check_out).getTime() - new Date(record.check_in).getTime();
+  return Math.max(0, milliseconds / 3_600_000);
 }
 
 function radians(value: number) {
@@ -132,7 +139,7 @@ function nextShiftDate(language: import("@/src/demo/types").LanguageCode) {
 
 export function AttendanceView() {
   const { user } = useAuth();
-  const { state, language, checkIn, checkOut, notify } = useWorklyData();
+  const { state, language, checkIn, checkOut, notify, reload } = useWorklyData();
   const { width } = useWindowDimensions();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -173,12 +180,13 @@ export function AttendanceView() {
   if (role === "company") {
     const active = records.filter((item) => item.check_out === null);
     const completed = records.filter((item) => item.check_out !== null);
-    const totalHours = completed.reduce((sum, item) => {
-      const value =
-        new Date(item.check_out as string).getTime() -
-        new Date(item.check_in).getTime();
-      return sum + Math.max(0, value / 3_600_000);
-    }, 0);
+    const pendingApprovals = completed.filter(
+      (item) => timesheetStatus(item) === "pending",
+    ).length;
+    const approvedHours = completed
+      .filter((item) => timesheetStatus(item) === "approved")
+      .reduce((sum, item) => sum + durationHours(item), 0);
+    const canManageTimesheets = Boolean(user.permissions?.includes("attendance.manage"));
     const activeInside = active.filter((record) => {
       const project = state.projects.find((item) => item.id === record.project_id);
       return geofenceFor(
@@ -229,34 +237,36 @@ export function AttendanceView() {
             accent={workspaceColors.green}
           />
           <MetricCard
+            icon="hourglass-outline"
+            label={uiText(language, "Por aprovar", "Pending approval")}
+            value={pendingApprovals}
+            detail={uiText(language, "Horas aguardam validação", "Hours awaiting validation")}
+            accent={workspaceColors.yellow}
+          />
+          <MetricCard
+            icon="checkmark-done-outline"
+            label={uiText(language, "Horas aprovadas", "Approved hours")}
+            value={approvedHours.toFixed(1)}
+            detail={uiText(language, "Prontas para processamento", "Ready for processing")}
+            accent={accent}
+          />
+          <MetricCard
             icon="shield-checkmark-outline"
             label={uiText(language, "Dentro da zona", "Inside geofence")}
             value={`${activeInside}/${active.length}`}
             detail={uiText(language, "Raio definido por obra", "Radius set per site")}
             accent={workspaceColors.green}
           />
-          <MetricCard
-            icon="time-outline"
-            label={uiText(language, "Horas registadas", "Recorded hours")}
-            value={totalHours.toFixed(1)}
-            detail={uiText(language, "Registos concluídos", "Completed records")}
-            accent={accent}
-          />
-          <MetricCard
-            icon="navigate-outline"
-            label="GPS / Demo"
-            value={`${records.filter((item) => item.location_mode === "gps").length}/${records.filter((item) => item.location_mode === "demo").length}`}
-            detail={uiText(language, "Origem da localização", "Location source")}
-            accent={workspaceColors.yellow}
-          />
         </View>
 
         <Card>
           <SectionTitle
-            title={t.liveMonitoring}
-            subtitle={
-              uiText(language, "Geofence operacional configurável por obra.", "Configurable operational geofence per site.")
-            }
+            title={uiText(language, "Presenças e horas", "Attendance and hours")}
+            subtitle={uiText(
+              language,
+              "Entradas, saídas, GPS e aprovação das horas no mesmo fluxo.",
+              "Check-ins, check-outs, GPS and hour approval in one flow.",
+            )}
           />
           <View style={{ gap: 9, marginTop: 15 }}>
             {records.length ? (
@@ -272,6 +282,8 @@ export function AttendanceView() {
                   )}
                   language={language}
                   accent={accent}
+                  canManage={canManageTimesheets}
+                  onChanged={() => reload(true)}
                 />
               ))
             ) : (
@@ -568,7 +580,7 @@ export function AttendanceView() {
 
       <Card>
         <SectionTitle
-          title={uiText(language, "Histórico de presenças", "Attendance history")}
+          title={uiText(language, "Presenças e horas", "Attendance and hours")}
           subtitle={`${records.length} ${uiText(language, "registos", "records")}`}
         />
         <View style={{ gap: 9, marginTop: 15 }}>
@@ -604,12 +616,16 @@ function CompanyAttendanceRow({
   project,
   language,
   accent,
+  canManage,
+  onChanged,
 }: {
   record: Attendance;
   worker?: Worker;
   project?: Project;
   language: import("@/src/demo/types").LanguageCode;
   accent: string;
+  canManage: boolean;
+  onChanged: () => Promise<void> | void;
 }) {
   const active = record.check_out === null;
   const geofence = geofenceFor(
@@ -644,14 +660,19 @@ function CompanyAttendanceRow({
         </Text>
       </View>
       <GeofenceBadge geofence={geofence} language={language} />
-      <StatusPill
-        status={active ? "on_site" : "completed"}
-        label={
-          active
-            ? uiText(language, "Em obra", "On site")
-            : uiText(language, "Concluído", "Complete")
-        }
-      />
+      {active ? (
+        <StatusPill
+          status="on_site"
+          label={uiText(language, "Em obra", "On site")}
+        />
+      ) : (
+        <TimesheetStatus
+          record={record}
+          language={language}
+          canManage={canManage}
+          onChanged={onChanged}
+        />
+      )}
     </View>
   );
 }
@@ -698,14 +719,14 @@ function WorkerAttendanceRow({
         <Text style={styles.timeValue}>{duration(record)}</Text>
       </View>
       <GeofenceBadge geofence={geofence} language={language} />
-      <StatusPill
-        status={record.check_out ? "completed" : "on_site"}
-        label={
-          record.check_out
-            ? uiText(language, "Concluído", "Complete")
-            : uiText(language, "Ativo", "Active")
-        }
-      />
+      {record.check_out ? (
+        <TimesheetStatus record={record} language={language} />
+      ) : (
+        <StatusPill
+          status="on_site"
+          label={uiText(language, "Ativo", "Active")}
+        />
+      )}
     </View>
   );
 }

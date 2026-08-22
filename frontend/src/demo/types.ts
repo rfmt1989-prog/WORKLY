@@ -10,6 +10,7 @@ export type CompanyPermission =
   | "projects.read"
   | "projects.manage"
   | "attendance.read"
+  | "attendance.manage"
   | "documents.read"
   | "documents.manage"
   | "operations.read";
@@ -136,6 +137,8 @@ export type Project = {
   compliance_requirements?: { documents: string[]; certificates: string[] };
 };
 
+export type TimesheetApprovalStatus = "pending" | "approved" | "rejected";
+
 export type Attendance = {
   id: string;
   worker_id: string;
@@ -150,6 +153,10 @@ export type Attendance = {
   within_geofence?: boolean | null;
   geofence_radius_m?: number;
   note: string;
+  approval_status?: TimesheetApprovalStatus;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  approval_note?: string;
 };
 
 export type Contract = {
