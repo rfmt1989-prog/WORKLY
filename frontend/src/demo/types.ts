@@ -178,6 +178,7 @@ export type NotificationItem = {
 };
 
 export type WorklyState = {
+  current_user?: AuthUser;
   version: number;
   generated_at: string;
   workers: Worker[];
