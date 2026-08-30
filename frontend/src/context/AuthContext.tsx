@@ -12,7 +12,7 @@ import {
   login as requestLogin,
   register as requestRegister,
 } from "@/src/api/auth";
-import { setAuthToken } from "@/src/api/client";
+import { ApiError, setAuthToken } from "@/src/api/client";
 import type { AuthUser, UserRole } from "@/src/demo/types";
 import { storage } from "@/src/utils/storage";
 
@@ -99,8 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUserState(current);
               await storage.setItem(USER_KEY, JSON.stringify(current));
             }
-          } catch {
-            // A valid local session keeps the demo usable while offline.
+          } catch (caughtError) {
+            const invalidSession =
+              caughtError instanceof ApiError &&
+              (caughtError.status === 401 || caughtError.status === 403);
+
+            if (invalidSession && active) {
+              await Promise.all([
+                storage.secureRemove(TOKEN_KEY),
+                storage.removeItem(USER_KEY),
+              ]);
+              setAuthToken(null);
+              setToken(null);
+              setUserState(null);
+            }
+            // Network failures keep a valid local session usable offline.
           }
         }
       } catch {
