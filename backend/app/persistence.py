@@ -43,6 +43,7 @@ class PersistenceStore:
         self.last_error: str | None = None
         self._memory_memberships: dict[tuple[str, str], dict[str, Any]] = {}
         self._memory_invitations: dict[str, dict[str, Any]] = {}
+        self._memory_files: dict[str, dict[str, Any]] = {}
 
     @property
     def enabled(self) -> bool:
@@ -85,6 +86,28 @@ class PersistenceStore:
                 payload JSONB NOT NULL,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workly_files (
+                id TEXT PRIMARY KEY,
+                company_id TEXT,
+                owner_type TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                content BYTEA NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_workly_files_owner
+            ON workly_files (owner_type, owner_id, created_at DESC)
             """
         )
         conn.execute(
@@ -214,6 +237,102 @@ class PersistenceStore:
         if not self.enabled:
             self._memory_memberships.clear()
             self._memory_invitations.clear()
+            self._memory_files.clear()
+
+    def save_file(self, record: dict[str, Any], content: bytes) -> bool:
+        stored = {**deepcopy(record), "content": bytes(content)}
+        self._memory_files[str(record["id"])] = stored
+        if not self.enabled:
+            return True
+        try:
+            with self._connect() as conn:
+                self._ensure_schema(conn)
+                conn.execute(
+                    """
+                    INSERT INTO workly_files
+                        (id, company_id, owner_type, owner_id, file_name, content_type,
+                         size_bytes, content, created_by, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (id) DO UPDATE SET
+                        company_id = EXCLUDED.company_id,
+                        owner_type = EXCLUDED.owner_type,
+                        owner_id = EXCLUDED.owner_id,
+                        file_name = EXCLUDED.file_name,
+                        content_type = EXCLUDED.content_type,
+                        size_bytes = EXCLUDED.size_bytes,
+                        content = EXCLUDED.content,
+                        created_by = EXCLUDED.created_by
+                    """,
+                    (
+                        record["id"],
+                        record.get("company_id"),
+                        record["owner_type"],
+                        record["owner_id"],
+                        record["file_name"],
+                        record["content_type"],
+                        record["size_bytes"],
+                        bytes(content),
+                        record["created_by"],
+                    ),
+                )
+                conn.commit()
+            self.connected = True
+            self.last_error = None
+            return True
+        except Exception as exc:
+            self.connected = False
+            self.last_error = type(exc).__name__
+            return False
+
+    def get_file(self, file_id: str) -> dict[str, Any] | None:
+        if not self.enabled:
+            value = self._memory_files.get(file_id)
+            return deepcopy(value) if value else None
+        try:
+            with self._connect() as conn:
+                self._ensure_schema(conn)
+                row = conn.execute(
+                    """
+                    SELECT id, company_id, owner_type, owner_id, file_name, content_type,
+                           size_bytes, content, created_by
+                    FROM workly_files WHERE id = %s
+                    """,
+                    (file_id,),
+                ).fetchone()
+            self.connected = True
+            self.last_error = None
+            if not row:
+                return None
+            fields = (
+                "id", "company_id", "owner_type", "owner_id", "file_name",
+                "content_type", "size_bytes", "content", "created_by"
+            )
+            value = dict(zip(fields, row))
+            value["content"] = bytes(value["content"])
+            self._memory_files[file_id] = deepcopy(value)
+            return value
+        except Exception as exc:
+            self.connected = False
+            self.last_error = type(exc).__name__
+            value = self._memory_files.get(file_id)
+            return deepcopy(value) if value else None
+
+    def delete_file(self, file_id: str) -> bool:
+        self._memory_files.pop(file_id, None)
+        if not self.enabled:
+            return True
+        try:
+            with self._connect() as conn:
+                self._ensure_schema(conn)
+                conn.execute("DELETE FROM workly_files WHERE id = %s", (file_id,))
+                conn.commit()
+            self.connected = True
+            self.last_error = None
+            return True
+        except Exception as exc:
+            self.connected = False
+            self.last_error = type(exc).__name__
+            return False
 
     def upsert_membership(self, membership: dict[str, Any]) -> dict[str, Any]:
         record = deepcopy(membership)

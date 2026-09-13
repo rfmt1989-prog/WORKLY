@@ -10,12 +10,15 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { openWorklyFile } from "@/src/api/documentFiles";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Project } from "@/src/demo/types";
+
+import { DocumentUploadButton } from "./DocumentUploadButton";
 
 import {
   Button,
@@ -39,6 +42,8 @@ type ViewerItem = {
   content: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   meta: string[];
+  fileId?: string;
+  realFile?: boolean;
 };
 
 function projectFallbackDocuments(
@@ -348,7 +353,10 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
         ownerName,
         categoryLabel(document.category, language),
         `${uiText(language, "Atualizado", "Updated")} ${document.updated_at.slice(0, 10)}`,
+        ...(document.size_bytes ? [`${Math.ceil(document.size_bytes / 1024)} KB`] : []),
       ],
+      fileId: document.file_id,
+      realFile: Boolean(document.file_id),
     });
   };
 
@@ -590,6 +598,17 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                           },
                         ]}
                       />
+                      {(user.role === "worker" && activeWorker.id === user.id) ||
+                      (user.role === "company" && user.permissions?.includes("documents.manage")) ? (
+                        <View style={styles.uploadRow}>
+                          <DocumentUploadButton
+                            ownerType="worker"
+                            ownerId={activeWorker.id}
+                            language={language}
+                            accent={accent}
+                          />
+                        </View>
+                      ) : null}
                       <View style={styles.documentList}>
                         {activeWorker.documents.length ? (
                           activeWorker.documents.map((document) => (
@@ -709,6 +728,16 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                           },
                         ]}
                       />
+                      {user.role === "company" && user.permissions?.includes("documents.manage") ? (
+                        <View style={styles.uploadRow}>
+                          <DocumentUploadButton
+                            ownerType="project"
+                            ownerId={activeProject.id}
+                            language={language}
+                            accent={accent}
+                          />
+                        </View>
+                      ) : null}
                       <View style={styles.documentList}>
                         {projectDocuments(activeProject, language).map((document) => (
                           <ArchiveRow
@@ -798,6 +827,16 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
                     },
                   ]}
                 />
+                {company && user.permissions?.includes("documents.manage") ? (
+                  <View style={styles.uploadRow}>
+                    <DocumentUploadButton
+                      ownerType="company"
+                      ownerId={company.id}
+                      language={language}
+                      accent={accent}
+                    />
+                  </View>
+                ) : null}
                 <View style={styles.documentList}>
                   {companyDocuments.length ? (
                     companyDocuments.map((document) => (
@@ -945,7 +984,19 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
         onClose={() => setViewer(null)}
         title={viewer?.title ?? ""}
         subtitle={viewer?.subtitle}
-        footer={<Button label={t.close} variant="secondary" onPress={() => setViewer(null)} />}
+        footer={
+          <>
+            {viewer?.fileId ? (
+              <Button
+                label={uiText(language, "Abrir ficheiro", "Open file")}
+                icon="open-outline"
+                accent={accent}
+                onPress={() => void openWorklyFile(viewer.fileId!)}
+              />
+            ) : null}
+            <Button label={t.close} variant="secondary" onPress={() => setViewer(null)} />
+          </>
+        }
       >
         <View style={styles.viewer}>
           <View style={[styles.viewerIcon, { borderColor: `${accent}66` }]}>
@@ -961,9 +1012,15 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
             ))}
           </View>
           <View style={styles.demoNotice}>
-            <Ionicons name="information-circle-outline" size={18} color={workspaceColors.yellow} />
+            <Ionicons
+              name={viewer?.realFile ? "shield-checkmark-outline" : "information-circle-outline"}
+              size={18}
+              color={viewer?.realFile ? workspaceColors.green : workspaceColors.yellow}
+            />
             <Text style={styles.demoNoticeText}>
-              {uiText(language, "Conteúdo fictício criado exclusivamente para a demonstração WORKLY. Sem validade legal.", "Fictitious content created exclusively for the WORKLY demo. No legal validity.")}
+              {viewer?.realFile
+                ? uiText(language, "Ficheiro real armazenado na WORKLY e protegido pela autenticação da conta.", "Real file stored in WORKLY and protected by account authentication.")
+                : uiText(language, "Conteúdo fictício criado exclusivamente para a demonstração WORKLY. Sem validade legal.", "Fictitious content created exclusively for the WORKLY demo. No legal validity.")}
             </Text>
           </View>
         </View>
@@ -1400,6 +1457,11 @@ const styles = StyleSheet.create({
     color: workspaceColors.muted,
     fontSize: 8,
     marginTop: 2,
+  },
+  uploadRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 12,
   },
   documentList: {
     gap: 9,
