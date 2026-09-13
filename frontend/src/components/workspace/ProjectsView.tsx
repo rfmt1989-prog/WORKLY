@@ -16,6 +16,8 @@ import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { Project, ProjectStatus } from "@/src/demo/types";
 
+import { ProjectOperationsPanel } from "./ProjectOperationsPanel";
+
 import {
   Avatar,
   Button,
@@ -645,6 +647,8 @@ function ProjectDetails({
         <Fact icon="navigate-outline" label={uiText(language, "Zona GPS", "GPS zone")} value={project.latitude !== null && project.longitude !== null ? `${project.geofence_radius_m ?? 250} m · ${project.latitude.toFixed(5)}, ${project.longitude.toFixed(5)}` : uiText(language, "Coordenadas por configurar", "Coordinates not configured")} />
         <Fact icon="calendar-outline" label={uiText(language, "Período", "Period")} value={`${project.start_date} → ${project.end_date}`} />
       </View>
+
+      <ProjectOperationsPanel project={project} />
 
       <Card>
         <SectionTitle title={`${t.teams} · ${assignedTeams.length}`} />

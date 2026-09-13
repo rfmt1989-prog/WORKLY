@@ -396,6 +396,16 @@ def build_demo_state() -> dict:
                 "documents": ["identity", "insurance", "medical"],
                 "certificates": ["Trabalho em altura"],
             },
+            "tasks": [
+                {"id": "task-p1-1", "title": "Preparação e marcação da estrutura", "phase": "Estrutura", "due_date": "2026-08-28", "assignee_id": "worker-8", "status": "done", "progress": 100},
+                {"id": "task-p1-2", "title": "Montagem de pilares e travamentos", "phase": "Estrutura", "due_date": "2026-09-16", "assignee_id": "worker-1", "status": "in_progress", "progress": 65},
+                {"id": "task-p1-3", "title": "Plataformas técnicas", "phase": "Montagem", "due_date": "2026-09-20", "assignee_id": "worker-6", "status": "todo", "progress": 0},
+            ],
+            "safety_items": [
+                {"id": "safety-p1-1", "kind": "briefing", "title": "Toolbox trabalho em altura", "severity": "low", "status": "resolved", "created_at": "2026-09-01T07:30:00Z", "owner_id": "worker-8", "note": "Briefing concluído antes do arranque da fase."},
+                {"id": "safety-p1-2", "kind": "inspection", "title": "Verificar linhas de vida da cobertura", "severity": "medium", "status": "open", "created_at": "2026-09-12T15:00:00Z", "owner_id": "worker-8", "note": "Fechar antes do início dos trabalhos de cobertura."},
+            ],
+            "costs": {"budget": 450000.0, "committed": 72000.0, "labour": 98000.0, "materials": 145000.0},
             "team_ids": ["team-1"],
             "worker_ids": ["worker-1", "worker-4", "worker-6", "worker-8"],
             "documents": [
@@ -423,6 +433,11 @@ def build_demo_state() -> dict:
                 "documents": ["identity", "insurance", "medical"],
                 "certificates": ["Heavy Equipment Operator"],
             },
+            "tasks": [
+                {"id": "task-p2-1", "title": "Preparação de equipamentos e acessos", "phase": "Mobilização", "due_date": "2026-09-25", "assignee_id": "worker-7", "status": "in_progress", "progress": 35},
+            ],
+            "safety_items": [],
+            "costs": {"budget": 280000.0, "committed": 41000.0, "labour": 22000.0, "materials": 51000.0},
             "team_ids": ["team-2"],
             "worker_ids": ["worker-7"],
             "documents": [
@@ -449,6 +464,9 @@ def build_demo_state() -> dict:
                 "documents": ["identity", "insurance", "medical"],
                 "certificates": [],
             },
+            "tasks": [],
+            "safety_items": [],
+            "costs": {"budget": 360000.0, "committed": 65000.0, "labour": 74000.0, "materials": 88000.0},
             "team_ids": [],
             "worker_ids": ["worker-2", "worker-3", "worker-5"],
             "documents": [
