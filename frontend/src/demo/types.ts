@@ -43,6 +43,10 @@ export type DemoDocument = {
   status: string;
   updated_at: string;
   demo_content: string;
+  file_id?: string;
+  content_type?: string;
+  size_bytes?: number;
+  expires_at?: string;
 };
 
 export type BestProject = {

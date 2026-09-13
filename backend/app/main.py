@@ -9,6 +9,7 @@ the demonstration state.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -46,6 +47,14 @@ from .persistence import PersistenceStore
 API_PREFIX = "/api"
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
 GEOFENCE_RADIUS_M = 250.0
+MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
+ALLOWED_DOCUMENT_CONTENT_TYPES = {
+    "application/pdf", "image/jpeg", "image/png", "image/webp"
+}
+ALLOWED_DOCUMENT_CATEGORIES = {
+    "identity", "insurance", "medical", "safety", "technical",
+    "planning", "legal", "license", "other"
+}
 TOKEN_SECRET = os.getenv(
     "WORKLY_TOKEN_SECRET",
     "workly-demo-signing-key-not-for-production",
@@ -206,6 +215,17 @@ class CompanyInvitationInput(BaseModel):
 
 class CompanyMemberPatch(BaseModel):
     access_role: str = Field(max_length=30)
+
+
+class FileUploadInput(BaseModel):
+    owner_type: str = Field(max_length=20)
+    owner_id: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=180)
+    category: str = Field(default="other", max_length=40)
+    expires_at: str | None = Field(default=None, max_length=40)
+    file_name: str = Field(min_length=1, max_length=180)
+    content_type: str = Field(max_length=100)
+    content_base64: str = Field(min_length=1)
 
 
 def _b64encode(raw: bytes) -> str:
@@ -460,6 +480,8 @@ def _company_route_permission(method: str, path: str) -> str | None:
         return "documents.read"
     if path.startswith(f"{API_PREFIX}/attendance"):
         return "attendance.read" if method == "GET" else "attendance.manage"
+    if path.startswith(f"{API_PREFIX}/files"):
+        return "documents.manage" if method in {"POST", "PATCH", "DELETE"} else "documents.read"
     if path.startswith(f"{API_PREFIX}/documents") or path.startswith(f"{API_PREFIX}/certificates"):
         return "documents.manage" if method in {"POST", "PATCH", "DELETE"} else "documents.read"
     if path.startswith(f"{API_PREFIX}/contracts"):
@@ -470,6 +492,64 @@ def _company_route_permission(method: str, path: str) -> str | None:
         return "workers.read"
     if path.startswith(f"{API_PREFIX}/companies") and method in {"PATCH", "POST", "DELETE"}:
         return "company.manage"
+    return None
+
+
+def _file_owner_company_id(owner_type: str, owner_id: str) -> str | None:
+    if owner_type == "company":
+        return owner_id
+    if owner_type == "project":
+        project = next((item for item in _state["projects"] if item.get("id") == owner_id), None)
+        return str(project.get("company_id")) if project and project.get("company_id") else None
+    worker = next((item for item in _state["workers"] if item.get("id") == owner_id), None)
+    if worker and worker.get("company_id"):
+        return str(worker.get("company_id"))
+    companies = _company_ids_for_worker(owner_id)
+    return sorted(companies)[0] if companies else None
+
+
+def _authorize_file_owner(
+    user: dict[str, Any], owner_type: str, owner_id: str, *, manage: bool
+) -> None:
+    if owner_type not in {"worker", "company", "project"}:
+        raise HTTPException(status_code=422, detail="Destino documental inválido.")
+    if user["role"] == "worker":
+        if owner_type == "worker" and owner_id == user["sub"]:
+            return
+        if not manage and owner_type == "project":
+            project = _find("projects", owner_id)
+            _assert_project_visible(user, project)
+            return
+        raise HTTPException(status_code=403, detail="Documento não autorizado.")
+
+    _require_company_permission(user, "documents.manage" if manage else "documents.read")
+    company_id = str(user.get("company_id") or "")
+    if owner_type == "company":
+        if owner_id != company_id:
+            raise HTTPException(status_code=403, detail="Documento de outra empresa.")
+        return
+    if owner_type == "project":
+        project = _find("projects", owner_id)
+        if project.get("company_id") != company_id:
+            raise HTTPException(status_code=403, detail="Documento de outra empresa.")
+        return
+    if owner_id not in _company_worker_ids(company_id):
+        raise HTTPException(status_code=403, detail="Documento de outro trabalhador.")
+
+
+def _owner_document_list(owner_type: str, owner_id: str) -> list[dict[str, Any]]:
+    collection = "workers" if owner_type == "worker" else "companies" if owner_type == "company" else "projects"
+    entity = _find(collection, owner_id)
+    return entity.setdefault("documents", [])
+
+
+def _find_document_by_file_id(file_id: str) -> tuple[list[dict[str, Any]], dict[str, Any]] | None:
+    for collection in ("workers", "companies", "projects"):
+        for entity in _state.get(collection, []):
+            documents = entity.get("documents") or []
+            for document in documents:
+                if document.get("file_id") == file_id:
+                    return documents, document
     return None
 
 
@@ -1531,6 +1611,113 @@ def sign_contract(
         if contract["signed_worker"] and contract["signed_company"]:
             contract["status"] = "active"
         return deepcopy(contract)
+
+
+@app.post(f"{API_PREFIX}/files", tags=["Documents"])
+def upload_document_file(
+    data: FileUploadInput,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    owner_type = data.owner_type.strip().lower()
+    owner_id = data.owner_id.strip()
+    category = data.category.strip().lower() or "other"
+    _authorize_file_owner(user, owner_type, owner_id, manage=True)
+    if category not in ALLOWED_DOCUMENT_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Categoria documental inválida.")
+    content_type = data.content_type.split(";", 1)[0].strip().lower()
+    if content_type not in ALLOWED_DOCUMENT_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail="Formato não suportado. Utilize PDF, JPG, PNG ou WEBP.")
+    try:
+        content = base64.b64decode(data.content_base64, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise HTTPException(status_code=422, detail="Conteúdo do ficheiro inválido.") from exc
+    if not content or len(content) > MAX_DOCUMENT_BYTES:
+        raise HTTPException(status_code=413, detail="O ficheiro deve ter no máximo 2 MB.")
+    expires_at = (data.expires_at or "").strip()
+    if expires_at:
+        try:
+            datetime.fromisoformat(expires_at[:10])
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Data de validade inválida.") from exc
+    safe_name = "".join(
+        char if char.isalnum() or char in {".", "-", "_"} else "-"
+        for char in data.file_name.strip()
+    )[-140:] or "workly-file"
+    file_id = f"file-{uuid.uuid4().hex}"
+    company_id = _file_owner_company_id(owner_type, owner_id)
+    file_record = {
+        "id": file_id,
+        "company_id": company_id,
+        "owner_type": owner_type,
+        "owner_id": owner_id,
+        "file_name": safe_name,
+        "content_type": content_type,
+        "size_bytes": len(content),
+        "created_by": user["sub"],
+    }
+    if not _persistence.save_file(file_record, content):
+        raise HTTPException(status_code=503, detail="Armazenamento documental indisponível.")
+    document = {
+        "id": f"doc-{uuid.uuid4().hex[:16]}",
+        "owner_type": owner_type,
+        "owner_id": owner_id,
+        "title": data.title.strip(),
+        "category": category,
+        "file_name": safe_name,
+        "status": "valid",
+        "updated_at": _now_iso(),
+        "demo_content": "Ficheiro real armazenado de forma autenticada na WORKLY.",
+        "file_id": file_id,
+        "content_type": content_type,
+        "size_bytes": len(content),
+    }
+    if expires_at:
+        document["expires_at"] = expires_at[:10]
+    with _state_lock:
+        _owner_document_list(owner_type, owner_id).insert(0, document)
+    return {"document": deepcopy(document)}
+
+
+@app.get(f"{API_PREFIX}/files/{{file_id}}/content", tags=["Documents"])
+def get_document_file_content(
+    file_id: str,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    stored = _persistence.get_file(file_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
+    _authorize_file_owner(
+        user, str(stored["owner_type"]), str(stored["owner_id"]), manage=False
+    )
+    content = bytes(stored["content"])
+    return {
+        "file_id": stored["id"],
+        "file_name": stored["file_name"],
+        "content_type": stored["content_type"],
+        "size_bytes": stored["size_bytes"],
+        "content_base64": base64.b64encode(content).decode("ascii"),
+    }
+
+
+@app.delete(f"{API_PREFIX}/files/{{file_id}}", tags=["Documents"])
+def delete_document_file(
+    file_id: str,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, bool]:
+    stored = _persistence.get_file(file_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
+    _authorize_file_owner(
+        user, str(stored["owner_type"]), str(stored["owner_id"]), manage=True
+    )
+    if not _persistence.delete_file(file_id):
+        raise HTTPException(status_code=503, detail="Não foi possível remover o ficheiro.")
+    with _state_lock:
+        found = _find_document_by_file_id(file_id)
+        if found:
+            documents, document = found
+            documents.remove(document)
+    return {"ok": True}
 
 
 @app.get(f"{API_PREFIX}/documents", tags=["Documents"])
