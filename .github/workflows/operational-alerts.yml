@@ -1,0 +1,58 @@
+name: Build Operational Alerts
+
+on:
+  push:
+    branches:
+      - agent/operational-alerts
+    paths:
+      - scripts/apply_operational_alerts.py
+      - .github/workflows/operational-alerts.yml
+
+permissions:
+  contents: write
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  integrate-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/operational-alerts
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply alert center integration
+        run: python scripts/apply_operational_alerts.py
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt pytest httpx
+      - name: Compile backend
+        run: python -m compileall -q backend api
+      - name: Test backend
+        run: pytest -q backend/tests
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Export web
+        working-directory: frontend
+        run: npm run build:web
+      - name: Commit product changes and remove migration tooling
+        run: |
+          git config user.name "WORKLY Agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend frontend
+          git rm scripts/apply_operational_alerts.py .github/workflows/operational-alerts.yml
+          git commit -m "Add operational alert center"
+          git push origin HEAD:agent/operational-alerts
