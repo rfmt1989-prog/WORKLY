@@ -1781,6 +1781,37 @@ def list_best_projects(
         _assert_worker_visible(user, str(target_id))
         return deepcopy(_find("workers", str(target_id)).get("best_projects", []))
 
+@app.get(f"{API_PREFIX}/notifications", tags=["Notifications"])
+def list_notifications(
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> list[dict[str, Any]]:
+    target_id = str(
+        user["sub"] if user["role"] == "worker" else user.get("company_id") or ""
+    )
+    with _state_lock:
+        return [
+            deepcopy(item) for item in _state.get("notifications", [])
+            if item.get("target_id") == target_id
+        ]
+
+
+@app.post(f"{API_PREFIX}/notifications/read-all", tags=["Notifications"])
+def mark_all_notifications_read(
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, int]:
+    target_id = str(
+        user["sub"] if user["role"] == "worker" else user.get("company_id") or ""
+    )
+    updated = 0
+    with _state_lock:
+        for item in _state.get("notifications", []):
+            if item.get("target_id") != target_id or item.get("read"):
+                continue
+            item["read"] = True
+            updated += 1
+    return {"updated": updated}
+
+
 @app.get(f"{API_PREFIX}/dashboard", tags=["Dashboard"])
 def dashboard(
     user: Annotated[dict[str, Any], Depends(get_current_user)],

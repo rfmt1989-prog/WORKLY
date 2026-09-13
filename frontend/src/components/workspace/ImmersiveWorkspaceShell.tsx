@@ -26,6 +26,7 @@ import { ComplianceView, complianceNavLabel } from "./ComplianceView";
 import { PremiumDashboardView } from "./PremiumDashboardView";
 import { DocumentsView } from "./DocumentsView";
 import { OperationsMapView } from "./OperationsMapView";
+import { NotificationCenter } from "./NotificationCenter";
 import type { WorkspaceSection } from "./navigation";
 import { ProfileView } from "./ProfileView";
 import { ProjectsView } from "./ProjectsView";
@@ -343,6 +344,7 @@ export function ImmersiveWorkspaceShell() {
         </Pressable>
 
         <View style={styles.topActions}>
+          <NotificationCenter />
           <LanguageSelector
             language={language}
             accent={accent}
