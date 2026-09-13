@@ -24,7 +24,7 @@ replace_once(
 replace_once(
     "backend/app/main.py",
     '''    allow_origins=configured_origins,\n    allow_origin_regex=r"https://.*\\.vercel\\.app",\n    allow_credentials=False,\n''',
-    '''    allow_origins=configured_origins,\n    allow_credentials=False,\n''',
+    '''    allow_origins=configured_origins,\n    allow_origin_regex=r"https://workly-demo(?:-[a-z0-9-]+)*\\.vercel\\.app",\n    allow_credentials=False,\n''',
 )
 
 replace_once(
