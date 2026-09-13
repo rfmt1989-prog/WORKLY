@@ -1,0 +1,46 @@
+name: Configure Production Session Secret
+
+on:
+  push:
+    branches:
+      - agent/production-security-env
+    paths:
+      - .github/workflows/production-security-env.yml
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: team_5LSRDYKDIDDttNfiidfjplCI
+  VERCEL_PROJECT_ID: prj_i2O5wxHnnL3WaI4OstDogjOBEpFg
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Link production project
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Ensure strong production signing secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if vercel env ls production --token="$VERCEL_TOKEN" 2>/dev/null | grep -q 'WORKLY_TOKEN_SECRET'; then
+            echo "WORKLY_TOKEN_SECRET is already configured in production."
+            exit 0
+          fi
+          secret="$(openssl rand -hex 48)"
+          printf '%s' "$secret" | vercel env add WORKLY_TOKEN_SECRET production --token="$VERCEL_TOKEN"
+          unset secret
+          echo "WORKLY_TOKEN_SECRET configured without exposing its value."
+      - name: Verify variable name only
+        shell: bash
+        run: |
+          vercel env ls production --token="$VERCEL_TOKEN" | grep 'WORKLY_TOKEN_SECRET'
