@@ -116,6 +116,36 @@ export type Team = {
   project_id: string | null;
 };
 
+export type ProjectTaskStatus = "todo" | "in_progress" | "done" | "blocked";
+
+export type ProjectTask = {
+  id: string;
+  title: string;
+  phase: string;
+  due_date: string;
+  assignee_id: string | null;
+  status: ProjectTaskStatus;
+  progress: number;
+};
+
+export type ProjectSafetyItem = {
+  id: string;
+  kind: "briefing" | "inspection" | "incident" | "near_miss";
+  title: string;
+  severity: "low" | "medium" | "high";
+  status: "open" | "resolved";
+  created_at: string;
+  owner_id: string | null;
+  note: string;
+};
+
+export type ProjectCosts = {
+  budget: number;
+  committed: number;
+  labour: number;
+  materials: number;
+};
+
 export type Project = {
   id: string;
   company_id: string;
@@ -135,6 +165,9 @@ export type Project = {
   worker_ids: string[];
   documents?: DemoDocument[];
   compliance_requirements?: { documents: string[]; certificates: string[] };
+  tasks?: ProjectTask[];
+  safety_items?: ProjectSafetyItem[];
+  costs?: ProjectCosts;
 };
 
 export type TimesheetApprovalStatus = "pending" | "approved" | "rejected";

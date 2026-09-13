@@ -79,6 +79,13 @@ app.add_middleware(
 _state_lock = threading.RLock()
 _persistence = PersistenceStore()
 _state, _registered_users = _persistence.load(fresh_demo_state())
+for _project in _state.get("projects", []):
+    _project.setdefault("tasks", [])
+    _project.setdefault("safety_items", [])
+    _project.setdefault(
+        "costs",
+        {"budget": 0.0, "committed": 0.0, "labour": 0.0, "materials": 0.0},
+    )
 
 
 @app.middleware("http")
@@ -162,6 +169,11 @@ class ProjectInput(BaseModel):
     worker_ids: list[str] = Field(default_factory=list)
     documents: list[dict[str, Any]] = Field(default_factory=list)
     compliance_requirements: dict[str, list[str]] = Field(default_factory=dict)
+    tasks: list[dict[str, Any]] = Field(default_factory=list)
+    safety_items: list[dict[str, Any]] = Field(default_factory=list)
+    costs: dict[str, float] = Field(default_factory=lambda: {
+        "budget": 0.0, "committed": 0.0, "labour": 0.0, "materials": 0.0
+    })
 
 
 class AssignmentInput(BaseModel):
@@ -1097,6 +1109,9 @@ def update_project(
         "worker_ids",
         "documents",
         "compliance_requirements",
+        "tasks",
+        "safety_items",
+        "costs",
     }
     with _state_lock:
         project = _find("projects", project_id)
@@ -1119,6 +1134,80 @@ def update_project(
                 if not minimum <= coordinate <= maximum:
                     raise HTTPException(status_code=422, detail=f"{key} fora do intervalo permitido.")
                 patch.data[key] = coordinate
+        if "tasks" in patch.data:
+            raw_tasks = patch.data["tasks"]
+            if not isinstance(raw_tasks, list) or len(raw_tasks) > 250:
+                raise HTTPException(status_code=422, detail="Planeamento inválido.")
+            clean_tasks = []
+            for raw_task in raw_tasks:
+                if not isinstance(raw_task, dict):
+                    raise HTTPException(status_code=422, detail="Tarefa inválida.")
+                title = str(raw_task.get("title") or "").strip()
+                task_status = str(raw_task.get("status") or "todo")
+                if not title or len(title) > 180 or task_status not in {"todo", "in_progress", "done", "blocked"}:
+                    raise HTTPException(status_code=422, detail="Tarefa inválida.")
+                try:
+                    task_progress = int(raw_task.get("progress") or 0)
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(status_code=422, detail="Progresso de tarefa inválido.") from exc
+                clean_tasks.append({
+                    "id": str(raw_task.get("id") or f"task-{uuid.uuid4().hex[:10]}")[:80],
+                    "title": title,
+                    "phase": str(raw_task.get("phase") or "")[:120],
+                    "due_date": str(raw_task.get("due_date") or "")[:20],
+                    "assignee_id": str(raw_task.get("assignee_id"))[:80] if raw_task.get("assignee_id") else None,
+                    "status": task_status,
+                    "progress": max(0, min(100, task_progress)),
+                })
+            patch.data["tasks"] = clean_tasks
+
+        if "safety_items" in patch.data:
+            raw_items = patch.data["safety_items"]
+            if not isinstance(raw_items, list) or len(raw_items) > 250:
+                raise HTTPException(status_code=422, detail="Registos de segurança inválidos.")
+            clean_items = []
+            for raw_item in raw_items:
+                if not isinstance(raw_item, dict):
+                    raise HTTPException(status_code=422, detail="Registo de segurança inválido.")
+                title = str(raw_item.get("title") or "").strip()
+                kind = str(raw_item.get("kind") or "briefing")
+                severity = str(raw_item.get("severity") or "low")
+                item_status = str(raw_item.get("status") or "open")
+                if (
+                    not title
+                    or len(title) > 180
+                    or kind not in {"briefing", "inspection", "incident", "near_miss"}
+                    or severity not in {"low", "medium", "high"}
+                    or item_status not in {"open", "resolved"}
+                ):
+                    raise HTTPException(status_code=422, detail="Registo de segurança inválido.")
+                clean_items.append({
+                    "id": str(raw_item.get("id") or f"safety-{uuid.uuid4().hex[:10]}")[:80],
+                    "kind": kind,
+                    "title": title,
+                    "severity": severity,
+                    "status": item_status,
+                    "created_at": str(raw_item.get("created_at") or _now_iso())[:40],
+                    "owner_id": str(raw_item.get("owner_id"))[:80] if raw_item.get("owner_id") else None,
+                    "note": str(raw_item.get("note") or "")[:1000],
+                })
+            patch.data["safety_items"] = clean_items
+
+        if "costs" in patch.data:
+            raw_costs = patch.data["costs"]
+            if not isinstance(raw_costs, dict):
+                raise HTTPException(status_code=422, detail="Custos inválidos.")
+            clean_costs: dict[str, float] = {}
+            for cost_key in ("budget", "committed", "labour", "materials"):
+                try:
+                    value = float(raw_costs.get(cost_key, 0) or 0)
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(status_code=422, detail="Valor de custo inválido.") from exc
+                if value < 0 or value > 1_000_000_000:
+                    raise HTTPException(status_code=422, detail="Valor de custo fora do intervalo permitido.")
+                clean_costs[cost_key] = round(value, 2)
+            patch.data["costs"] = clean_costs
+
         project.update(
             {key: value for key, value in patch.data.items() if key in allowed}
         )
