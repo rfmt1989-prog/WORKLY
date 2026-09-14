@@ -90,7 +90,7 @@ export function NotificationCenter() {
       active = false;
       globalThis.clearInterval(timer);
     };
-  }, [user?.id]);
+  }, [user]);
 
   const targetId = user?.role === "company" ? user.company_id ?? user.id : user?.id;
   const storedAlerts = useMemo<AlertItem[]>(() => {

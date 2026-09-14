@@ -1,7 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,14 +28,14 @@ import {
 type Props = { onNavigate: (section: WorkspaceSection) => void };
 type CompliancePayload = {
   summary: { total: number; fit: number; attention: number; blocked: number };
-  rows: Array<{
+  rows: {
     worker_id: string;
     project_id: string;
     project_name: string;
     status: "fit" | "attention" | "blocked";
     fit_for_check_in: boolean;
-    issues: Array<{ label: string; code: string }>;
-  }>;
+    issues: { label: string; code: string }[];
+  }[];
 };
 
 type ActionItem = {

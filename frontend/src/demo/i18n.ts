@@ -1,10 +1,10 @@
 import type { LanguageCode } from "./types";
 
-export const languageOptions: Array<{
+export const languageOptions: {
   code: LanguageCode;
   label: string;
   nativeName: string;
-}> = [
+}[] = [
   { code: "pt", label: "Português", nativeName: "Português" },
   { code: "en", label: "English", nativeName: "English" },
   { code: "fr", label: "Français", nativeName: "Français" },
