@@ -1,0 +1,117 @@
+name: WORKLY V1 Production Smoke
+
+on:
+  push:
+    branches:
+      - agent/v1-production-smoke
+    paths:
+      - .github/workflows/v1-production-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate production end-to-end
+        env:
+          WORKLY_URL: https://workly-demo.vercel.app
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from backend.app.demo_data import COMPANY_DEMO_EMAIL, DEMO_PASSWORD, WORKER_DEMO_EMAIL
+
+          base = os.environ["WORKLY_URL"].rstrip("/")
+
+          def request(path, *, method="GET", payload=None, token=None, headers=None, expected=200):
+              data = None if payload is None else json.dumps(payload).encode("utf-8")
+              req_headers = {"Accept": "application/json", **(headers or {})}
+              if payload is not None:
+                  req_headers["Content-Type"] = "application/json"
+              if token:
+                  req_headers["Authorization"] = f"Bearer {token}"
+              req = urllib.request.Request(base + path, data=data, method=method, headers=req_headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = response.read().decode("utf-8", errors="replace")
+                      if response.status != expected:
+                          raise AssertionError(f"{method} {path}: expected {expected}, got {response.status}")
+                      return response.status, dict(response.headers), body
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")
+                  if exc.code != expected:
+                      raise AssertionError(f"{method} {path}: expected {expected}, got {exc.code}: {body[:200]}") from exc
+                  return exc.code, dict(exc.headers), body
+
+          _, health_headers, body = request("/api/health")
+          health = json.loads(body)
+          assert health["status"] == "ok"
+          assert health["persistence"]["mode"] == "postgres"
+          assert health["persistence"]["status"] == "ready"
+          assert health_headers.get("Strict-Transport-Security")
+          assert health_headers.get("X-Content-Type-Options") == "nosniff"
+          assert health_headers.get("X-Frame-Options") == "DENY"
+
+          request("/login")
+          request("/workspace")
+          request("/api/dashboard", expected=401)
+
+          def login(email, role):
+              _, _, raw = request(
+                  "/api/auth/login",
+                  method="POST",
+                  payload={"email": email, "password": DEMO_PASSWORD, "user_type": role},
+              )
+              data = json.loads(raw)
+              assert data["access_token"]
+              assert data["user_type"] == role
+              return data["access_token"]
+
+          worker_token = login(WORKER_DEMO_EMAIL, "worker")
+          company_token = login(COMPANY_DEMO_EMAIL, "company")
+
+          for token in (worker_token, company_token):
+              _, _, dashboard_raw = request("/api/dashboard", token=token)
+              assert json.loads(dashboard_raw)["role"] in {"worker", "company"}
+              _, _, projects_raw = request("/api/projects", token=token)
+              assert isinstance(json.loads(projects_raw), list)
+
+          _, cors_headers, _ = request(
+              "/api/health",
+              method="OPTIONS",
+              headers={
+                  "Origin": "https://workly-demo.vercel.app",
+                  "Access-Control-Request-Method": "GET",
+              },
+          )
+          assert cors_headers.get("Access-Control-Allow-Origin") == "https://workly-demo.vercel.app"
+
+          status, bad_headers, _ = request(
+              "/api/health",
+              method="OPTIONS",
+              headers={
+                  "Origin": "https://evil.vercel.app",
+                  "Access-Control-Request-Method": "GET",
+              },
+              expected=400,
+          )
+          assert status == 400
+          assert not bad_headers.get("Access-Control-Allow-Origin")
+
+          print("WORKLY V1 PRODUCTION SMOKE: PASS")
+          print("- public routes: PASS")
+          print("- postgres health: PASS")
+          print("- worker auth: PASS")
+          print("- company auth: PASS")
+          print("- protected API: PASS")
+          print("- security headers: PASS")
+          print("- CORS allow/deny: PASS")
+          PY
