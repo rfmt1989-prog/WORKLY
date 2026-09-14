@@ -45,7 +45,9 @@ from .persistence import PersistenceStore
 
 
 API_PREFIX = "/api"
-TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
+TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
+PASSWORD_ITERATIONS = 310_000
+LEGACY_PASSWORD_ITERATIONS = 180_000
 GEOFENCE_RADIUS_M = 250.0
 MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 ALLOWED_DOCUMENT_CONTENT_TYPES = {
@@ -55,9 +57,12 @@ ALLOWED_DOCUMENT_CATEGORIES = {
     "identity", "insurance", "medical", "safety", "technical",
     "planning", "legal", "license", "other"
 }
-TOKEN_SECRET = os.getenv(
-    "WORKLY_TOKEN_SECRET",
-    "workly-demo-signing-key-not-for-production",
+_configured_token_secret = os.getenv("WORKLY_TOKEN_SECRET", "").strip()
+if os.getenv("VERCEL_ENV") == "production" and len(_configured_token_secret) < 32:
+    raise RuntimeError("WORKLY_TOKEN_SECRET must be configured in production")
+TOKEN_SECRET = (
+    _configured_token_secret
+    or "workly-local-demo-signing-key-not-for-production"
 ).encode("utf-8")
 
 app = FastAPI(
@@ -79,7 +84,7 @@ configured_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=configured_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://workly-demo(?:-[a-z0-9-]+)*\.vercel\.app",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -225,7 +230,7 @@ class FileUploadInput(BaseModel):
     expires_at: str | None = Field(default=None, max_length=40)
     file_name: str = Field(min_length=1, max_length=180)
     content_type: str = Field(max_length=100)
-    content_base64: str = Field(min_length=1)
+    content_base64: str = Field(min_length=1, max_length=3_000_000)
 
 
 def _b64encode(raw: bytes) -> str:
@@ -278,15 +283,27 @@ def _decode_token(token: str) -> dict[str, Any]:
 
 def _password_record(password: str) -> dict[str, str]:
     salt = os.urandom(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 180_000)
-    return {"salt": _b64encode(salt), "digest": _b64encode(digest)}
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS
+    )
+    return {
+        "salt": _b64encode(salt),
+        "digest": _b64encode(digest),
+        "iterations": str(PASSWORD_ITERATIONS),
+    }
 
 
 def _password_matches(password: str, record: dict[str, str]) -> bool:
     salt = _b64decode(record["salt"])
     expected = _b64decode(record["digest"])
+    try:
+        iterations = int(record.get("iterations", str(LEGACY_PASSWORD_ITERATIONS)))
+    except (TypeError, ValueError):
+        return False
+    if iterations < 100_000 or iterations > 1_000_000:
+        return False
     supplied = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, 180_000
+        "sha256", password.encode("utf-8"), salt, iterations
     )
     return hmac.compare_digest(supplied, expected)
 
