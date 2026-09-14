@@ -14,7 +14,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import { uiFormat, uiText } from "@/src/demo/localizedUi";
+import { uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Worker, WorkerStatus } from "@/src/demo/types";
 
 import {

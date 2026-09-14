@@ -83,7 +83,6 @@ export function OperationsMapView() {
   const compact = width < 880;
   const role = user?.role ?? "company";
   const accent = roleAccent(role);
-  const t = copy[language];
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const companyId = user?.company_id ?? user?.id;
