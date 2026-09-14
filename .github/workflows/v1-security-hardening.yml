@@ -41,7 +41,11 @@ jobs:
         run: npm ci
       - name: Apply non-breaking dependency security fixes
         working-directory: frontend
-        run: npm audit fix --omit=dev
+        shell: bash
+        run: |
+          set +e
+          npm audit fix --omit=dev
+          exit 0
       - name: Report remaining production advisories
         working-directory: frontend
         shell: bash
