@@ -1,0 +1,102 @@
+name: Production Smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy Vercel Production
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      BASE_URL: https://workly-demo.vercel.app
+    steps:
+      - name: Wait for production alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error "$BASE_URL/api/health" > /tmp/health.json; then
+              python - <<'PY'
+          import json
+          data = json.load(open('/tmp/health.json'))
+          assert data['status'] == 'ok', data
+          persistence = data['persistence']
+          assert persistence['mode'] == 'postgres', persistence
+          assert persistence['connected'] is True, persistence
+          assert persistence['status'] == 'ready', persistence
+          PY
+              exit 0
+            fi
+            sleep 6
+          done
+          echo 'Production health did not become ready in time.' >&2
+          exit 1
+
+      - name: Verify web shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$BASE_URL/login" | grep -q '<title>WORKLY</title>'
+          curl --fail --silent --show-error "$BASE_URL/workspace" | grep -q '<title>WORKLY</title>'
+
+      - name: Verify Worker login and core reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"worker.demo@workly.app","password":"WorklyDemo!","user_type":"worker"}' \
+            "$BASE_URL/api/auth/login" > /tmp/worker-login.json
+          WORKER_TOKEN="$(python - <<'PY'
+          import json
+          data = json.load(open('/tmp/worker-login.json'))
+          assert data['user_type'] == 'worker', data
+          print(data['access_token'])
+          PY
+          )"
+          test -n "$WORKER_TOKEN"
+          for path in auth/me dashboard compliance notifications documents; do
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $WORKER_TOKEN" \
+              "$BASE_URL/api/$path" > "/tmp/worker-${path//\//-}.json"
+          done
+
+      - name: Verify Company login and operations reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"company.demo@workly.app","password":"WorklyDemo!","user_type":"company"}' \
+            "$BASE_URL/api/auth/login" > /tmp/company-login.json
+          COMPANY_TOKEN="$(python - <<'PY'
+          import json
+          data = json.load(open('/tmp/company-login.json'))
+          assert data['user_type'] == 'company', data
+          assert data['company_id'], data
+          print(data['access_token'])
+          PY
+          )"
+          test -n "$COMPANY_TOKEN"
+          for path in auth/me dashboard company/access projects attendance compliance notifications documents; do
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $COMPANY_TOKEN" \
+              "$BASE_URL/api/$path" > "/tmp/company-${path//\//-}.json"
+          done
+
+      - name: Summary
+        run: |
+          echo '### WORKLY production smoke' >> "$GITHUB_STEP_SUMMARY"
+          echo '- API health / PostgreSQL: OK' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Login + workspace shell: OK' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Worker authenticated reads: OK' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Company authenticated reads: OK' >> "$GITHUB_STEP_SUMMARY"
