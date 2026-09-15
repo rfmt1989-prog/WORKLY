@@ -1,9 +1,6 @@
 name: Production Smoke
 
 on:
-  push:
-    branches:
-      - agent/v1-release-reliability
   workflow_run:
     workflows:
       - Deploy Vercel Production
