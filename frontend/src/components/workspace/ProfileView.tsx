@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +22,6 @@ import {
   Card,
   Field,
   ProgressBar,
-  Score,
   SectionTitle,
   StatusPill,
   roleAccent,
@@ -51,12 +51,16 @@ type CompanyForm = {
   tax_id: string;
 };
 
+type ProfileSection = "overview" | "performance" | "skills";
+
 export function ProfileView() {
   const { user } = useAuth();
   const { state, language, updateWorker, updateCompany } = useWorklyData();
   const { width } = useWindowDimensions();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [profileSection, setProfileSection] =
+    useState<ProfileSection>("overview");
   const [workerForm, setWorkerForm] = useState<WorkerForm | null>(null);
   const [companyForm, setCompanyForm] = useState<CompanyForm | null>(null);
   const role = user?.role ?? "worker";
@@ -167,12 +171,45 @@ export function ProfileView() {
   const entityName = role === "worker" ? worker?.name : company?.name;
   const entitySubtitle =
     role === "worker" ? worker?.profession : company?.industry;
-  const trust =
-    role === "worker" ? worker?.trust_score : company?.trust_score;
-  const productivity =
+  const profileSections =
     role === "worker"
-      ? worker?.productivity_score
-      : company?.productivity_score;
+      ? [
+          {
+            id: "overview" as const,
+            label: uiText(language, "Sobre", "About"),
+            icon: "person-outline" as const,
+          },
+          {
+            id: "performance" as const,
+            label: uiText(
+              language,
+              "Indicadores profissionais",
+              "Professional indicators",
+            ),
+            icon: "pulse-outline" as const,
+          },
+          {
+            id: "skills" as const,
+            label: uiText(language, "Competências", "Skills"),
+            icon: "construct-outline" as const,
+          },
+        ]
+      : [
+          {
+            id: "overview" as const,
+            label: uiText(language, "Empresa", "Company"),
+            icon: "business-outline" as const,
+          },
+          {
+            id: "performance" as const,
+            label: uiText(
+              language,
+              "Capacidade operacional",
+              "Operational capacity",
+            ),
+            icon: "analytics-outline" as const,
+          },
+        ];
 
   return (
     <ScrollView
@@ -212,20 +249,6 @@ export function ProfileView() {
               />
             ) : null}
           </View>
-          <View style={styles.scores}>
-            <Score
-              value={trust ?? 5}
-              label={t.trust}
-              accent={accent}
-              compact={compact}
-            />
-            <Score
-              value={productivity ?? 5}
-              label={t.productivity}
-              accent={workspaceColors.green}
-              compact={compact}
-            />
-          </View>
           <Button
             label={editing ? t.cancel : t.edit}
             icon={editing ? "close" : "create-outline"}
@@ -235,6 +258,15 @@ export function ProfileView() {
           />
         </View>
       </View>
+
+      {!editing ? (
+        <ProfileSectionPicker
+          items={profileSections}
+          activeSection={profileSection}
+          accent={accent}
+          onChange={setProfileSection}
+        />
+      ) : null}
 
       {role === "worker" && worker && workerForm ? (
         editing ? (
@@ -247,7 +279,12 @@ export function ProfileView() {
             onSave={saveWorker}
           />
         ) : (
-          <WorkerProfileSummary worker={worker} language={language} accent={accent} />
+          <WorkerProfileSummary
+            worker={worker}
+            language={language}
+            accent={accent}
+            section={profileSection}
+          />
         )
       ) : null}
 
@@ -272,6 +309,7 @@ export function ProfileView() {
             teamsCount={
               state.teams.filter((item) => item.company_id === company.id).length
             }
+            section={profileSection}
           />
         )
       ) : null}
@@ -283,65 +321,53 @@ function WorkerProfileSummary({
   worker,
   language,
   accent,
+  section,
 }: {
   worker: Worker;
   language: import("@/src/demo/types").LanguageCode;
   accent: string;
+  section: ProfileSection;
 }) {
   const t = copy[language];
-  return (
-    <>
-      <View style={styles.twoColumns}>
-        <Card style={{ flex: 1.05, minWidth: 290 }}>
-          <SectionTitle
-            title={uiText(language, "Sobre", "About")}
-            subtitle={`${worker.experience_years} ${t.years} · ${worker.location}`}
-          />
-          <Text style={[sharedStyles.body, { marginTop: 14 }]}>{localizeDemoText(language, worker.bio)}</Text>
-          <View style={styles.infoGrid}>
-            <Info icon="mail-outline" label={uiText(language, "Email", "Email")} value={worker.email} />
-            <Info
-              icon="call-outline"
-              label={uiText(language, "Telefone", "Phone")}
-              value={worker.phone}
-            />
-            <Info
-              icon="flag-outline"
-              label={uiText(language, "País", "Country")}
-              value={`${worker.flag} ${worker.country}`}
-            />
-            <Info
-              icon="calendar-outline"
-              label={uiText(language, "Idade", "Age")}
-              value={String(worker.age)}
-            />
-          </View>
-        </Card>
-
-        <Card style={{ flex: 0.95, minWidth: 290 }}>
-          <SectionTitle
-            title={uiText(language, "Indicadores profissionais", "Professional indicators")}
-          />
-          <View style={{ gap: 13, marginTop: 15 }}>
+  if (section === "performance") {
+    return (
+      <Card>
+        <SectionTitle
+          title={uiText(
+            language,
+            "Indicadores profissionais",
+            "Professional indicators",
+          )}
+        />
+        <View style={styles.indicatorGrid}>
+          <View style={styles.indicatorCard}>
             <Indicator
               label={t.trust}
               value={worker.trust_score * 10}
               accent={accent}
             />
+          </View>
+          <View style={styles.indicatorCard}>
             <Indicator
               label={t.productivity}
               value={worker.productivity_score * 10}
               accent={workspaceColors.green}
             />
+          </View>
+          <View style={styles.indicatorCard}>
             <Indicator
               label={uiText(language, "Classificação geral", "Overall rating")}
               value={worker.rating * 10}
               accent={workspaceColors.yellow}
             />
           </View>
-        </Card>
-      </View>
+        </View>
+      </Card>
+    );
+  }
 
+  if (section === "skills") {
+    return (
       <Card>
         <SectionTitle
           title={uiText(language, "Competências", "Skills")}
@@ -363,7 +389,41 @@ function WorkerProfileSummary({
           ))}
         </View>
       </Card>
-    </>
+    );
+  }
+
+  return (
+    <Card>
+      <SectionTitle
+        title={uiText(language, "Sobre", "About")}
+        subtitle={`${worker.experience_years} ${t.years} · ${worker.location}`}
+      />
+      <Text style={[sharedStyles.body, { marginTop: 14 }]}>
+        {localizeDemoText(language, worker.bio)}
+      </Text>
+      <View style={styles.infoGrid}>
+        <Info
+          icon="mail-outline"
+          label={uiText(language, "Email", "Email")}
+          value={worker.email}
+        />
+        <Info
+          icon="call-outline"
+          label={uiText(language, "Telefone", "Phone")}
+          value={worker.phone}
+        />
+        <Info
+          icon="flag-outline"
+          label={uiText(language, "País", "Country")}
+          value={`${worker.flag} ${worker.country}`}
+        />
+        <Info
+          icon="calendar-outline"
+          label={uiText(language, "Idade", "Age")}
+          value={String(worker.age)}
+        />
+      </View>
+    </Card>
   );
 }
 
@@ -489,44 +549,39 @@ function CompanyProfileSummary({
   accent,
   projectsCount,
   teamsCount,
+  section,
 }: {
   company: Company;
   language: import("@/src/demo/types").LanguageCode;
   accent: string;
   projectsCount: number;
   teamsCount: number;
+  section: ProfileSection;
 }) {
-  return (
-    <View style={styles.twoColumns}>
-      <Card style={{ flex: 1.1, minWidth: 300 }}>
-        <SectionTitle title={uiText(language, "Empresa", "Company")} />
-        <Text style={[sharedStyles.body, { marginTop: 14 }]}>
-          {localizeDemoText(language, company.description)}
-        </Text>
-        <View style={styles.infoGrid}>
-          <Info icon="mail-outline" label={uiText(language, "Email", "Email")} value={company.email} />
-          <Info
-            icon="call-outline"
-            label={uiText(language, "Telefone", "Phone")}
-            value={company.phone}
-          />
-          <Info
-            icon="location-outline"
-            label={uiText(language, "Localização", "Location")}
-            value={company.location}
-          />
-          <Info icon="globe-outline" label={uiText(language, "Website", "Website")} value={company.website} />
-          <Info
-            icon="receipt-outline"
-            label={uiText(language, "NIF", "Tax ID")}
-            value={company.tax_id}
-          />
-        </View>
-      </Card>
-      <Card style={{ flex: 0.9, minWidth: 280 }}>
+  const t = copy[language];
+
+  if (section === "performance") {
+    return (
+      <Card>
         <SectionTitle
           title={uiText(language, "Capacidade operacional", "Operational capacity")}
         />
+        <View style={styles.indicatorGrid}>
+          <View style={styles.indicatorCard}>
+            <Indicator
+              label={t.trust}
+              value={company.trust_score * 10}
+              accent={accent}
+            />
+          </View>
+          <View style={styles.indicatorCard}>
+            <Indicator
+              label={t.productivity}
+              value={company.productivity_score * 10}
+              accent={workspaceColors.green}
+            />
+          </View>
+        </View>
         <View style={styles.companyMetrics}>
           <View style={styles.companyMetric}>
             <Ionicons name="business-outline" size={22} color={accent} />
@@ -555,7 +610,43 @@ function CompanyProfileSummary({
           </View>
         </View>
       </Card>
-    </View>
+    );
+  }
+
+  return (
+    <Card>
+      <SectionTitle title={uiText(language, "Empresa", "Company")} />
+      <Text style={[sharedStyles.body, { marginTop: 14 }]}>
+        {localizeDemoText(language, company.description)}
+      </Text>
+      <View style={styles.infoGrid}>
+        <Info
+          icon="mail-outline"
+          label={uiText(language, "Email", "Email")}
+          value={company.email}
+        />
+        <Info
+          icon="call-outline"
+          label={uiText(language, "Telefone", "Phone")}
+          value={company.phone}
+        />
+        <Info
+          icon="location-outline"
+          label={uiText(language, "Localização", "Location")}
+          value={company.location}
+        />
+        <Info
+          icon="globe-outline"
+          label={uiText(language, "Website", "Website")}
+          value={company.website}
+        />
+        <Info
+          icon="receipt-outline"
+          label={uiText(language, "NIF", "Tax ID")}
+          value={company.tax_id}
+        />
+      </View>
+    </Card>
   );
 }
 
@@ -688,6 +779,69 @@ function Indicator({
   );
 }
 
+function ProfileSectionPicker({
+  items,
+  activeSection,
+  accent,
+  onChange,
+}: {
+  items: {
+    id: ProfileSection;
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+  }[];
+  activeSection: ProfileSection;
+  accent: string;
+  onChange: (section: ProfileSection) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.sectionPicker}
+      contentContainerStyle={styles.sectionPickerContent}
+    >
+      {items.map((item) => {
+        const active = item.id === activeSection;
+        return (
+          <Pressable
+            key={item.id}
+            accessibilityRole="tab"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(item.id)}
+            style={({ pressed }) => [
+              styles.sectionButton,
+              active
+                ? {
+                    borderColor: `${accent}66`,
+                    backgroundColor: `${accent}14`,
+                  }
+                : null,
+              pressed ? { opacity: 0.72 } : null,
+            ]}
+          >
+            <Ionicons
+              name={item.icon}
+              size={17}
+              color={active ? accent : workspaceColors.muted}
+            />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.sectionButtonText,
+                active ? { color: workspaceColors.text } : null,
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -739,14 +893,34 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: "600",
   },
-  scores: {
-    flexDirection: "row",
-    gap: 13,
+  sectionPicker: {
+    flexGrow: 0,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    borderRadius: 16,
+    backgroundColor: workspaceColors.panel,
   },
-  twoColumns: {
+  sectionPickerContent: {
+    padding: 5,
+    gap: 5,
+  },
+  sectionButton: {
+    minWidth: 150,
+    minHeight: 43,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: 12,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  sectionButtonText: {
+    color: workspaceColors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
   },
   infoGrid: {
     marginTop: 18,
@@ -790,6 +964,21 @@ const styles = StyleSheet.create({
   indicatorValue: {
     fontSize: 12,
     fontWeight: "800",
+  },
+  indicatorGrid: {
+    marginTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  indicatorCard: {
+    flex: 1,
+    minWidth: 220,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    borderRadius: 13,
+    padding: 14,
+    backgroundColor: workspaceColors.panelSoft,
   },
   skills: {
     marginTop: 15,
@@ -855,4 +1044,3 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 });
-
