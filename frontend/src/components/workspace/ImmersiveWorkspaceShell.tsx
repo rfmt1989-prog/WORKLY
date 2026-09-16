@@ -33,7 +33,6 @@ import { ProjectsView } from "./ProjectsView";
 import { Avatar, Button, roleAccent, workspaceColors } from "./primitives";
 import { TeamsView } from "./TeamsView";
 import { WorkersView } from "./WorkersView";
-import { WorkspaceMoreMenu } from "./WorkspaceMoreMenu";
 import { premiumCopy } from "./premiumCopy";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -65,7 +64,6 @@ export function ImmersiveWorkspaceShell() {
   const [activeSection, setActiveSection] =
     useState<WorkspaceSection>("dashboard");
   const [resetBusy, setResetBusy] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
   const role = user?.role ?? "worker";
   const accent = roleAccent(role);
@@ -136,17 +134,6 @@ export function ImmersiveWorkspaceShell() {
       (!item.workerOnly || role === "worker") &&
       (role !== "company" || !item.permission || !user.permissions || user.permissions.includes(item.permission)),
   );
-  const primaryIds: WorkspaceSection[] =
-    role === "company"
-      ? ["dashboard", "operations", "workers", "projects", "compliance"]
-      : ["dashboard", "attendance", "compliance", "documents", "profile"];
-  const primaryNavItems = primaryIds
-    .map((id) => visibleNavItems.find((item) => item.id === id))
-    .filter((item): item is NavItem => Boolean(item));
-  const secondaryNavItems = visibleNavItems.filter(
-    (item) => !primaryIds.includes(item.id),
-  );
-  const secondaryActive = secondaryNavItems.some((item) => item.id === activeSection);
 
   const operational = (() => {
     if (!state) {
@@ -412,7 +399,7 @@ export function ImmersiveWorkspaceShell() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.dockContent}
         >
-          {primaryNavItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = activeSection === item.id;
             return (
               <Pressable
@@ -459,61 +446,8 @@ export function ImmersiveWorkspaceShell() {
               </Pressable>
             );
           })}
-          {secondaryNavItems.length ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={p.more}
-              accessibilityState={{ selected: secondaryActive }}
-              onPress={() => setMoreOpen(true)}
-              style={({ pressed }) => [
-                styles.dockButton,
-                secondaryActive
-                  ? {
-                      borderColor: `${accent}66`,
-                      backgroundColor: `${accent}16`,
-                    }
-                  : null,
-                pressed ? { opacity: 0.7 } : null,
-              ]}
-            >
-              <View
-                style={[
-                  styles.dockIcon,
-                  secondaryActive ? { backgroundColor: `${accent}22` } : null,
-                ]}
-              >
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={20}
-                  color={secondaryActive ? accent : workspaceColors.muted}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.dockLabel,
-                  secondaryActive ? { color: workspaceColors.text } : null,
-                ]}
-                numberOfLines={1}
-              >
-                {p.more}
-              </Text>
-              {secondaryActive ? (
-                <View style={[styles.activeLine, { backgroundColor: accent }]} />
-              ) : null}
-            </Pressable>
-          ) : null}
         </ScrollView>
       </View>
-
-      <WorkspaceMoreMenu
-        visible={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        onNavigate={navigate}
-        items={secondaryNavItems}
-        activeSection={activeSection}
-        accent={accent}
-        language={language}
-      />
 
       {toast ? (
         <View style={[styles.toast, { borderColor: `${accent}55` }]}>
@@ -731,15 +665,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 2,
+    gap: 3,
+    paddingHorizontal: 4,
   },
   dockButton: {
     position: "relative",
-    minWidth: 84,
-    height: 57,
-    paddingHorizontal: 9,
-    borderRadius: 14,
+    minWidth: 76,
+    height: 55,
+    paddingHorizontal: 7,
+    borderRadius: 13,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
