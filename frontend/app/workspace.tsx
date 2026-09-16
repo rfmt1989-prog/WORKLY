@@ -2,6 +2,7 @@ import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { ImmersiveWorkspaceShell } from "@/src/components/workspace/ImmersiveWorkspaceShell";
+import { WorkerWorkspaceShell } from "@/src/components/workspace/WorkerWorkspaceShell";
 import { workspaceColors } from "@/src/components/workspace/primitives";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
@@ -23,6 +24,10 @@ export default function Workspace() {
 
   if (!user) {
     return <Redirect href="/login" />;
+  }
+
+  if (user.role === "worker") {
+    return <WorkerWorkspaceShell />;
   }
 
   return <ImmersiveWorkspaceShell />;
