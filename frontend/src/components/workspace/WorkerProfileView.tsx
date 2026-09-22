@@ -296,7 +296,7 @@ export function WorkerProfileView() {
               style={[
                 styles.progressFill,
                 {
-                  width: String(Math.round((obtainedCount / totalCertificates) * 100)) + "%",
+                  width: (String(Math.round((obtainedCount / totalCertificates) * 100)) + "%") as `${number}%`,
                   backgroundColor: accent,
                 },
               ]}
