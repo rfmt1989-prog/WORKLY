@@ -490,8 +490,8 @@ export function WorkerProfileView() {
               <Text style={styles.progressLabel}>BADGES NO MAPA EUROPEU</Text>
             </View>
             <View style={styles.progressRight}>
-              <Text style={[styles.currentLevel, { color: accent }]}>NÍVEL {currentLevel}</Text>
-              <Text style={styles.currentLevelName}>{levelName}</Text>
+              <Text style={[styles.currentLevel, { color: accent }]}>ETAPA ATUAL</Text>
+              <Text style={styles.currentLevelName}>{stageName}</Text>
             </View>
           </View>
           <View style={styles.progressTrack}>
