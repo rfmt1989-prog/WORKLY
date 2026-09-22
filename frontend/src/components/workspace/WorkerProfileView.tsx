@@ -32,6 +32,7 @@ type AchievementNode = {
   subtitle: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   status: AchievementStatus;
+  level: number;
   certificate?: Certificate;
   evidence?: DemoDocument;
   meta?: string[];
@@ -72,7 +73,7 @@ function statusLabel(status: AchievementStatus) {
   if (status === "verified") return "VERIFICADO";
   if (status === "recorded") return "REGISTADO";
   if (status === "pending") return "A VALIDAR";
-  return "BLOQUEADO";
+  return "POR CONQUISTAR";
 }
 
 function statusIcon(status: AchievementStatus) {
@@ -89,7 +90,8 @@ export function WorkerProfileView() {
   const [selected, setSelected] = useState<AchievementNode | null>(null);
 
   const accent = roleAccent("worker");
-  const compact = width < 820;
+  const compact = width < 900;
+  const mobile = width < 680;
 
   const worker = useMemo(
     () => state?.workers.find((item) => item.id === user?.id),
@@ -112,6 +114,7 @@ export function WorkerProfileView() {
     title: string,
     subtitle: string,
     icon: AchievementNode["icon"],
+    level: number,
     certificate?: Certificate,
   ): AchievementNode => {
     const evidence = findEvidence(worker.documents, certificate);
@@ -120,6 +123,7 @@ export function WorkerProfileView() {
       title,
       subtitle,
       icon,
+      level,
       certificate,
       evidence,
       status: evidence?.file_id ? "verified" : certificate ? "recorded" : "pending",
@@ -134,53 +138,51 @@ export function WorkerProfileView() {
     subtitle: isRodolfo ? "Formação profissional · 2008" : "Ponto de partida profissional",
     icon: "school-outline",
     status: "pending",
+    level: 0,
     meta: isRodolfo ? ["Portugal", "Concluído em 2008"] : [],
   };
 
   const achievements: AchievementNode[] = [
-    certificateNode(
-      "ipaf",
-      "IPAF 3A / 3B",
-      "Plataformas elevatórias",
-      "arrow-up-circle-outline",
-      ipaf,
-    ),
-    certificateNode(
-      "electrical",
-      "Habilitação elétrica H0B0",
-      "Segurança elétrica",
-      "flash-outline",
-      electrical,
-    ),
-    certificateNode(
-      "heights",
-      "Trabalho em altura",
-      "Segurança em altura",
-      "body-outline",
-      heights,
-    ),
-    {
-      id: "atex",
-      title: "ATEX",
-      subtitle: "Atmosferas explosivas · comprovativo por associar",
-      icon: "warning-outline",
-      status: isRodolfo ? "pending" : "locked",
-      meta: ["Indústria", "Ambiente ATEX"],
-    },
-    {
-      id: "vca",
-      title: "VCA",
-      subtitle: "Segurança industrial · Benelux",
-      icon: "shield-outline",
-      status: "locked",
-      meta: ["Países Baixos", "Bélgica", "Recomendado para indústria"],
-    },
+    certificateNode("ipaf", "IPAF 3A / 3B", "Plataformas elevatórias", "arrow-up-circle-outline", 1, ipaf),
+    certificateNode("electrical", "H0B0", "Habilitação elétrica", "flash-outline", 1, electrical),
+    certificateNode("heights", "Trabalho em altura", "Proteção e arnês", "body-outline", 1, heights),
+    { id: "vca", title: "VCA", subtitle: "Basic Safety", icon: "shield-outline", status: "locked", level: 2, meta: ["Benelux", "Indústria"] },
+    { id: "scc", title: "SCC", subtitle: "Safety Contractor", icon: "shield-checkmark-outline", status: "locked", level: 2, meta: ["Alemanha", "Áustria"] },
+    { id: "france-chimie", title: "France Chimie N1", subtitle: "Acesso industrial", icon: "flask-outline", status: "locked", level: 2, meta: ["França", "Indústria química"] },
+    { id: "sst", title: "SST / First Aid", subtitle: "Primeiros socorros", icon: "medkit-outline", status: "locked", level: 2, meta: ["Segurança"] },
+    { id: "atex", title: "ATEX", subtitle: "Atmosferas explosivas", icon: "warning-outline", status: isRodolfo ? "pending" : "locked", level: 3, meta: ["Indústria", "Comprovativo por associar"] },
+    { id: "confined", title: "Espaços confinados", subtitle: "Acesso e resgate", icon: "contract-outline", status: "locked", level: 3, meta: ["Manutenção industrial"] },
+    { id: "rigging", title: "Rigging / Lifting", subtitle: "Elevação de cargas", icon: "git-compare-outline", status: "locked", level: 3, meta: ["Montagem industrial"] },
+    { id: "electrical-advanced", title: "Elétrica avançada", subtitle: "BR / B2V ou equivalente", icon: "flash-outline", status: "locked", level: 3, meta: ["Eletricidade industrial"] },
+    { id: "fgas", title: "F-Gas A1 / A2", subtitle: "Fluidos frigorigéneos", icon: "snow-outline", status: "locked", level: 4, meta: ["HVAC", "Refrigeração"] },
+    { id: "natural-refrigerants", title: "Refrigerantes naturais", subtitle: "CO₂ · NH₃ · hidrocarbonetos", icon: "leaf-outline", status: "locked", level: 4, meta: ["HVAC industrial"] },
+    { id: "r484", title: "Ponte rolante", subtitle: "R484 / equivalente", icon: "git-network-outline", status: "locked", level: 4, meta: ["Movimentação de cargas"] },
+    { id: "r489", title: "Empilhador", subtitle: "R489 / equivalente", icon: "cube-outline", status: "locked", level: 4, meta: ["Logística industrial"] },
+    { id: "atex-n2", title: "ATEX Supervisor", subtitle: "Nível avançado / responsável", icon: "warning-outline", status: "locked", level: 5, meta: ["Supervisão industrial"] },
+    { id: "vol-vca", title: "VOL-VCA / SCC Supervisor", subtitle: "Liderança de segurança", icon: "shield-checkmark-outline", status: "locked", level: 5, meta: ["Supervisão"] },
+    { id: "iecex", title: "IECEx CoPC", subtitle: "Competência Ex avançada", icon: "diamond-outline", status: "locked", level: 5, meta: ["Internacional", "Atmosferas explosivas"] },
   ];
 
-  const projectCount = worker.best_projects.length;
-  const recordedCount = achievements.filter(
+  const totalCertificates = achievements.length;
+  const obtainedCount = achievements.filter(
+    (item) => item.status === "verified" || item.status === "recorded" || item.status === "pending",
+  ).length;
+  const documentedCount = achievements.filter(
     (item) => item.status === "verified" || item.status === "recorded",
   ).length;
+  const pendingCount = achievements.filter((item) => item.status === "pending").length;
+  const levelOneComplete = achievements
+    .filter((item) => item.level === 1)
+    .every((item) => item.status !== "locked");
+  const currentLevel = levelOneComplete ? 2 : 1;
+  const levelName = currentLevel === 2 ? "Operacional" : "Principiante";
+  const levelGroups = [
+    { level: 1, name: "Principiante", note: "Base para trabalhar com segurança" },
+    { level: 2, name: "Operacional", note: "Acesso a ambientes industriais europeus" },
+    { level: 3, name: "Industrial", note: "Competências de risco e manutenção" },
+    { level: 4, name: "Especialista", note: "Certificações técnicas avançadas" },
+    { level: 5, name: "Master", note: "Supervisão e competência internacional" },
+  ];
 
   return (
     <View style={styles.root}>
@@ -189,6 +191,7 @@ export function WorkerProfileView() {
         contentContainerStyle={[
           styles.content,
           compact ? styles.contentCompact : null,
+          mobile ? styles.contentMobile : null,
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -219,8 +222,8 @@ export function WorkerProfileView() {
 
             <View style={styles.heroStats}>
               <HeroStat value={worker.experience_years} label="anos" />
-              <HeroStat value={recordedCount} label="conquistas" />
-              <HeroStat value={projectCount} label="obras destaque" />
+              <HeroStat value={String(obtainedCount) + "/" + String(totalCertificates)} label="certificados" />
+              <HeroStat value={"N" + String(currentLevel)} label={levelName} />
               <HeroStat value={isRodolfo ? 3 : 1} label="países" />
             </View>
           </View>
@@ -264,109 +267,100 @@ export function WorkerProfileView() {
           </View>
         </View>
 
-        <View style={[styles.mainGrid, compact ? styles.mainGridCompact : null]}>
-          <Card style={styles.profileCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionEyebrow}>PERFIL</Text>
-                <Text style={styles.sectionTitle}>Identidade profissional</Text>
-              </View>
-              <Ionicons name="finger-print-outline" size={24} color={accent} />
+        <Card style={styles.treeCard}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionEyebrow}>CONQUISTAS</Text>
+              <Text style={styles.sectionTitle}>Árvore de certificações</Text>
+              <Text style={styles.sectionSubtitle}>
+                Do curso técnico ao nível Master
+              </Text>
             </View>
-
-            <Text style={styles.bio}>
-              {isRodolfo
-                ? "Técnico multidisciplinar com experiência em eletromecânica, refrigeração, eletricidade, montagem industrial e trabalho em obra internacional."
-                : worker.bio}
-            </Text>
-
-            <View style={styles.timeline}>
-              {isRodolfo ? (
-                <>
-                  <TimelineItem
-                    year="2008"
-                    title="Formação técnica"
-                    detail="Eletromecânica · Refrigeração e Climatização"
-                    accent={accent}
-                  />
-                  <TimelineItem
-                    year="2024"
-                    title="Daltile Quartz"
-                    detail="Tennessee · Estados Unidos"
-                    accent={accent}
-                  />
-                  <TimelineItem
-                    year="2025"
-                    title="Rennes Métropole"
-                    detail="Rennes · França"
-                    accent={accent}
-                  />
-                </>
-              ) : (
-                worker.best_projects.map((project) => (
-                  <TimelineItem
-                    key={project.id}
-                    year={String(project.year)}
-                    title={project.title}
-                    detail={project.location}
-                    accent={accent}
-                  />
-                ))
-              )}
+            <View style={[styles.treeMark, { borderColor: accent + "66" }]}>
+              <Ionicons name="git-network-outline" size={22} color={accent} />
             </View>
-          </Card>
+          </View>
 
-          <Card style={styles.treeCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionEyebrow}>CONQUISTAS</Text>
-                <Text style={styles.sectionTitle}>Árvore profissional</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Formação e certificações · toca num badge para ver o comprovativo
-                </Text>
-              </View>
-              <View style={[styles.treeMark, { borderColor: accent + "66" }]}>
-                <Ionicons name="git-network-outline" size={22} color={accent} />
-              </View>
+          <View style={styles.certificateProgress}>
+            <View>
+              <Text style={styles.progressValue}>{obtainedCount}/{totalCertificates}</Text>
+              <Text style={styles.progressLabel}>CERTIFICADOS / CONQUISTAS</Text>
             </View>
-
-            <View style={styles.tree}>
-              <AchievementBadge
-                node={courseNode}
-                accent={accent}
-                large
-                onPress={() => setSelected(courseNode)}
-              />
-              <View style={[styles.verticalLine, { backgroundColor: accent + "44" }]} />
-              <View style={styles.branchLineWrap}>
-                <View style={[styles.branchLine, { backgroundColor: accent + "33" }]} />
-              </View>
-
-              <View style={styles.branchRow}>
-                {achievements.slice(0, 3).map((node) => (
-                  <AchievementBadge
-                    key={node.id}
-                    node={node}
-                    accent={accent}
-                    onPress={() => setSelected(node)}
-                  />
-                ))}
-              </View>
-
-              <View style={[styles.verticalLine, { backgroundColor: accent + "33" }]} />
-              <View style={styles.branchRowCentered}>
-                {achievements.slice(3).map((node) => (
-                  <AchievementBadge
-                    key={node.id}
-                    node={node}
-                    accent={accent}
-                    onPress={() => setSelected(node)}
-                  />
-                ))}
-              </View>
+            <View style={styles.progressRight}>
+              <Text style={[styles.currentLevel, { color: accent }]}>NÍVEL {currentLevel}</Text>
+              <Text style={styles.currentLevelName}>{levelName}</Text>
             </View>
-          </Card>
-        </View>
+          </View>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: String(Math.round((obtainedCount / totalCertificates) * 100)) + "%",
+                  backgroundColor: accent,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressMeta}>
+            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} por conquistar
+          </Text>
+
+          <View style={styles.tree}>
+            <Text style={styles.levelKicker}>FORMAÇÃO · PONTO DE PARTIDA</Text>
+            <AchievementBadge
+              node={courseNode}
+              accent={accent}
+              large
+              onPress={() => setSelected(courseNode)}
+            />
+            <View style={[styles.verticalLine, { backgroundColor: accent + "44" }]} />
+
+            {levelGroups.map((group, index) => {
+              const nodes = achievements.filter((item) => item.level === group.level);
+              const complete = nodes.filter((item) => item.status !== "locked").length;
+              return (
+                <View key={group.level} style={styles.levelSection}>
+                  <View style={styles.levelHeader}>
+                    <View
+                      style={[
+                        styles.levelNumber,
+                        {
+                          borderColor: group.level <= currentLevel ? accent + "88" : workspaceColors.lineStrong,
+                          backgroundColor: group.level <= currentLevel ? accent + "18" : workspaceColors.panelStrong,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.levelNumberText, group.level <= currentLevel ? { color: accent } : null]}>
+                        {group.level}
+                      </Text>
+                    </View>
+                    <View style={styles.levelHeaderText}>
+                      <Text style={styles.levelTitle}>{group.name}</Text>
+                      <Text style={styles.levelNote}>{group.note}</Text>
+                    </View>
+                    <Text style={styles.levelCount}>{complete}/{nodes.length}</Text>
+                  </View>
+
+                  <View style={[styles.levelBadges, mobile ? styles.levelBadgesMobile : null]}>
+                    {nodes.map((node) => (
+                      <AchievementBadge
+                        key={node.id}
+                        node={node}
+                        accent={accent}
+                        onPress={() => setSelected(node)}
+                      />
+                    ))}
+                  </View>
+
+                  {index < levelGroups.length - 1 ? (
+                    <View style={[styles.levelConnector, { backgroundColor: accent + "35" }]} />
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        </Card>
       </ScrollView>
 
       <AchievementModal
@@ -378,36 +372,11 @@ export function WorkerProfileView() {
   );
 }
 
-function HeroStat({ value, label }: { value: number; label: string }) {
+function HeroStat({ value, label }: { value: number | string; label: string }) {
   return (
     <View style={styles.heroStat}>
       <Text style={styles.heroStatValue}>{value}</Text>
       <Text style={styles.heroStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function TimelineItem({
-  year,
-  title,
-  detail,
-  accent,
-}: {
-  year: string;
-  title: string;
-  detail: string;
-  accent: string;
-}) {
-  return (
-    <View style={styles.timelineItem}>
-      <View style={[styles.timelineNode, { borderColor: accent }]}>
-        <View style={[styles.timelineNodeDot, { backgroundColor: accent }]} />
-      </View>
-      <View style={styles.timelineText}>
-        <Text style={[styles.timelineYear, { color: accent }]}>{year}</Text>
-        <Text style={styles.timelineTitle}>{title}</Text>
-        <Text style={styles.timelineDetail}>{detail}</Text>
-      </View>
     </View>
   );
 }
@@ -1031,4 +1000,136 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 14,
   },
-});
+,
+  contentMobile: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    gap: 10,
+  },
+  certificateProgress: {
+    marginTop: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    borderRadius: 14,
+    backgroundColor: workspaceColors.panelStrong,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  progressValue: {
+    color: workspaceColors.text,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "900",
+  },
+  progressLabel: {
+    marginTop: 2,
+    color: workspaceColors.muted,
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  progressRight: {
+    alignItems: "flex-end",
+  },
+  currentLevel: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  currentLevelName: {
+    marginTop: 2,
+    color: workspaceColors.textSoft,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  progressTrack: {
+    marginTop: 9,
+    height: 5,
+    overflow: "hidden",
+    borderRadius: 4,
+    backgroundColor: workspaceColors.line,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressMeta: {
+    marginTop: 6,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 12,
+  },
+  levelKicker: {
+    marginBottom: 8,
+    color: workspaceColors.muted,
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  levelSection: {
+    width: "100%",
+    alignItems: "stretch",
+  },
+  levelHeader: {
+    width: "100%",
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderTopWidth: 1,
+    borderTopColor: workspaceColors.line,
+    paddingTop: 9,
+  },
+  levelNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  levelNumberText: {
+    color: workspaceColors.muted,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  levelHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  levelTitle: {
+    color: workspaceColors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  levelNote: {
+    marginTop: 1,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 11,
+  },
+  levelCount: {
+    color: workspaceColors.textSoft,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  levelBadges: {
+    width: "100%",
+    marginTop: 7,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  levelBadgesMobile: {
+    justifyContent: "space-between",
+  },
+  levelConnector: {
+    alignSelf: "center",
+    width: 1,
+    height: 24,
+    marginVertical: 5,
+  }});
