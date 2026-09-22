@@ -139,7 +139,7 @@ def build_demo_state() -> dict:
             36,
             "Portugal",
             "🇵🇹",
-            "Técnico Eletromecânico / Refrigeração e Climatização",
+            "Nacellista / Operador IPAF 3a/3b",
             12,
             [
                 ("Plataformas elevatórias", 96),
@@ -154,8 +154,7 @@ def build_demo_state() -> dict:
             ],
             [
                 _project_item("best-1", "Daltile Quartz", "Tennessee, EUA", 2024),
-                _project_item("best-2", "Sirmax", "Indiana, EUA", 2024),
-                _project_item("best-3r", "Rennes Métropole", "Rennes, França", 2025),
+                _project_item("best-2", "Rennes Métropole", "Rennes, França", 2025),
             ],
             status="contracted",
             availability=False,
