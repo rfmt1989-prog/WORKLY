@@ -19,7 +19,7 @@ import type { LanguageCode } from "@/src/demo/types";
 import { AttendanceView } from "./AttendanceView";
 import { DocumentsView } from "./DocumentsView";
 import { NotificationCenter } from "./NotificationCenter";
-import { ProfileView } from "./ProfileView";
+import { WorkerProfileView } from "./WorkerProfileView";
 import { ProjectsView } from "./ProjectsView";
 import { Avatar, roleAccent, workspaceColors } from "./primitives";
 
@@ -140,7 +140,7 @@ export function WorkerWorkspaceShell() {
       case "documents":
         return <DocumentsView key="worker-documents" mode="archive" />;
       default:
-        return <ProfileView />;
+        return <WorkerProfileView />;
     }
   })();
 
