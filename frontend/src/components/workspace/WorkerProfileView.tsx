@@ -155,6 +155,7 @@ export function WorkerProfileView() {
     certificateNode(
       "heights",
       "Trabalho em altura",
+      "Segurança em altura",
       "body-outline",
       heights,
     ),
