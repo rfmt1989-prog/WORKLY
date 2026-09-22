@@ -33,6 +33,7 @@ type AchievementNode = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   status: AchievementStatus;
   level: number;
+  family: string;
   certificate?: Certificate;
   evidence?: DemoDocument;
   meta?: string[];
@@ -115,6 +116,7 @@ export function WorkerProfileView() {
     subtitle: string,
     icon: AchievementNode["icon"],
     level: number,
+    family: string,
     certificate?: Certificate,
   ): AchievementNode => {
     const evidence = findEvidence(worker.documents, certificate);
@@ -124,6 +126,7 @@ export function WorkerProfileView() {
       subtitle,
       icon,
       level,
+      family,
       certificate,
       evidence,
       status: evidence?.file_id ? "verified" : certificate ? "recorded" : "pending",
@@ -139,6 +142,7 @@ export function WorkerProfileView() {
     icon: "school-outline",
     status: "pending",
     level: 0,
+    family: "technical-foundation",
     meta: isRodolfo ? ["Portugal", "Concluído em 2008"] : [],
   };
 
@@ -149,6 +153,7 @@ export function WorkerProfileView() {
       "Categorias de plataformas elevatórias",
       "arrow-up-circle-outline",
       1,
+      "powered-access",
       ipaf,
     ),
     certificateNode(
@@ -157,6 +162,7 @@ export function WorkerProfileView() {
       "Acesso em ambiente elétrico · operações não elétricas",
       "flash-outline",
       1,
+      "electrical-access",
       electrical,
     ),
     certificateNode(
@@ -165,38 +171,39 @@ export function WorkerProfileView() {
       "Proteção, arnês e prevenção de queda",
       "body-outline",
       1,
+      "work-at-height",
       heights,
     ),
 
     {
-      id: "france-chimie-n1",
+      id: "france-chimie-n1", family: "industrial-safety-passport",
       title: "France Chimie N1",
       subtitle: "Operador em site industrial",
       icon: "flask-outline",
       status: "locked",
       level: 2,
-      meta: ["Rota França", "Segurança industrial"],
+      meta: ["França · âmbito nacional", "Segurança industrial"],
     },
     {
-      id: "b-vca",
+      id: "b-vca", family: "industrial-safety-passport",
       title: "B-VCA",
       subtitle: "Basisveiligheid VCA",
       icon: "shield-outline",
       status: "locked",
       level: 2,
-      meta: ["Rota Benelux", "Segurança industrial"],
+      meta: ["Benelux · âmbito setorial", "Segurança industrial"],
     },
     {
-      id: "scc-018",
+      id: "scc-018", family: "industrial-safety-passport",
       title: "SCC 018",
       subtitle: "Operativ tätige Mitarbeiter",
       icon: "shield-checkmark-outline",
       status: "locked",
       level: 2,
-      meta: ["Rota Alemanha", "Operador"],
+      meta: ["Alemanha · âmbito setorial", "Operador"],
     },
     {
-      id: "sst",
+      id: "sst", family: "first-aid",
       title: "SST / First Aid",
       subtitle: "Primeiros socorros",
       icon: "medkit-outline",
@@ -206,7 +213,7 @@ export function WorkerProfileView() {
     },
 
     {
-      id: "atex-n1",
+      id: "atex-n1", family: "atex-execution",
       title: "Ism-ATEX N1",
       subtitle: "1E / 1M · agente de execução",
       icon: "warning-outline",
@@ -215,7 +222,7 @@ export function WorkerProfileView() {
       meta: ["ATEX", "Execução", "Comprovativo por associar"],
     },
     {
-      id: "confined",
+      id: "confined", family: "confined-spaces",
       title: "Espaços confinados",
       subtitle: "Acesso, vigilância e resgate",
       icon: "contract-outline",
@@ -224,7 +231,7 @@ export function WorkerProfileView() {
       meta: ["Manutenção industrial"],
     },
     {
-      id: "rigging",
+      id: "rigging", family: "lifting-rigging",
       title: "Rigging / Lifting",
       subtitle: "Elevação e orientação de cargas",
       icon: "git-compare-outline",
@@ -233,16 +240,16 @@ export function WorkerProfileView() {
       meta: ["Montagem industrial"],
     },
     {
-      id: "electrical-execution",
+      id: "electrical-execution", family: "electrical-execution",
       title: "B1 / B1V / BR",
       subtitle: "Execução e intervenção elétrica",
       icon: "flash-outline",
       status: "locked",
       level: 3,
-      meta: ["Rota França", "Função elétrica"],
+      meta: ["França · âmbito nacional", "Função elétrica"],
     },
     {
-      id: "fgas-a2",
+      id: "fgas-a2", family: "fgas-core",
       title: "F-Gas A2",
       subtitle: "F-gases e hidrocarbonetos · carga limitada",
       icon: "snow-outline",
@@ -252,34 +259,34 @@ export function WorkerProfileView() {
     },
 
     {
-      id: "france-chimie-n2",
+      id: "france-chimie-n2", family: "industrial-safety-supervisor",
       title: "France Chimie N2",
       subtitle: "Encadramento e liderança de intervenção",
       icon: "flask-outline",
       status: "locked",
       level: 4,
-      meta: ["Rota França", "Responsável"],
+      meta: ["França · âmbito nacional", "Responsável"],
     },
     {
-      id: "vol-vca",
+      id: "vol-vca", family: "industrial-safety-supervisor",
       title: "VOL-VCA",
       subtitle: "Segurança para responsáveis operacionais",
       icon: "shield-checkmark-outline",
       status: "locked",
       level: 4,
-      meta: ["Rota Benelux", "Responsável"],
+      meta: ["Benelux · âmbito setorial", "Responsável"],
     },
     {
-      id: "scc-017",
+      id: "scc-017", family: "industrial-safety-supervisor",
       title: "SCC 017",
       subtitle: "Operativ tätige Führungskräfte",
       icon: "shield-checkmark-outline",
       status: "locked",
       level: 4,
-      meta: ["Rota Alemanha", "Responsável"],
+      meta: ["Alemanha · âmbito setorial", "Responsável"],
     },
     {
-      id: "atex-n2",
+      id: "atex-n2", family: "atex-supervisor",
       title: "Ism-ATEX N2",
       subtitle: "2E / 2M · pessoa autorizada",
       icon: "warning-outline",
@@ -288,16 +295,16 @@ export function WorkerProfileView() {
       meta: ["ATEX", "Responsabilidade"],
     },
     {
-      id: "electrical-responsibility",
+      id: "electrical-responsibility", family: "electrical-responsibility",
       title: "B2 / B2V / BC",
       subtitle: "Chefia de trabalhos / consignação",
       icon: "flash-outline",
       status: "locked",
       level: 4,
-      meta: ["Rota França", "Função elétrica"],
+      meta: ["França · âmbito nacional", "Função elétrica"],
     },
     {
-      id: "fgas-a1",
+      id: "fgas-a1", family: "fgas-advanced",
       title: "F-Gas A1",
       subtitle: "Âmbito completo F-gases e hidrocarbonetos",
       icon: "snow-outline",
@@ -307,7 +314,7 @@ export function WorkerProfileView() {
     },
 
     {
-      id: "iecex",
+      id: "iecex", family: "explosive-atmospheres-advanced",
       title: "IECEx CoPC",
       subtitle: "Competência internacional em atmosferas Ex",
       icon: "diamond-outline",
@@ -316,7 +323,7 @@ export function WorkerProfileView() {
       meta: ["Internacional", "Especialização Ex"],
     },
     {
-      id: "fgas-b",
+      id: "fgas-b", family: "co2-specialist",
       title: "Certificado B · CO₂",
       subtitle: "Especialização em dióxido de carbono",
       icon: "snow-outline",
@@ -325,7 +332,7 @@ export function WorkerProfileView() {
       meta: ["UE", "Refrigerante natural"],
     },
     {
-      id: "fgas-c",
+      id: "fgas-c", family: "nh3-specialist",
       title: "Certificado C · NH₃",
       subtitle: "Especialização em amoníaco",
       icon: "snow-outline",
@@ -354,6 +361,19 @@ export function WorkerProfileView() {
   const stageName = currentStage === 2 ? "Operador Qualificado" : "Principiante";
   const stageShort = currentStage === 2 ? "Operador" : "Principiante";
 
+  const certificationFamilies = Array.from(
+    new Set(achievements.map((item) => item.family)),
+  );
+  const completedFamilies = certificationFamilies.filter((family) =>
+    achievements.some(
+      (item) =>
+        item.family === family &&
+        (item.status === "verified" ||
+          item.status === "recorded" ||
+          item.status === "pending"),
+    ),
+  );
+
   const levelGroups = [
     {
       level: 1,
@@ -365,7 +385,7 @@ export function WorkerProfileView() {
       level: 2,
       code: "O",
       name: "Operador Qualificado",
-      note: "Passaportes de segurança e acesso industrial por país",
+      note: "Segurança e acesso industrial no mercado europeu",
     },
     {
       level: 3,
@@ -487,7 +507,7 @@ export function WorkerProfileView() {
           <View style={styles.certificateProgress}>
             <View>
               <Text style={styles.progressValue}>{obtainedCount}/{totalCertificates}</Text>
-              <Text style={styles.progressLabel}>BADGES NO MAPA EUROPEU</Text>
+              <Text style={styles.progressLabel}>CERTIFICADOS NO CATÁLOGO EUROPEU</Text>
             </View>
             <View style={styles.progressRight}>
               <Text style={[styles.currentLevel, { color: accent }]}>ETAPA ATUAL</Text>
@@ -506,8 +526,7 @@ export function WorkerProfileView() {
             />
           </View>
           <Text style={styles.progressMeta}>
-            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} disponíveis no mapa
-          </Text>
+            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} disponíveis no mapa\n          </Text>\n          <Text style={styles.progressMeta}>\n            {completedFamilies.length}/{certificationFamilies.length} famílias profissionais cobertas · equivalentes nacionais não são obrigatórios em duplicado\n          </Text>
 
           <View style={styles.tree}>
             <Text style={styles.levelKicker}>FORMAÇÃO · PONTO DE PARTIDA</Text>
@@ -521,7 +540,16 @@ export function WorkerProfileView() {
 
             {levelGroups.map((group, index) => {
               const nodes = achievements.filter((item) => item.level === group.level);
-              const complete = nodes.filter((item) => item.status !== "locked").length;
+              const families = Array.from(new Set(nodes.map((item) => item.family)));
+              const complete = families.filter((family) =>
+                nodes.some(
+                  (item) =>
+                    item.family === family &&
+                    (item.status === "verified" ||
+                      item.status === "recorded" ||
+                      item.status === "pending"),
+                ),
+              ).length;
               return (
                 <View key={group.level} style={styles.levelSection}>
                   <View style={styles.levelHeader}>
@@ -542,7 +570,7 @@ export function WorkerProfileView() {
                       <Text style={styles.levelTitle}>{group.name}</Text>
                       <Text style={styles.levelNote}>{group.note}</Text>
                     </View>
-                    <Text style={styles.levelCount}>{complete}/{nodes.length}</Text>
+                    <Text style={styles.levelCount}>{complete}/{families.length}</Text>
                   </View>
 
                   <View style={[styles.levelBadges, mobile ? styles.levelBadgesMobile : null]}>
