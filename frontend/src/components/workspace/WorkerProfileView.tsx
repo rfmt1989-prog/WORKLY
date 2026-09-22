@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -17,14 +16,26 @@ import type { Certificate, DemoDocument } from "@/src/demo/types";
 import {
   Avatar,
   Button,
-  Card,
   ModalPanel,
   roleAccent,
   sharedStyles,
   workspaceColors,
 } from "./primitives";
 
-type AchievementStatus = "verified" | "recorded" | "pending" | "locked";
+type AchievementStatus =
+  | "verified"
+  | "recorded"
+  | "pending"
+  | "available"
+  | "locked";
+
+type StageKey =
+  | "foundation"
+  | "base"
+  | "industrial-access"
+  | "technical"
+  | "responsibility"
+  | "master";
 
 type AchievementNode = {
   id: string;
@@ -32,16 +43,61 @@ type AchievementNode = {
   subtitle: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   status: AchievementStatus;
-  level: number;
+  stage: StageKey;
   family: string;
+  scope: string;
+  dependsOn?: string[];
   certificate?: Certificate;
   evidence?: DemoDocument;
   meta?: string[];
 };
 
+type NodeSpec = Omit<AchievementNode, "status"> & {
+  baseStatus: Exclude<AchievementStatus, "locked">;
+};
+
+type StageDefinition = {
+  key: StageKey;
+  title: string;
+  subtitle: string;
+};
+
+const STAGES: StageDefinition[] = [
+  {
+    key: "foundation",
+    title: "Formação",
+    subtitle: "Ponto de partida profissional",
+  },
+  {
+    key: "base",
+    title: "Base profissional",
+    subtitle: "Segurança e acesso essenciais",
+  },
+  {
+    key: "industrial-access",
+    title: "Acesso industrial",
+    subtitle: "Passaportes e segurança de fábrica",
+  },
+  {
+    key: "technical",
+    title: "Técnico industrial",
+    subtitle: "Execução técnica e ambientes de risco",
+  },
+  {
+    key: "responsibility",
+    title: "Responsável técnico",
+    subtitle: "Supervisão, liderança e maior âmbito",
+  },
+  {
+    key: "master",
+    title: "Master WORKLY",
+    subtitle: "Especializações avançadas e reconhecimento profissional",
+  },
+];
+
 const rodolfoAreas = [
   { label: "Eletromecânica", icon: "settings-outline" as const },
-  { label: "Refrigeração / HVAC", icon: "snow-outline" as const },
+  { label: "HVAC", icon: "snow-outline" as const },
   { label: "Eletricidade", icon: "flash-outline" as const },
   { label: "Montagem industrial", icon: "construct-outline" as const },
 ];
@@ -58,6 +114,7 @@ function findEvidence(
   certificate?: Certificate,
 ): DemoDocument | undefined {
   if (!certificate) return undefined;
+
   const normalizedFile = certificate.file_name.toLowerCase();
   const normalizedName = certificate.name.toLowerCase();
 
@@ -70,29 +127,67 @@ function findEvidence(
   });
 }
 
+function isCompleted(status: AchievementStatus) {
+  return status === "verified" || status === "recorded";
+}
+
 function statusLabel(status: AchievementStatus) {
   if (status === "verified") return "VERIFICADO";
   if (status === "recorded") return "REGISTADO";
   if (status === "pending") return "A VALIDAR";
-  return "POR CONQUISTAR";
+  if (status === "available") return "DISPONÍVEL";
+  return "BLOQUEADO";
 }
 
 function statusIcon(status: AchievementStatus) {
   if (status === "verified") return "shield-checkmark-outline" as const;
   if (status === "recorded") return "checkmark-circle-outline" as const;
   if (status === "pending") return "time-outline" as const;
+  if (status === "available") return "add-circle-outline" as const;
   return "lock-closed-outline" as const;
+}
+
+function statusTone(status: AchievementStatus, accent: string) {
+  if (status === "verified" || status === "recorded") return accent;
+  if (status === "pending") return workspaceColors.yellow;
+  if (status === "available") return workspaceColors.textSoft;
+  return workspaceColors.muted;
+}
+
+function resolveStatuses(specs: NodeSpec[]): AchievementNode[] {
+  const resolved = new Map<string, AchievementNode>();
+
+  for (const spec of specs) {
+    const directEvidence =
+      spec.baseStatus === "verified" ||
+      spec.baseStatus === "recorded" ||
+      spec.baseStatus === "pending";
+
+    const prerequisitesMet = (spec.dependsOn ?? []).every((id) => {
+      const parent = resolved.get(id);
+      return parent ? isCompleted(parent.status) : false;
+    });
+
+    const status: AchievementStatus =
+      directEvidence || !spec.dependsOn?.length || prerequisitesMet
+        ? spec.baseStatus
+        : "locked";
+
+    resolved.set(spec.id, {
+      ...spec,
+      status,
+    });
+  }
+
+  return Array.from(resolved.values());
 }
 
 export function WorkerProfileView() {
   const { user } = useAuth();
   const { state } = useWorklyData();
-  const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<AchievementNode | null>(null);
 
   const accent = roleAccent("worker");
-  const compact = width < 900;
-  const mobile = width < 680;
 
   const worker = useMemo(
     () => state?.workers.find((item) => item.id === user?.id),
@@ -107,495 +202,551 @@ export function WorkerProfileView() {
     : worker.profession;
 
   const ipaf = findCertificate(worker.certificates, ["ipaf", "3a", "3b"]);
-  const electrical = findCertificate(worker.certificates, ["h0b0", "habilitação elétrica"]);
+  const electrical = findCertificate(worker.certificates, [
+    "h0b0",
+    "h0 / b0",
+    "habilitação elétrica",
+  ]);
   const heights = findCertificate(worker.certificates, ["altura", "heights"]);
 
-  const certificateNode = (
-    id: string,
-    title: string,
-    subtitle: string,
-    icon: AchievementNode["icon"],
-    level: number,
-    family: string,
+  const nodeFromCertificate = (
+    spec: Omit<NodeSpec, "baseStatus" | "certificate" | "evidence">,
     certificate?: Certificate,
-  ): AchievementNode => {
+  ): NodeSpec => {
     const evidence = findEvidence(worker.documents, certificate);
+
     return {
-      id,
-      title,
-      subtitle,
-      icon,
-      level,
-      family,
+      ...spec,
       certificate,
       evidence,
-      status: evidence?.file_id ? "verified" : certificate ? "recorded" : "pending",
+      baseStatus: evidence?.file_id
+        ? "verified"
+        : certificate
+          ? "recorded"
+          : "available",
     };
   };
 
-  const courseNode: AchievementNode = {
-    id: "course",
-    title: isRodolfo
-      ? "Técnico Eletromecânico de Refrigeração e Climatização IV"
-      : "Formação técnica base",
-    subtitle: isRodolfo ? "Formação profissional · 2008" : "Ponto de partida profissional",
-    icon: "school-outline",
-    status: "pending",
-    level: 0,
-    family: "technical-foundation",
-    meta: isRodolfo ? ["Portugal", "Concluído em 2008"] : [],
-  };
+  const specs: NodeSpec[] = [
+    {
+      id: "course",
+      title: isRodolfo
+        ? "Técnico Eletromecânico de Refrigeração e Climatização IV"
+        : "Formação técnica",
+      subtitle: isRodolfo ? "Concluído em 2008" : "Formação profissional",
+      icon: "school-outline",
+      stage: "foundation",
+      family: "technical-foundation",
+      scope: "Formação profissional",
+      baseStatus: "recorded",
+      meta: isRodolfo ? ["Portugal", "2008"] : [],
+    },
 
-  const achievements: AchievementNode[] = [
-    certificateNode(
-      "ipaf",
-      "IPAF 3A / 3B",
-      "Categorias de plataformas elevatórias",
-      "arrow-up-circle-outline",
-      1,
-      "powered-access",
+    nodeFromCertificate(
+      {
+        id: "ipaf-3ab",
+        title: "IPAF 3A / 3B",
+        subtitle: "Plataformas elevatórias móveis",
+        icon: "arrow-up-circle-outline",
+        stage: "base",
+        family: "powered-access",
+        scope: "Internacional",
+        dependsOn: ["course"],
+        meta: ["3A · móvel vertical", "3B · móvel multidirecional"],
+      },
       ipaf,
     ),
-    certificateNode(
-      "electrical",
-      "H0 / B0",
-      "Acesso em ambiente elétrico · operações não elétricas",
-      "flash-outline",
-      1,
-      "electrical-access",
+    nodeFromCertificate(
+      {
+        id: "h0b0",
+        title: "H0 / B0",
+        subtitle: "Operações não elétricas em ambiente elétrico",
+        icon: "flash-outline",
+        stage: "base",
+        family: "electrical-safety",
+        scope: "França / equivalente nacional",
+        dependsOn: ["course"],
+      },
       electrical,
     ),
-    certificateNode(
-      "heights",
-      "Trabalho em altura",
-      "Proteção, arnês e prevenção de queda",
-      "body-outline",
-      1,
-      "work-at-height",
+    nodeFromCertificate(
+      {
+        id: "work-height",
+        title: "Trabalho em altura",
+        subtitle: "Arnês e prevenção de queda",
+        icon: "body-outline",
+        stage: "base",
+        family: "work-at-height",
+        scope: "Europa · aplicação por país/site",
+        dependsOn: ["course"],
+      },
       heights,
     ),
-
     {
-      id: "france-chimie-n1", family: "industrial-safety-passport",
-      title: "France Chimie N1",
-      subtitle: "Operador em site industrial",
-      icon: "flask-outline",
-      status: "locked",
-      level: 2,
-      meta: ["França · âmbito nacional", "Segurança industrial"],
-    },
-    {
-      id: "b-vca", family: "industrial-safety-passport",
-      title: "B-VCA",
-      subtitle: "Basisveiligheid VCA",
-      icon: "shield-outline",
-      status: "locked",
-      level: 2,
-      meta: ["Benelux · âmbito setorial", "Segurança industrial"],
-    },
-    {
-      id: "scc-018", family: "industrial-safety-passport",
-      title: "SCC 018",
-      subtitle: "Operativ tätige Mitarbeiter",
-      icon: "shield-checkmark-outline",
-      status: "locked",
-      level: 2,
-      meta: ["Alemanha · âmbito setorial", "Operador"],
-    },
-    {
-      id: "sst", family: "first-aid",
-      title: "SST / First Aid",
-      subtitle: "Primeiros socorros",
+      id: "first-aid",
+      title: "First Aid / SST",
+      subtitle: "Primeiros socorros no trabalho",
       icon: "medkit-outline",
-      status: "locked",
-      level: 2,
-      meta: ["Segurança"],
+      stage: "base",
+      family: "first-aid",
+      scope: "Europa · esquema nacional",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
 
     {
-      id: "atex-n1", family: "atex-execution",
-      title: "Ism-ATEX N1",
-      subtitle: "1E / 1M · agente de execução",
-      icon: "warning-outline",
-      status: isRodolfo ? "pending" : "locked",
-      level: 3,
-      meta: ["ATEX", "Execução", "Comprovativo por associar"],
+      id: "france-n1",
+      title: "France Chimie N1",
+      subtitle: "Intervenção em site químico",
+      icon: "flask-outline",
+      stage: "industrial-access",
+      family: "industrial-safety-france",
+      scope: "França · indústria química",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
     {
-      id: "confined", family: "confined-spaces",
+      id: "b-vca",
+      title: "B-VCA",
+      subtitle: "Segurança básica VCA",
+      icon: "shield-outline",
+      stage: "industrial-access",
+      family: "industrial-safety-vca",
+      scope: "Países Baixos / Bélgica e clientes VCA",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "scc-018",
+      title: "SCC 018",
+      subtitle: "Operador SGU",
+      icon: "shield-checkmark-outline",
+      stage: "industrial-access",
+      family: "industrial-safety-scc",
+      scope: "Alemanha / mercado SCC",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "site-induction",
+      title: "Site Safety Induction",
+      subtitle: "Indução específica de fábrica",
+      icon: "business-outline",
+      stage: "industrial-access",
+      family: "site-induction",
+      scope: "Específico do cliente/site",
+      dependsOn: ["course"],
+      baseStatus: "available",
+      meta: ["Não é uma certificação universal", "Pode expirar por site/projeto"],
+    },
+
+    {
+      id: "atex-n1",
+      title: "Ism-ATEX N1",
+      subtitle: "1E / 1M · execução",
+      icon: "warning-outline",
+      stage: "technical",
+      family: "atex",
+      scope: "Indústria ATEX",
+      dependsOn: ["course"],
+      baseStatus: isRodolfo ? "pending" : "available",
+      meta: isRodolfo ? ["Comprovativo por associar"] : [],
+    },
+    {
+      id: "electrical-b1",
+      title: "B1 / B1V / BR",
+      subtitle: "Execução / intervenção elétrica",
+      icon: "flash-outline",
+      stage: "technical",
+      family: "electrical-work",
+      scope: "França / equivalente nacional",
+      dependsOn: ["h0b0"],
+      baseStatus: "available",
+    },
+    {
+      id: "fgas-a2",
+      title: "F-Gas A2",
+      subtitle: "F-gases e hidrocarbonetos · âmbito limitado",
+      icon: "snow-outline",
+      stage: "technical",
+      family: "refrigeration-eu",
+      scope: "UE / reconhecimento entre Estados-Membros",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "confined-space",
       title: "Espaços confinados",
       subtitle: "Acesso, vigilância e resgate",
       icon: "contract-outline",
-      status: "locked",
-      level: 3,
-      meta: ["Manutenção industrial"],
+      stage: "technical",
+      family: "confined-spaces",
+      scope: "Europa · esquema nacional/site",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
     {
-      id: "rigging", family: "lifting-rigging",
-      title: "Rigging / Lifting",
+      id: "rigging",
+      title: "Rigging / Slinging",
       subtitle: "Elevação e orientação de cargas",
       icon: "git-compare-outline",
-      status: "locked",
-      level: 3,
-      meta: ["Montagem industrial"],
+      stage: "technical",
+      family: "lifting",
+      scope: "Europa · esquema nacional/site",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
     {
-      id: "electrical-execution", family: "electrical-execution",
-      title: "B1 / B1V / BR",
-      subtitle: "Execução e intervenção elétrica",
-      icon: "flash-outline",
-      status: "locked",
-      level: 3,
-      meta: ["França · âmbito nacional", "Função elétrica"],
+      id: "loto",
+      title: "LOTO",
+      subtitle: "Lockout / Tagout · consignação de energias",
+      icon: "lock-closed-outline",
+      stage: "technical",
+      family: "energy-isolation",
+      scope: "Indústria · procedimento de empresa/site",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
     {
-      id: "fgas-a2", family: "fgas-core",
-      title: "F-Gas A2",
-      subtitle: "F-gases e hidrocarbonetos · carga limitada",
-      icon: "snow-outline",
-      status: "locked",
-      level: 3,
-      meta: ["UE", "HVAC / Refrigeração"],
+      id: "overhead-crane",
+      title: "Ponte rolante",
+      subtitle: "R484 / equivalente",
+      icon: "git-network-outline",
+      stage: "technical",
+      family: "lifting-equipment",
+      scope: "Nacional / cliente",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "forklift",
+      title: "Empilhador",
+      subtitle: "R489 / equivalente",
+      icon: "cube-outline",
+      stage: "technical",
+      family: "industrial-vehicles",
+      scope: "Nacional / cliente",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "scaffolding",
+      title: "Andaimes",
+      subtitle: "Montagem / utilização conforme função",
+      icon: "grid-outline",
+      stage: "technical",
+      family: "scaffolding",
+      scope: "Nacional / cliente",
+      dependsOn: ["work-height"],
+      baseStatus: "available",
     },
 
     {
-      id: "france-chimie-n2", family: "industrial-safety-supervisor",
+      id: "france-n2",
       title: "France Chimie N2",
-      subtitle: "Encadramento e liderança de intervenção",
+      subtitle: "Encadramento de intervenções",
       icon: "flask-outline",
-      status: "locked",
-      level: 4,
-      meta: ["França · âmbito nacional", "Responsável"],
+      stage: "responsibility",
+      family: "industrial-safety-france",
+      scope: "França · indústria química",
+      dependsOn: ["france-n1"],
+      baseStatus: "available",
+      meta: ["Desbloqueio WORKLY após N1"],
     },
     {
-      id: "vol-vca", family: "industrial-safety-supervisor",
+      id: "vol-vca",
       title: "VOL-VCA",
-      subtitle: "Segurança para responsáveis operacionais",
+      subtitle: "Responsável operacional VCA",
       icon: "shield-checkmark-outline",
-      status: "locked",
-      level: 4,
-      meta: ["Benelux · âmbito setorial", "Responsável"],
+      stage: "responsibility",
+      family: "industrial-safety-vca",
+      scope: "Países Baixos / Bélgica e clientes VCA",
+      dependsOn: ["b-vca"],
+      baseStatus: "available",
+      meta: ["Desbloqueio WORKLY após B-VCA"],
     },
     {
-      id: "scc-017", family: "industrial-safety-supervisor",
+      id: "scc-017",
       title: "SCC 017",
-      subtitle: "Operativ tätige Führungskräfte",
+      subtitle: "Chefias operacionais SGU",
       icon: "shield-checkmark-outline",
-      status: "locked",
-      level: 4,
-      meta: ["Alemanha · âmbito setorial", "Responsável"],
+      stage: "responsibility",
+      family: "industrial-safety-scc",
+      scope: "Alemanha / mercado SCC",
+      dependsOn: ["scc-018"],
+      baseStatus: "available",
+      meta: ["Desbloqueio WORKLY após SCC 018"],
     },
     {
-      id: "atex-n2", family: "atex-supervisor",
+      id: "atex-n2",
       title: "Ism-ATEX N2",
       subtitle: "2E / 2M · pessoa autorizada",
       icon: "warning-outline",
-      status: "locked",
-      level: 4,
-      meta: ["ATEX", "Responsabilidade"],
+      stage: "responsibility",
+      family: "atex",
+      scope: "Indústria ATEX",
+      dependsOn: ["atex-n1"],
+      baseStatus: "available",
+      meta: ["Desbloqueio WORKLY após N1 validado"],
     },
     {
-      id: "electrical-responsibility", family: "electrical-responsibility",
+      id: "electrical-b2",
       title: "B2 / B2V / BC",
       subtitle: "Chefia de trabalhos / consignação",
       icon: "flash-outline",
-      status: "locked",
-      level: 4,
-      meta: ["França · âmbito nacional", "Função elétrica"],
+      stage: "responsibility",
+      family: "electrical-work",
+      scope: "França / equivalente nacional",
+      dependsOn: ["electrical-b1"],
+      baseStatus: "available",
+      meta: ["Progressão WORKLY por responsabilidade"],
     },
     {
-      id: "fgas-a1", family: "fgas-advanced",
+      id: "fgas-a1",
       title: "F-Gas A1",
       subtitle: "Âmbito completo F-gases e hidrocarbonetos",
       icon: "snow-outline",
-      status: "locked",
-      level: 4,
-      meta: ["UE", "HVAC / Refrigeração"],
+      stage: "responsibility",
+      family: "refrigeration-eu",
+      scope: "UE / reconhecimento entre Estados-Membros",
+      dependsOn: ["fgas-a2"],
+      baseStatus: "available",
+      meta: [
+        "Progressão visual WORKLY",
+        "A2 não é apresentado como pré-requisito legal universal de A1",
+      ],
     },
 
     {
-      id: "iecex", family: "explosive-atmospheres-advanced",
+      id: "iecex-copc",
       title: "IECEx CoPC",
       subtitle: "Competência internacional em atmosferas Ex",
       icon: "diamond-outline",
-      status: "locked",
-      level: 5,
-      meta: ["Internacional", "Especialização Ex"],
+      stage: "master",
+      family: "explosive-atmospheres-advanced",
+      scope: "Internacional",
+      dependsOn: ["atex-n2"],
+      baseStatus: "available",
     },
     {
-      id: "fgas-b", family: "co2-specialist",
-      title: "Certificado B · CO₂",
+      id: "fgas-b",
+      title: "F-Gas B · CO₂",
       subtitle: "Especialização em dióxido de carbono",
       icon: "snow-outline",
-      status: "locked",
-      level: 5,
-      meta: ["UE", "Refrigerante natural"],
+      stage: "master",
+      family: "refrigeration-co2",
+      scope: "UE",
+      dependsOn: ["course"],
+      baseStatus: "available",
     },
     {
-      id: "fgas-c", family: "nh3-specialist",
-      title: "Certificado C · NH₃",
+      id: "fgas-c",
+      title: "F-Gas C · NH₃",
       subtitle: "Especialização em amoníaco",
       icon: "snow-outline",
-      status: "locked",
-      level: 5,
-      meta: ["UE", "Refrigerante natural"],
+      stage: "master",
+      family: "refrigeration-nh3",
+      scope: "UE",
+      dependsOn: ["course"],
+      baseStatus: "available",
+    },
+    {
+      id: "ipaf-mm",
+      title: "IPAF MM",
+      subtitle: "MEWPs for Managers",
+      icon: "people-outline",
+      stage: "master",
+      family: "powered-access-management",
+      scope: "Internacional",
+      dependsOn: ["ipaf-3ab"],
+      baseStatus: "available",
     },
   ];
 
-  const totalCertificates = achievements.length;
-  const obtainedCount = achievements.filter(
-    (item) =>
-      item.status === "verified" ||
-      item.status === "recorded" ||
-      item.status === "pending",
-  ).length;
-  const documentedCount = achievements.filter(
-    (item) => item.status === "verified" || item.status === "recorded",
-  ).length;
-  const pendingCount = achievements.filter((item) => item.status === "pending").length;
+  const achievements = resolveStatuses(specs);
+  const byId = new Map(achievements.map((item) => [item.id, item]));
 
-  const beginnerComplete = achievements
-    .filter((item) => item.level === 1)
-    .every((item) => item.status !== "locked");
-  const currentStage = beginnerComplete ? 2 : 1;
-  const stageName = currentStage === 2 ? "Operador Qualificado" : "Principiante";
-  const stageShort = currentStage === 2 ? "Operador" : "Principiante";
+  const certificateNodes = achievements.filter((item) => item.id !== "course");
+  const confirmedCount = certificateNodes.filter((item) =>
+    isCompleted(item.status),
+  ).length;
+  const pendingCount = certificateNodes.filter(
+    (item) => item.status === "pending",
+  ).length;
+  const totalCount = certificateNodes.length;
 
-  const certificationFamilies = Array.from(
-    new Set(achievements.map((item) => item.family)),
+  const families = Array.from(
+    new Set(certificateNodes.map((item) => item.family)),
   );
-  const completedFamilies = certificationFamilies.filter((family) =>
-    achievements.some(
-      (item) =>
-        item.family === family &&
-        (item.status === "verified" ||
-          item.status === "recorded" ||
-          item.status === "pending"),
+  const coveredFamilies = families.filter((family) =>
+    certificateNodes.some(
+      (item) => item.family === family && isCompleted(item.status),
     ),
-  );
+  ).length;
 
-  const levelGroups = [
-    {
-      level: 1,
-      code: "P",
-      name: "Principiante",
-      note: "Base prática após a formação técnica",
-    },
-    {
-      level: 2,
-      code: "O",
-      name: "Operador Qualificado",
-      note: "Segurança e acesso industrial no mercado europeu",
-    },
-    {
-      level: 3,
-      code: "I",
-      name: "Técnico Industrial",
-      note: "Execução técnica, risco e manutenção industrial",
-    },
-    {
-      level: 4,
-      code: "R",
-      name: "Responsável Técnico",
-      note: "Certificações de responsabilidade, supervisão e maior âmbito",
-    },
-    {
-      level: 5,
-      code: "M",
-      name: "Master WORKLY",
-      note: "Especializações avançadas relevantes à profissão",
-    },
-  ];
+  const currentStage =
+    confirmedCount >= 12
+      ? "Responsável"
+      : confirmedCount >= 7
+        ? "Técnico"
+        : confirmedCount >= 4
+          ? "Operador"
+          : "Base";
 
   return (
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          compact ? styles.contentCompact : null,
-          mobile ? styles.contentMobile : null,
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.hero, { borderColor: accent + "55" }]}>
-          <View style={[styles.heroGlow, { backgroundColor: accent + "18" }]} />
-          <View style={[styles.heroGrid, compact ? styles.heroGridCompact : null]}>
-            <View style={styles.identityBlock}>
-              <Avatar
-                name={worker.name}
-                flag={worker.flag}
-                size={compact ? 78 : 98}
-                accent={accent}
-              />
-              <View style={styles.identityText}>
-                <View style={styles.eyebrowRow}>
-                  <Text style={[styles.eyebrow, { color: accent }]}>
-                    WORKLY PROFESSIONAL ID
-                  </Text>
-                  <View style={[styles.liveDot, { backgroundColor: accent }]} />
-                </View>
-                <Text style={styles.name}>{worker.name}</Text>
-                <Text style={styles.profession}>{profession}</Text>
-                <Text style={styles.location}>
-                  {worker.flag} {worker.country} · {worker.location}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.heroStats}>
-              <HeroStat value={worker.experience_years} label="anos" />
-              <HeroStat value={String(obtainedCount) + "/" + String(totalCertificates)} label="certificados" />
-              <HeroStat value={stageShort} label="etapa" />
-              <HeroStat value={isRodolfo ? 3 : 1} label="países" />
-            </View>
-          </View>
-
-          <View style={styles.areaRow}>
-            {(isRodolfo ? rodolfoAreas : [{ label: worker.profession, icon: "construct-outline" as const }]).map(
-              (area, index) => (
-                <View
-                  key={area.label}
-                  style={[
-                    styles.areaChip,
-                    index === 0
-                      ? {
-                          borderColor: accent + "66",
-                          backgroundColor: accent + "12",
-                        }
-                      : null,
-                  ]}
-                >
-                  <Ionicons
-                    name={area.icon}
-                    size={16}
-                    color={index === 0 ? accent : workspaceColors.muted}
-                  />
-                  <Text
-                    style={[
-                      styles.areaText,
-                      index === 0 ? { color: workspaceColors.text } : null,
-                    ]}
-                  >
-                    {area.label}
-                  </Text>
-                  {index === 0 ? (
-                    <Text style={[styles.primaryLabel, { color: accent }]}>
-                      PRINCIPAL
-                    </Text>
-                  ) : null}
-                </View>
-              ),
-            )}
-          </View>
-        </View>
-
-        <Card style={styles.treeCard}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionEyebrow}>CONQUISTAS</Text>
-              <Text style={styles.sectionTitle}>Árvore de certificações</Text>
-              <Text style={styles.sectionSubtitle}>
-                Da formação técnica ao Master WORKLY
+        <View style={[styles.identityCard, { borderColor: accent + "44" }]}>
+          <View style={styles.identityRow}>
+            <Avatar
+              name={worker.name}
+              flag={worker.flag}
+              size={70}
+              accent={accent}
+            />
+            <View style={styles.identityText}>
+              <Text style={[styles.eyebrow, { color: accent }]}>WORKLY ID</Text>
+              <Text style={styles.name} numberOfLines={1}>
+                {worker.name}
+              </Text>
+              <Text style={styles.profession} numberOfLines={2}>
+                {profession}
               </Text>
             </View>
-            <View style={[styles.treeMark, { borderColor: accent + "66" }]}>
-              <Ionicons name="git-network-outline" size={22} color={accent} />
-            </View>
           </View>
 
-          <View style={styles.certificateProgress}>
-            <View>
-              <Text style={styles.progressValue}>{obtainedCount}/{totalCertificates}</Text>
-              <Text style={styles.progressLabel}>CERTIFICADOS NO CATÁLOGO EUROPEU</Text>
-            </View>
-            <View style={styles.progressRight}>
-              <Text style={[styles.currentLevel, { color: accent }]}>ETAPA ATUAL</Text>
-              <Text style={styles.currentLevelName}>{stageName}</Text>
-            </View>
-          </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: (String(Math.round((obtainedCount / totalCertificates) * 100)) + "%") as `${number}%`,
-                  backgroundColor: accent,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressMeta}>
-            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} disponíveis no mapa\n          </Text>\n          <Text style={styles.progressMeta}>\n            {completedFamilies.length}/{certificationFamilies.length} famílias profissionais cobertas · equivalentes nacionais não são obrigatórios em duplicado\n          </Text>
-
-          <View style={styles.tree}>
-            <Text style={styles.levelKicker}>FORMAÇÃO · PONTO DE PARTIDA</Text>
-            <AchievementBadge
-              node={courseNode}
+          <View style={styles.statsRow}>
+            <MiniStat
+              value={String(confirmedCount) + "/" + String(totalCount)}
+              label="certificados"
+              icon="ribbon-outline"
               accent={accent}
-              large
-              onPress={() => setSelected(courseNode)}
             />
-            <View style={[styles.verticalLine, { backgroundColor: accent + "44" }]} />
+            <MiniStat
+              value={String(pendingCount)}
+              label="a validar"
+              icon="time-outline"
+              accent={workspaceColors.yellow}
+            />
+            <MiniStat
+              value={currentStage}
+              label="etapa"
+              icon="git-branch-outline"
+              accent={accent}
+            />
+          </View>
 
-            {levelGroups.map((group, index) => {
-              const nodes = achievements.filter((item) => item.level === group.level);
-              const families = Array.from(new Set(nodes.map((item) => item.family)));
-              const complete = families.filter((family) =>
-                nodes.some(
-                  (item) =>
-                    item.family === family &&
-                    (item.status === "verified" ||
-                      item.status === "recorded" ||
-                      item.status === "pending"),
-                ),
-              ).length;
-              return (
-                <View key={group.level} style={styles.levelSection}>
-                  <View style={styles.levelHeader}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.areaScroller}
+          >
+            {(isRodolfo
+              ? rodolfoAreas
+              : [{ label: worker.profession, icon: "construct-outline" as const }]
+            ).map((area) => (
+              <View key={area.label} style={styles.areaChip}>
+                <Ionicons name={area.icon} size={14} color={accent} />
+                <Text style={styles.areaChipText}>{area.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryTop}>
+            <View>
+              <Text style={styles.summaryEyebrow}>MAPA EUROPEU</Text>
+              <Text style={styles.summaryTitle}>Árvore de certificações</Text>
+            </View>
+            <View style={[styles.familyCounter, { borderColor: accent + "55" }]}>
+              <Text style={[styles.familyCounterValue, { color: accent }]}>
+                {coveredFamilies}/{families.length}
+              </Text>
+              <Text style={styles.familyCounterLabel}>FAMÍLIAS</Text>
+            </View>
+          </View>
+          <Text style={styles.summaryText}>
+            Progressão vertical. Certificações nacionais equivalentes contam como
+            caminhos alternativos; não tens de possuir todas para evoluir.
+          </Text>
+        </View>
+
+        <View style={styles.tree}>
+          {STAGES.map((stage, stageIndex) => {
+            const nodes = achievements.filter((item) => item.stage === stage.key);
+            if (!nodes.length) return null;
+
+            const stageFamilies = Array.from(
+              new Set(nodes.map((item) => item.family)),
+            );
+
+            return (
+              <React.Fragment key={stage.key}>
+                <StageHeader
+                  title={stage.title}
+                  subtitle={stage.subtitle}
+                  accent={accent}
+                  finalStage={stage.key === "master"}
+                />
+
+                <View style={styles.stageBody}>
+                  {stageFamilies.map((family) => {
+                    const familyNodes = nodes.filter(
+                      (item) => item.family === family,
+                    );
+                    return (
+                      <FamilyChain
+                        key={family}
+                        nodes={familyNodes}
+                        byId={byId}
+                        accent={accent}
+                        onPress={setSelected}
+                        showFamilyLabel={familyNodes.length > 1}
+                      />
+                    );
+                  })}
+                </View>
+
+                {stageIndex < STAGES.length - 1 ? (
+                  <View style={styles.stageConnector}>
                     <View
                       style={[
-                        styles.levelNumber,
-                        {
-                          borderColor: group.level <= currentStage ? accent + "88" : workspaceColors.lineStrong,
-                          backgroundColor: group.level <= currentStage ? accent + "18" : workspaceColors.panelStrong,
-                        },
+                        styles.stageConnectorLine,
+                        { backgroundColor: accent + "35" },
                       ]}
-                    >
-                      <Text style={[styles.levelNumberText, group.level <= currentStage ? { color: accent } : null]}>
-                        {group.level}
-                      </Text>
-                    </View>
-                    <View style={styles.levelHeaderText}>
-                      <Text style={styles.levelTitle}>{group.name}</Text>
-                      <Text style={styles.levelNote}>{group.note}</Text>
-                    </View>
-                    <Text style={styles.levelCount}>{complete}/{families.length}</Text>
+                    />
+                    <Ionicons
+                      name="chevron-down"
+                      size={14}
+                      color={accent + "99"}
+                    />
+                    <View
+                      style={[
+                        styles.stageConnectorLine,
+                        { backgroundColor: accent + "35" },
+                      ]}
+                    />
                   </View>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
 
-                  <View style={[styles.levelBadges, mobile ? styles.levelBadgesMobile : null]}>
-                    {nodes.map((node) => (
-                      <AchievementBadge
-                        key={node.id}
-                        node={node}
-                        accent={accent}
-                        onPress={() => setSelected(node)}
-                      />
-                    ))}
-                  </View>
-
-                  {index < levelGroups.length - 1 ? (
-                    <View style={[styles.levelConnector, { backgroundColor: accent + "35" }]} />
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        </Card>
+          <MasterSeal
+            accent={accent}
+            unlocked={confirmedCount >= 12 && coveredFamilies >= 9}
+          />
+        </View>
       </ScrollView>
 
       <AchievementModal
         node={selected}
+        byId={byId}
         accent={accent}
         onClose={() => setSelected(null)}
       />
@@ -603,33 +754,176 @@ export function WorkerProfileView() {
   );
 }
 
-function HeroStat({ value, label }: { value: number | string; label: string }) {
+function MiniStat({
+  value,
+  label,
+  icon,
+  accent,
+}: {
+  value: string;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  accent: string;
+}) {
   return (
-    <View style={styles.heroStat}>
-      <Text style={styles.heroStatValue}>{value}</Text>
-      <Text style={styles.heroStatLabel}>{label}</Text>
+    <View style={styles.miniStat}>
+      <Ionicons name={icon} size={15} color={accent} />
+      <View style={styles.miniStatText}>
+        <Text style={styles.miniStatValue} numberOfLines={1}>
+          {value}
+        </Text>
+        <Text style={styles.miniStatLabel}>{label}</Text>
+      </View>
     </View>
   );
+}
+
+function StageHeader({
+  title,
+  subtitle,
+  accent,
+  finalStage,
+}: {
+  title: string;
+  subtitle: string;
+  accent: string;
+  finalStage?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.stageHeader,
+        finalStage ? { borderColor: accent + "55" } : null,
+      ]}
+    >
+      <View
+        style={[
+          styles.stageHeaderIcon,
+          {
+            borderColor: finalStage ? accent + "66" : workspaceColors.lineStrong,
+            backgroundColor: finalStage
+              ? accent + "12"
+              : workspaceColors.panelStrong,
+          },
+        ]}
+      >
+        <Ionicons
+          name={finalStage ? "diamond-outline" : "layers-outline"}
+          size={18}
+          color={finalStage ? accent : workspaceColors.textSoft}
+        />
+      </View>
+      <View style={styles.stageHeaderText}>
+        <Text style={styles.stageTitle}>{title}</Text>
+        <Text style={styles.stageSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
+function FamilyChain({
+  nodes,
+  byId,
+  accent,
+  onPress,
+  showFamilyLabel,
+}: {
+  nodes: AchievementNode[];
+  byId: Map<string, AchievementNode>;
+  accent: string;
+  onPress: (node: AchievementNode) => void;
+  showFamilyLabel: boolean;
+}) {
+  return (
+    <View style={styles.familyChain}>
+      {showFamilyLabel ? (
+        <Text style={styles.familyLabel}>
+          {familyDisplayName(nodes[0]?.family ?? "")}
+        </Text>
+      ) : null}
+
+      {nodes.map((node, index) => {
+        const prerequisiteNames = (node.dependsOn ?? [])
+          .map((id) => byId.get(id)?.title)
+          .filter(Boolean) as string[];
+
+        return (
+          <React.Fragment key={node.id}>
+            <AchievementBadge
+              node={node}
+              accent={accent}
+              prerequisiteNames={prerequisiteNames}
+              onPress={() => onPress(node)}
+            />
+            {index < nodes.length - 1 ? (
+              <View style={styles.nodeConnector}>
+                <View
+                  style={[
+                    styles.nodeConnectorLine,
+                    {
+                      backgroundColor: isCompleted(node.status)
+                        ? accent + "66"
+                        : workspaceColors.lineStrong,
+                    },
+                  ]}
+                />
+                <Ionicons
+                  name={
+                    isCompleted(node.status)
+                      ? "checkmark-circle"
+                      : "lock-closed-outline"
+                  }
+                  size={13}
+                  color={
+                    isCompleted(node.status)
+                      ? accent
+                      : workspaceColors.muted
+                  }
+                />
+                <View
+                  style={[
+                    styles.nodeConnectorLine,
+                    {
+                      backgroundColor: isCompleted(node.status)
+                        ? accent + "66"
+                        : workspaceColors.lineStrong,
+                    },
+                  ]}
+                />
+              </View>
+            ) : null}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+}
+
+function familyDisplayName(family: string) {
+  const names: Record<string, string> = {
+    "industrial-safety-france": "FRANCE CHIMIE",
+    "industrial-safety-vca": "VCA",
+    "industrial-safety-scc": "SCC",
+    atex: "ATEX",
+    "electrical-work": "ELÉTRICA",
+    "refrigeration-eu": "REFRIGERAÇÃO UE",
+  };
+  return names[family] ?? "";
 }
 
 function AchievementBadge({
   node,
   accent,
-  large = false,
+  prerequisiteNames,
   onPress,
 }: {
   node: AchievementNode;
   accent: string;
-  large?: boolean;
+  prerequisiteNames: string[];
   onPress: () => void;
 }) {
-  const active = node.status === "verified" || node.status === "recorded";
-  const pending = node.status === "pending";
-  const tone = active
-    ? accent
-    : pending
-      ? workspaceColors.yellow
-      : workspaceColors.muted;
+  const tone = statusTone(node.status, accent);
+  const locked = node.status === "locked";
 
   return (
     <Pressable
@@ -637,54 +931,131 @@ function AchievementBadge({
       accessibilityLabel={node.title}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.badgeWrap,
-        large ? styles.badgeWrapLarge : null,
-        pressed ? { opacity: 0.72, transform: [{ scale: 0.98 }] } : null,
+        styles.nodeCard,
+        {
+          borderColor:
+            node.status === "verified" || node.status === "recorded"
+              ? tone + "66"
+              : workspaceColors.line,
+        },
+        pressed ? styles.nodePressed : null,
       ]}
     >
+      <View style={styles.nodeTop}>
+        <View
+          style={[
+            styles.badgeOuter,
+            {
+              borderColor: tone + (locked ? "55" : "99"),
+              backgroundColor: tone + (locked ? "08" : "12"),
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.badgeInner,
+              {
+                borderColor: tone + "44",
+              },
+            ]}
+          >
+            <Ionicons
+              name={locked ? "lock-closed-outline" : node.icon}
+              size={26}
+              color={tone}
+            />
+          </View>
+        </View>
+
+        <View style={styles.nodeText}>
+          <Text style={styles.nodeTitle} numberOfLines={2}>
+            {node.title}
+          </Text>
+          <Text style={styles.nodeSubtitle} numberOfLines={2}>
+            {node.subtitle}
+          </Text>
+          <Text style={styles.nodeScope} numberOfLines={1}>
+            {node.scope}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.statusPill,
+            {
+              borderColor: tone + "44",
+              backgroundColor: tone + "0D",
+            },
+          ]}
+        >
+          <Ionicons name={statusIcon(node.status)} size={11} color={tone} />
+          <Text style={[styles.statusText, { color: tone }]}>
+            {statusLabel(node.status)}
+          </Text>
+        </View>
+      </View>
+
+      {locked && prerequisiteNames.length ? (
+        <View style={styles.unlockRow}>
+          <Ionicons
+            name="git-branch-outline"
+            size={12}
+            color={workspaceColors.muted}
+          />
+          <Text style={styles.unlockText} numberOfLines={1}>
+            Desbloqueia após {prerequisiteNames.join(" + ")}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function MasterSeal({
+  accent,
+  unlocked,
+}: {
+  accent: string;
+  unlocked: boolean;
+}) {
+  const tone = unlocked ? accent : workspaceColors.muted;
+
+  return (
+    <View style={styles.masterWrap}>
+      <View style={[styles.masterLine, { backgroundColor: tone + "44" }]} />
       <View
         style={[
-          styles.badgeOuter,
-          large ? styles.badgeOuterLarge : null,
+          styles.masterSeal,
           {
-            borderColor: tone + (active ? "99" : "55"),
-            backgroundColor: tone + (active ? "16" : "0B"),
+            borderColor: tone + "77",
+            backgroundColor: tone + "10",
           },
         ]}
       >
-        <View
-          style={[
-            styles.badgeInner,
-            large ? styles.badgeInnerLarge : null,
-            { borderColor: tone + "55" },
-          ]}
-        >
-          <Ionicons
-            name={node.status === "locked" ? "lock-closed-outline" : node.icon}
-            size={large ? 31 : 25}
-            color={tone}
-          />
-        </View>
-      </View>
-      <Text style={[styles.badgeTitle, large ? styles.badgeTitleLarge : null]}>
-        {node.title}
-      </Text>
-      <View style={styles.badgeStatusRow}>
-        <Ionicons name={statusIcon(node.status)} size={11} color={tone} />
-        <Text style={[styles.badgeStatus, { color: tone }]}>
-          {statusLabel(node.status)}
+        <Ionicons
+          name={unlocked ? "diamond" : "lock-closed-outline"}
+          size={30}
+          color={tone}
+        />
+        <Text style={[styles.masterTitle, { color: tone }]}>MASTER WORKLY</Text>
+        <Text style={styles.masterSubtitle}>
+          {unlocked
+            ? "Progressão avançada concluída"
+            : "Bloqueado até reunir experiência e famílias avançadas verificadas"}
         </Text>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
 function AchievementModal({
   node,
+  byId,
   accent,
   onClose,
 }: {
   node: AchievementNode | null;
+  byId: Map<string, AchievementNode>;
   accent: string;
   onClose: () => void;
 }) {
@@ -692,7 +1063,11 @@ function AchievementModal({
 
   const evidence = node.evidence;
   const certificate = node.certificate;
+  const tone = statusTone(node.status, accent);
   const canOpenFile = Boolean(evidence?.file_id);
+  const prerequisites = (node.dependsOn ?? [])
+    .map((id) => byId.get(id))
+    .filter(Boolean) as AchievementNode[];
 
   return (
     <ModalPanel
@@ -715,24 +1090,38 @@ function AchievementModal({
       }
     >
       <View style={styles.modalContent}>
-        <View style={[styles.modalBadge, { borderColor: accent + "66" }]}>
-          <Ionicons name={node.icon} size={36} color={accent} />
+        <View style={[styles.modalBadge, { borderColor: tone + "77" }]}>
+          <Ionicons
+            name={node.status === "locked" ? "lock-closed-outline" : node.icon}
+            size={34}
+            color={tone}
+          />
         </View>
 
-        <View style={styles.modalStatus}>
-          <Ionicons
-            name={statusIcon(node.status)}
-            size={16}
-            color={
-              node.status === "locked"
-                ? workspaceColors.muted
-                : node.status === "pending"
-                  ? workspaceColors.yellow
-                  : accent
-            }
-          />
-          <Text style={styles.modalStatusText}>{statusLabel(node.status)}</Text>
+        <View style={styles.modalStatusRow}>
+          <Ionicons name={statusIcon(node.status)} size={15} color={tone} />
+          <Text style={[styles.modalStatusText, { color: tone }]}>
+            {statusLabel(node.status)}
+          </Text>
         </View>
+
+        <View style={styles.scopeCard}>
+          <Text style={sharedStyles.label}>ÂMBITO</Text>
+          <Text style={styles.scopeValue}>{node.scope}</Text>
+        </View>
+
+        {prerequisites.length ? (
+          <View style={styles.scopeCard}>
+            <Text style={sharedStyles.label}>DESBLOQUEIO WORKLY</Text>
+            <Text style={styles.scopeValue}>
+              {prerequisites.map((item) => item.title).join(" + ")}
+            </Text>
+            <Text style={styles.scopeNote}>
+              É uma sequência visual de progressão. Os requisitos legais podem
+              variar por certificação, função, país e entidade emissora.
+            </Text>
+          </View>
+        ) : null}
 
         {certificate ? (
           <View style={styles.metaGrid}>
@@ -759,23 +1148,41 @@ function AchievementModal({
             {
               borderColor: canOpenFile
                 ? workspaceColors.green + "55"
-                : workspaceColors.yellow + "44",
+                : node.status === "pending"
+                  ? workspaceColors.yellow + "55"
+                  : workspaceColors.line,
             },
           ]}
         >
           <Ionicons
             name={canOpenFile ? "document-attach-outline" : "document-outline"}
-            size={22}
-            color={canOpenFile ? workspaceColors.green : workspaceColors.yellow}
+            size={21}
+            color={
+              canOpenFile
+                ? workspaceColors.green
+                : node.status === "pending"
+                  ? workspaceColors.yellow
+                  : workspaceColors.muted
+            }
           />
-          <View style={{ flex: 1 }}>
+          <View style={styles.evidenceTextWrap}>
             <Text style={styles.evidenceTitle}>
-              {canOpenFile ? "Comprovativo associado" : "Comprovativo por associar"}
+              {canOpenFile
+                ? "Comprovativo associado"
+                : node.status === "pending"
+                  ? "Comprovativo por associar"
+                  : node.status === "locked"
+                    ? "Badge ainda bloqueado"
+                    : "Sem documento associado"}
             </Text>
             <Text style={styles.evidenceText}>
               {canOpenFile
-                ? "Este badge está ligado ao documento guardado na WORKLY."
-                : "O badge fica registado, mas só passa a verificado quando o documento real for associado."}
+                ? "Toca em Abrir comprovativo para consultar o documento real."
+                : node.status === "pending"
+                  ? "Depois de associares o documento, a conquista pode passar a verificada."
+                  : node.status === "locked"
+                    ? "Conclui o passo anterior da progressão WORKLY para desbloquear este badge."
+                    : "Quando adicionares esta certificação, o documento fica ligado diretamente ao badge."}
             </Text>
           </View>
         </View>
@@ -804,389 +1211,421 @@ const styles = StyleSheet.create({
   },
   content: {
     width: "100%",
-    maxWidth: 1460,
+    maxWidth: 760,
     alignSelf: "center",
-    padding: 22,
-    paddingBottom: 38,
-    gap: 14,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 92,
+    gap: 10,
   },
-  contentCompact: {
-    padding: 12,
-    paddingBottom: 86,
-  },
-  hero: {
-    position: "relative",
-    overflow: "hidden",
+  identityCard: {
     borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 18,
     backgroundColor: workspaceColors.panelSoft,
+    padding: 13,
   },
-  heroGlow: {
-    position: "absolute",
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    right: -130,
-    top: -280,
-  },
-  heroGrid: {
+  identityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 18,
-  },
-  heroGridCompact: {
-    flexDirection: "column",
-    alignItems: "stretch",
-  },
-  identityBlock: {
-    flex: 1,
-    minWidth: 260,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
+    gap: 12,
   },
   identityText: {
     flex: 1,
     minWidth: 0,
   },
-  eyebrowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
   eyebrow: {
-    fontSize: 9,
-    lineHeight: 13,
+    fontSize: 7,
+    lineHeight: 10,
     fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-  liveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+    letterSpacing: 1.3,
   },
   name: {
-    marginTop: 4,
+    marginTop: 3,
     color: workspaceColors.text,
-    fontSize: 28,
-    lineHeight: 33,
+    fontSize: 21,
+    lineHeight: 25,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   profession: {
-    marginTop: 3,
+    marginTop: 2,
     color: workspaceColors.textSoft,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "700",
   },
-  location: {
-    marginTop: 4,
-    color: workspaceColors.muted,
-    fontSize: 10,
-    lineHeight: 15,
-  },
-  heroStats: {
+  statsRow: {
+    marginTop: 12,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
+    gap: 6,
   },
-  heroStat: {
-    minWidth: 82,
-    minHeight: 62,
-    paddingHorizontal: 11,
+  miniStat: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 48,
+    paddingHorizontal: 7,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: workspaceColors.line,
-    borderRadius: 14,
     backgroundColor: workspaceColors.panelStrong,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
   },
-  heroStatValue: {
+  miniStatText: {
+    minWidth: 0,
+  },
+  miniStatValue: {
     color: workspaceColors.text,
-    fontSize: 18,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "900",
   },
-  heroStatLabel: {
-    marginTop: 2,
+  miniStatLabel: {
     color: workspaceColors.muted,
-    fontSize: 8,
-    textTransform: "uppercase",
+    fontSize: 6,
+    lineHeight: 9,
     fontWeight: "800",
+    textTransform: "uppercase",
   },
-  areaRow: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: workspaceColors.line,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+  areaScroller: {
+    paddingTop: 10,
+    gap: 6,
   },
   areaChip: {
-    minHeight: 36,
-    paddingHorizontal: 10,
-    borderRadius: 11,
+    minHeight: 30,
+    paddingHorizontal: 9,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: workspaceColors.line,
     backgroundColor: workspaceColors.panel,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 5,
   },
-  areaText: {
+  areaChipText: {
     color: workspaceColors.textSoft,
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: "700",
   },
-  primaryLabel: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+  summaryCard: {
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    borderRadius: 16,
+    backgroundColor: workspaceColors.panelSoft,
+    padding: 12,
   },
-  mainGrid: {
+  summaryTop: {
     flexDirection: "row",
-    alignItems: "stretch",
-    gap: 14,
-  },
-  mainGridCompact: {
-    flexDirection: "column",
-  },
-  profileCard: {
-    flex: 0.86,
-    minWidth: 0,
-  },
-  treeCard: {
-    flex: 1.35,
-    minWidth: 0,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  sectionEyebrow: {
+  summaryEyebrow: {
     color: workspaceColors.muted,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: "900",
-    letterSpacing: 1.4,
+    letterSpacing: 1.1,
   },
-  sectionTitle: {
+  summaryTitle: {
     marginTop: 2,
     color: workspaceColors.text,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "900",
   },
-  sectionSubtitle: {
-    marginTop: 3,
-    color: workspaceColors.muted,
-    fontSize: 9,
-    lineHeight: 14,
-  },
-  treeMark: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+  familyCounter: {
+    minWidth: 62,
+    minHeight: 45,
     borderWidth: 1,
+    borderRadius: 12,
     backgroundColor: workspaceColors.panelStrong,
     alignItems: "center",
     justifyContent: "center",
   },
-  bio: {
-    marginTop: 15,
-    color: workspaceColors.textSoft,
-    fontSize: 12,
-    lineHeight: 19,
-  },
-  timeline: {
-    marginTop: 18,
-    gap: 0,
-  },
-  timelineItem: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  timelineNode: {
-    marginTop: 3,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timelineNodeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  timelineText: {
-    flex: 1,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: workspaceColors.line,
-  },
-  timelineYear: {
-    fontSize: 8,
+  familyCounterValue: {
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: "900",
   },
-  timelineTitle: {
-    marginTop: 2,
-    color: workspaceColors.text,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  timelineDetail: {
-    marginTop: 2,
+  familyCounterLabel: {
+    marginTop: 1,
     color: workspaceColors.muted,
-    fontSize: 9,
+    fontSize: 6,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  summaryText: {
+    marginTop: 8,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 12,
   },
   tree: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  verticalLine: {
-    width: 1,
-    height: 24,
-  },
-  branchLineWrap: {
-    width: "68%",
-    alignItems: "center",
-  },
-  branchLine: {
     width: "100%",
-    height: 1,
+    alignItems: "stretch",
   },
-  branchRow: {
+  stageHeader: {
     width: "100%",
-    marginTop: -1,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "flex-start",
-    gap: 7,
-  },
-  branchRowCentered: {
-    width: "72%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  badgeWrap: {
-    flex: 1,
-    minWidth: 90,
-    maxWidth: 150,
-    alignItems: "center",
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  badgeWrapLarge: {
-    flex: 0,
-    minWidth: 210,
-    maxWidth: 250,
-  },
-  badgeOuter: {
-    width: 66,
-    height: 66,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeOuterLarge: {
-    width: 82,
-    height: 82,
-    borderRadius: 26,
-  },
-  badgeInner: {
-    width: 50,
-    height: 50,
-    borderRadius: 17,
+    minHeight: 58,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: workspaceColors.backgroundElevated,
-  },
-  badgeInnerLarge: {
-    width: 62,
-    height: 62,
-    borderRadius: 21,
-  },
-  badgeTitle: {
-    marginTop: 7,
-    color: workspaceColors.textSoft,
-    fontSize: 9,
-    lineHeight: 13,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  badgeTitleLarge: {
-    color: workspaceColors.text,
-    fontSize: 10,
-  },
-  badgeStatusRow: {
-    marginTop: 3,
+    borderColor: workspaceColors.line,
+    borderRadius: 15,
+    backgroundColor: workspaceColors.panelSoft,
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 9,
   },
-  badgeStatus: {
+  stageHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stageHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  stageTitle: {
+    color: workspaceColors.text,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "900",
+  },
+  stageSubtitle: {
+    marginTop: 2,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 11,
+  },
+  stageBody: {
+    width: "100%",
+    paddingTop: 9,
+    gap: 9,
+  },
+  familyChain: {
+    width: "100%",
+    alignItems: "stretch",
+  },
+  familyLabel: {
+    marginBottom: 6,
+    color: workspaceColors.muted,
     fontSize: 7,
     fontWeight: "900",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textAlign: "center",
+  },
+  nodeCard: {
+    width: "100%",
+    minHeight: 88,
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 15,
+    backgroundColor: workspaceColors.panelSoft,
+  },
+  nodePressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.99 }],
+  },
+  nodeTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  badgeOuter: {
+    width: 58,
+    height: 58,
+    borderWidth: 1.5,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeInner: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 14,
+    backgroundColor: workspaceColors.backgroundElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nodeText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nodeTitle: {
+    color: workspaceColors.text,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
+  },
+  nodeSubtitle: {
+    marginTop: 2,
+    color: workspaceColors.textSoft,
+    fontSize: 8,
+    lineHeight: 11,
+  },
+  nodeScope: {
+    marginTop: 3,
+    color: workspaceColors.muted,
+    fontSize: 7,
+    lineHeight: 10,
+  },
+  statusPill: {
+    minWidth: 66,
+    minHeight: 24,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  statusText: {
+    fontSize: 6,
+    fontWeight: "900",
+    letterSpacing: 0.35,
+  },
+  unlockRow: {
+    marginTop: 8,
+    paddingTop: 7,
+    borderTopWidth: 1,
+    borderTopColor: workspaceColors.line,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  unlockText: {
+    flex: 1,
+    color: workspaceColors.muted,
+    fontSize: 7,
+    lineHeight: 10,
+  },
+  nodeConnector: {
+    alignSelf: "center",
+    width: 20,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  nodeConnectorLine: {
+    width: 1,
+    flex: 1,
+  },
+  stageConnector: {
+    alignSelf: "center",
+    width: 22,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  stageConnectorLine: {
+    width: 1,
+    flex: 1,
+  },
+  masterWrap: {
+    marginTop: 2,
+    alignItems: "center",
+  },
+  masterLine: {
+    width: 1,
+    height: 28,
+  },
+  masterSeal: {
+    width: "100%",
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderWidth: 1.5,
+    borderRadius: 18,
+    alignItems: "center",
+    backgroundColor: workspaceColors.panelSoft,
+  },
+  masterTitle: {
+    marginTop: 7,
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  masterSubtitle: {
+    marginTop: 4,
+    maxWidth: 360,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 12,
+    textAlign: "center",
   },
   modalContent: {
     alignItems: "center",
-    gap: 13,
-    paddingVertical: 10,
+    gap: 11,
+    paddingVertical: 7,
   },
   modalBadge: {
-    width: 82,
-    height: 82,
-    borderRadius: 25,
+    width: 72,
+    height: 72,
     borderWidth: 1.5,
+    borderRadius: 22,
     backgroundColor: workspaceColors.panelSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  modalStatus: {
+  modalStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   modalStatusText: {
-    color: workspaceColors.textSoft,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
   },
-  metaGrid: {
+  scopeCard: {
     width: "100%",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metaItem: {
-    flexGrow: 1,
-    flexBasis: 180,
-    minWidth: 160,
     padding: 10,
     borderWidth: 1,
     borderColor: workspaceColors.line,
     borderRadius: 11,
     backgroundColor: workspaceColors.panelSoft,
   },
-  metaValue: {
+  scopeValue: {
     marginTop: 3,
     color: workspaceColors.textSoft,
     fontSize: 10,
     lineHeight: 14,
+    fontWeight: "700",
+  },
+  scopeNote: {
+    marginTop: 5,
+    color: workspaceColors.muted,
+    fontSize: 8,
+    lineHeight: 12,
+  },
+  metaGrid: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  metaItem: {
+    flexGrow: 1,
+    flexBasis: 150,
+    minWidth: 135,
+    padding: 9,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    borderRadius: 10,
+    backgroundColor: workspaceColors.panelSoft,
+  },
+  metaValue: {
+    marginTop: 2,
+    color: workspaceColors.textSoft,
+    fontSize: 9,
+    lineHeight: 13,
     fontWeight: "700",
   },
   metaPills: {
@@ -1194,173 +1633,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
   },
   metaPill: {
-    minHeight: 28,
-    paddingHorizontal: 9,
-    borderRadius: 9,
+    minHeight: 25,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     backgroundColor: workspaceColors.panelStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   metaPillText: {
     color: workspaceColors.textSoft,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "700",
   },
   evidenceBox: {
     width: "100%",
-    marginTop: 4,
-    padding: 12,
+    padding: 10,
     borderWidth: 1,
-    borderRadius: 13,
+    borderRadius: 11,
     backgroundColor: workspaceColors.panelSoft,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 8,
+  },
+  evidenceTextWrap: {
+    flex: 1,
   },
   evidenceTitle: {
     color: workspaceColors.text,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
   },
   evidenceText: {
-    marginTop: 3,
-    color: workspaceColors.muted,
-    fontSize: 9,
-    lineHeight: 14,
-  },
-  contentMobile: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    gap: 10,
-  },
-  certificateProgress: {
-    marginTop: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: workspaceColors.line,
-    borderRadius: 14,
-    backgroundColor: workspaceColors.panelStrong,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  progressValue: {
-    color: workspaceColors.text,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "900",
-  },
-  progressLabel: {
     marginTop: 2,
-    color: workspaceColors.muted,
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-  progressRight: {
-    alignItems: "flex-end",
-  },
-  currentLevel: {
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-  currentLevelName: {
-    marginTop: 2,
-    color: workspaceColors.textSoft,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  progressTrack: {
-    marginTop: 9,
-    height: 5,
-    overflow: "hidden",
-    borderRadius: 4,
-    backgroundColor: workspaceColors.line,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  progressMeta: {
-    marginTop: 6,
     color: workspaceColors.muted,
     fontSize: 8,
     lineHeight: 12,
-  },
-  levelKicker: {
-    marginBottom: 8,
-    color: workspaceColors.muted,
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  levelSection: {
-    width: "100%",
-    alignItems: "stretch",
-  },
-  levelHeader: {
-    width: "100%",
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    borderTopWidth: 1,
-    borderTopColor: workspaceColors.line,
-    paddingTop: 9,
-  },
-  levelNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  levelNumberText: {
-    color: workspaceColors.muted,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  levelHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  levelTitle: {
-    color: workspaceColors.text,
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  levelNote: {
-    marginTop: 1,
-    color: workspaceColors.muted,
-    fontSize: 8,
-    lineHeight: 11,
-  },
-  levelCount: {
-    color: workspaceColors.textSoft,
-    fontSize: 10,
-    fontWeight: "900",
-  },
-  levelBadges: {
-    width: "100%",
-    marginTop: 7,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 6,
-  },
-  levelBadgesMobile: {
-    justifyContent: "space-between",
-  },
-  levelConnector: {
-    alignSelf: "center",
-    width: 1,
-    height: 24,
-    marginVertical: 5,
   },
 });
