@@ -56,44 +56,6 @@ type NodeSpec = Omit<AchievementNode, "status"> & {
   baseStatus: Exclude<AchievementStatus, "locked">;
 };
 
-type StageDefinition = {
-  key: StageKey;
-  title: string;
-  subtitle: string;
-};
-
-const STAGES: StageDefinition[] = [
-  {
-    key: "foundation",
-    title: "Formação",
-    subtitle: "Ponto de partida profissional",
-  },
-  {
-    key: "base",
-    title: "Base profissional",
-    subtitle: "Segurança e acesso essenciais",
-  },
-  {
-    key: "industrial-access",
-    title: "Acesso industrial",
-    subtitle: "Passaportes e segurança de fábrica",
-  },
-  {
-    key: "technical",
-    title: "Técnico industrial",
-    subtitle: "Execução técnica e ambientes de risco",
-  },
-  {
-    key: "responsibility",
-    title: "Responsável técnico",
-    subtitle: "Supervisão, liderança e maior âmbito",
-  },
-  {
-    key: "master",
-    title: "Master WORKLY",
-    subtitle: "Especializações avançadas e reconhecimento profissional",
-  },
-];
 
 const rodolfoAreas = [
   { label: "Eletromecânica", icon: "settings-outline" as const },
@@ -565,6 +527,72 @@ export function WorkerProfileView() {
 
   const achievements = resolveStatuses(specs);
   const byId = new Map(achievements.map((item) => [item.id, item]));
+  const treeSections = [
+    {
+      key: "foundation",
+      title: "Formação",
+      subtitle: "Ponto de partida profissional",
+      chains: [["course"]],
+    },
+    {
+      key: "base",
+      title: "Base profissional",
+      subtitle: "Segurança e acesso essenciais",
+      chains: [
+        ["ipaf-3ab"],
+        ["work-height"],
+        ["first-aid"],
+      ],
+    },
+    {
+      key: "electrical",
+      title: "Eletricidade",
+      subtitle: "Progressão por responsabilidade",
+      chains: [["h0b0", "electrical-b1", "electrical-b2"]],
+    },
+    {
+      key: "industrial-passports",
+      title: "Segurança industrial",
+      subtitle: "Passaportes usados nos principais mercados europeus",
+      chains: [
+        ["france-n1", "france-n2"],
+        ["b-vca", "vol-vca"],
+        ["scc-018", "scc-017"],
+        ["site-induction"],
+      ],
+    },
+    {
+      key: "atex",
+      title: "ATEX / atmosferas explosivas",
+      subtitle: "Execução, responsabilidade e especialização",
+      chains: [["atex-n1", "atex-n2", "iecex-copc"]],
+    },
+    {
+      key: "refrigeration",
+      title: "Refrigeração UE",
+      subtitle: "Certificação F-Gas e refrigerantes naturais",
+      chains: [
+        ["fgas-a2", "fgas-a1"],
+        ["fgas-b"],
+        ["fgas-c"],
+      ],
+    },
+    {
+      key: "industrial-operations",
+      title: "Operações industriais",
+      subtitle: "Formações adicionais conforme função e equipamento",
+      chains: [
+        ["confined-space"],
+        ["rigging"],
+        ["loto"],
+        ["overhead-crane"],
+        ["forklift"],
+        ["scaffolding"],
+        ["ipaf-mm"],
+      ],
+    },
+  ];
+
 
   const certificateNodes = achievements.filter((item) => item.id !== "course");
   const confirmedCount = certificateNodes.filter((item) =>
@@ -677,65 +705,58 @@ export function WorkerProfileView() {
         </View>
 
         <View style={styles.tree}>
-          {STAGES.map((stage, stageIndex) => {
-            const nodes = achievements.filter((item) => item.stage === stage.key);
-            if (!nodes.length) return null;
+          {treeSections.map((section, sectionIndex) => (
+            <React.Fragment key={section.key}>
+              <StageHeader
+                title={section.title}
+                subtitle={section.subtitle}
+                accent={accent}
+              />
 
-            const stageFamilies = Array.from(
-              new Set(nodes.map((item) => item.family)),
-            );
+              <View style={styles.stageBody}>
+                {section.chains.map((ids) => {
+                  const nodes = ids
+                    .map((id) => byId.get(id))
+                    .filter(Boolean) as AchievementNode[];
 
-            return (
-              <React.Fragment key={stage.key}>
-                <StageHeader
-                  title={stage.title}
-                  subtitle={stage.subtitle}
-                  accent={accent}
-                  finalStage={stage.key === "master"}
-                />
+                  if (!nodes.length) return null;
 
-                <View style={styles.stageBody}>
-                  {stageFamilies.map((family) => {
-                    const familyNodes = nodes.filter(
-                      (item) => item.family === family,
-                    );
-                    return (
-                      <FamilyChain
-                        key={family}
-                        nodes={familyNodes}
-                        byId={byId}
-                        accent={accent}
-                        onPress={setSelected}
-                        showFamilyLabel={familyNodes.length > 1}
-                      />
-                    );
-                  })}
+                  return (
+                    <FamilyChain
+                      key={ids.join("-")}
+                      nodes={nodes}
+                      byId={byId}
+                      accent={accent}
+                      onPress={setSelected}
+                      showFamilyLabel={nodes.length > 1}
+                    />
+                  );
+                })}
+              </View>
+
+              {sectionIndex < treeSections.length - 1 ? (
+                <View style={styles.stageConnector}>
+                  <View
+                    style={[
+                      styles.stageConnectorLine,
+                      { backgroundColor: accent + "35" },
+                    ]}
+                  />
+                  <Ionicons
+                    name="chevron-down"
+                    size={14}
+                    color={accent + "99"}
+                  />
+                  <View
+                    style={[
+                      styles.stageConnectorLine,
+                      { backgroundColor: accent + "35" },
+                    ]}
+                  />
                 </View>
-
-                {stageIndex < STAGES.length - 1 ? (
-                  <View style={styles.stageConnector}>
-                    <View
-                      style={[
-                        styles.stageConnectorLine,
-                        { backgroundColor: accent + "35" },
-                      ]}
-                    />
-                    <Ionicons
-                      name="chevron-down"
-                      size={14}
-                      color={accent + "99"}
-                    />
-                    <View
-                      style={[
-                        styles.stageConnectorLine,
-                        { backgroundColor: accent + "35" },
-                      ]}
-                    />
-                  </View>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
+              ) : null}
+            </React.Fragment>
+          ))}
 
           <MasterSeal
             accent={accent}
@@ -906,7 +927,12 @@ function familyDisplayName(family: string) {
     "industrial-safety-scc": "SCC",
     atex: "ATEX",
     "electrical-work": "ELÉTRICA",
-    "refrigeration-eu": "REFRIGERAÇÃO UE",
+    "refrigeration-eu": "F-GAS",
+    "powered-access": "PLATAFORMAS ELEVATÓRIAS",
+    "electrical-safety": "SEGURANÇA ELÉTRICA",
+    "work-at-height": "TRABALHO EM ALTURA",
+    "first-aid": "PRIMEIROS SOCORROS",
+    "explosive-atmospheres-advanced": "IECEx",
   };
   return names[family] ?? "";
 }
