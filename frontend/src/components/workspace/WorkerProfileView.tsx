@@ -1000,7 +1000,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 14,
   },
-,
   contentMobile: {
     paddingHorizontal: 10,
     paddingTop: 10,
@@ -1132,4 +1131,5 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     marginVertical: 5,
-  }});
+  },
+});
