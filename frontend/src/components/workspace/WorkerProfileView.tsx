@@ -143,45 +143,248 @@ export function WorkerProfileView() {
   };
 
   const achievements: AchievementNode[] = [
-    certificateNode("ipaf", "IPAF 3A / 3B", "Plataformas elevatórias", "arrow-up-circle-outline", 1, ipaf),
-    certificateNode("electrical", "H0B0", "Habilitação elétrica", "flash-outline", 1, electrical),
-    certificateNode("heights", "Trabalho em altura", "Proteção e arnês", "body-outline", 1, heights),
-    { id: "vca", title: "VCA", subtitle: "Basic Safety", icon: "shield-outline", status: "locked", level: 2, meta: ["Benelux", "Indústria"] },
-    { id: "scc", title: "SCC", subtitle: "Safety Contractor", icon: "shield-checkmark-outline", status: "locked", level: 2, meta: ["Alemanha", "Áustria"] },
-    { id: "france-chimie", title: "France Chimie N1", subtitle: "Acesso industrial", icon: "flask-outline", status: "locked", level: 2, meta: ["França", "Indústria química"] },
-    { id: "sst", title: "SST / First Aid", subtitle: "Primeiros socorros", icon: "medkit-outline", status: "locked", level: 2, meta: ["Segurança"] },
-    { id: "atex", title: "ATEX", subtitle: "Atmosferas explosivas", icon: "warning-outline", status: isRodolfo ? "pending" : "locked", level: 3, meta: ["Indústria", "Comprovativo por associar"] },
-    { id: "confined", title: "Espaços confinados", subtitle: "Acesso e resgate", icon: "contract-outline", status: "locked", level: 3, meta: ["Manutenção industrial"] },
-    { id: "rigging", title: "Rigging / Lifting", subtitle: "Elevação de cargas", icon: "git-compare-outline", status: "locked", level: 3, meta: ["Montagem industrial"] },
-    { id: "electrical-advanced", title: "Elétrica avançada", subtitle: "BR / B2V ou equivalente", icon: "flash-outline", status: "locked", level: 3, meta: ["Eletricidade industrial"] },
-    { id: "fgas", title: "F-Gas A1 / A2", subtitle: "Fluidos frigorigéneos", icon: "snow-outline", status: "locked", level: 4, meta: ["HVAC", "Refrigeração"] },
-    { id: "natural-refrigerants", title: "Refrigerantes naturais", subtitle: "CO₂ · NH₃ · hidrocarbonetos", icon: "leaf-outline", status: "locked", level: 4, meta: ["HVAC industrial"] },
-    { id: "r484", title: "Ponte rolante", subtitle: "R484 / equivalente", icon: "git-network-outline", status: "locked", level: 4, meta: ["Movimentação de cargas"] },
-    { id: "r489", title: "Empilhador", subtitle: "R489 / equivalente", icon: "cube-outline", status: "locked", level: 4, meta: ["Logística industrial"] },
-    { id: "atex-n2", title: "ATEX Supervisor", subtitle: "Nível avançado / responsável", icon: "warning-outline", status: "locked", level: 5, meta: ["Supervisão industrial"] },
-    { id: "vol-vca", title: "VOL-VCA / SCC Supervisor", subtitle: "Liderança de segurança", icon: "shield-checkmark-outline", status: "locked", level: 5, meta: ["Supervisão"] },
-    { id: "iecex", title: "IECEx CoPC", subtitle: "Competência Ex avançada", icon: "diamond-outline", status: "locked", level: 5, meta: ["Internacional", "Atmosferas explosivas"] },
+    certificateNode(
+      "ipaf",
+      "IPAF 3A / 3B",
+      "Categorias de plataformas elevatórias",
+      "arrow-up-circle-outline",
+      1,
+      ipaf,
+    ),
+    certificateNode(
+      "electrical",
+      "H0 / B0",
+      "Acesso em ambiente elétrico · operações não elétricas",
+      "flash-outline",
+      1,
+      electrical,
+    ),
+    certificateNode(
+      "heights",
+      "Trabalho em altura",
+      "Proteção, arnês e prevenção de queda",
+      "body-outline",
+      1,
+      heights,
+    ),
+
+    {
+      id: "france-chimie-n1",
+      title: "France Chimie N1",
+      subtitle: "Operador em site industrial",
+      icon: "flask-outline",
+      status: "locked",
+      level: 2,
+      meta: ["Rota França", "Segurança industrial"],
+    },
+    {
+      id: "b-vca",
+      title: "B-VCA",
+      subtitle: "Basisveiligheid VCA",
+      icon: "shield-outline",
+      status: "locked",
+      level: 2,
+      meta: ["Rota Benelux", "Segurança industrial"],
+    },
+    {
+      id: "scc-018",
+      title: "SCC 018",
+      subtitle: "Operativ tätige Mitarbeiter",
+      icon: "shield-checkmark-outline",
+      status: "locked",
+      level: 2,
+      meta: ["Rota Alemanha", "Operador"],
+    },
+    {
+      id: "sst",
+      title: "SST / First Aid",
+      subtitle: "Primeiros socorros",
+      icon: "medkit-outline",
+      status: "locked",
+      level: 2,
+      meta: ["Segurança"],
+    },
+
+    {
+      id: "atex-n1",
+      title: "Ism-ATEX N1",
+      subtitle: "1E / 1M · agente de execução",
+      icon: "warning-outline",
+      status: isRodolfo ? "pending" : "locked",
+      level: 3,
+      meta: ["ATEX", "Execução", "Comprovativo por associar"],
+    },
+    {
+      id: "confined",
+      title: "Espaços confinados",
+      subtitle: "Acesso, vigilância e resgate",
+      icon: "contract-outline",
+      status: "locked",
+      level: 3,
+      meta: ["Manutenção industrial"],
+    },
+    {
+      id: "rigging",
+      title: "Rigging / Lifting",
+      subtitle: "Elevação e orientação de cargas",
+      icon: "git-compare-outline",
+      status: "locked",
+      level: 3,
+      meta: ["Montagem industrial"],
+    },
+    {
+      id: "electrical-execution",
+      title: "B1 / B1V / BR",
+      subtitle: "Execução e intervenção elétrica",
+      icon: "flash-outline",
+      status: "locked",
+      level: 3,
+      meta: ["Rota França", "Função elétrica"],
+    },
+    {
+      id: "fgas-a2",
+      title: "F-Gas A2",
+      subtitle: "F-gases e hidrocarbonetos · carga limitada",
+      icon: "snow-outline",
+      status: "locked",
+      level: 3,
+      meta: ["UE", "HVAC / Refrigeração"],
+    },
+
+    {
+      id: "france-chimie-n2",
+      title: "France Chimie N2",
+      subtitle: "Encadramento e liderança de intervenção",
+      icon: "flask-outline",
+      status: "locked",
+      level: 4,
+      meta: ["Rota França", "Responsável"],
+    },
+    {
+      id: "vol-vca",
+      title: "VOL-VCA",
+      subtitle: "Segurança para responsáveis operacionais",
+      icon: "shield-checkmark-outline",
+      status: "locked",
+      level: 4,
+      meta: ["Rota Benelux", "Responsável"],
+    },
+    {
+      id: "scc-017",
+      title: "SCC 017",
+      subtitle: "Operativ tätige Führungskräfte",
+      icon: "shield-checkmark-outline",
+      status: "locked",
+      level: 4,
+      meta: ["Rota Alemanha", "Responsável"],
+    },
+    {
+      id: "atex-n2",
+      title: "Ism-ATEX N2",
+      subtitle: "2E / 2M · pessoa autorizada",
+      icon: "warning-outline",
+      status: "locked",
+      level: 4,
+      meta: ["ATEX", "Responsabilidade"],
+    },
+    {
+      id: "electrical-responsibility",
+      title: "B2 / B2V / BC",
+      subtitle: "Chefia de trabalhos / consignação",
+      icon: "flash-outline",
+      status: "locked",
+      level: 4,
+      meta: ["Rota França", "Função elétrica"],
+    },
+    {
+      id: "fgas-a1",
+      title: "F-Gas A1",
+      subtitle: "Âmbito completo F-gases e hidrocarbonetos",
+      icon: "snow-outline",
+      status: "locked",
+      level: 4,
+      meta: ["UE", "HVAC / Refrigeração"],
+    },
+
+    {
+      id: "iecex",
+      title: "IECEx CoPC",
+      subtitle: "Competência internacional em atmosferas Ex",
+      icon: "diamond-outline",
+      status: "locked",
+      level: 5,
+      meta: ["Internacional", "Especialização Ex"],
+    },
+    {
+      id: "fgas-b",
+      title: "Certificado B · CO₂",
+      subtitle: "Especialização em dióxido de carbono",
+      icon: "snow-outline",
+      status: "locked",
+      level: 5,
+      meta: ["UE", "Refrigerante natural"],
+    },
+    {
+      id: "fgas-c",
+      title: "Certificado C · NH₃",
+      subtitle: "Especialização em amoníaco",
+      icon: "snow-outline",
+      status: "locked",
+      level: 5,
+      meta: ["UE", "Refrigerante natural"],
+    },
   ];
 
   const totalCertificates = achievements.length;
   const obtainedCount = achievements.filter(
-    (item) => item.status === "verified" || item.status === "recorded" || item.status === "pending",
+    (item) =>
+      item.status === "verified" ||
+      item.status === "recorded" ||
+      item.status === "pending",
   ).length;
   const documentedCount = achievements.filter(
     (item) => item.status === "verified" || item.status === "recorded",
   ).length;
   const pendingCount = achievements.filter((item) => item.status === "pending").length;
-  const levelOneComplete = achievements
+
+  const beginnerComplete = achievements
     .filter((item) => item.level === 1)
     .every((item) => item.status !== "locked");
-  const currentLevel = levelOneComplete ? 2 : 1;
-  const levelName = currentLevel === 2 ? "Operacional" : "Principiante";
+  const currentStage = beginnerComplete ? 2 : 1;
+  const stageName = currentStage === 2 ? "Operador Qualificado" : "Principiante";
+  const stageShort = currentStage === 2 ? "Operador" : "Principiante";
+
   const levelGroups = [
-    { level: 1, name: "Principiante", note: "Base para trabalhar com segurança" },
-    { level: 2, name: "Operacional", note: "Acesso a ambientes industriais europeus" },
-    { level: 3, name: "Industrial", note: "Competências de risco e manutenção" },
-    { level: 4, name: "Especialista", note: "Certificações técnicas avançadas" },
-    { level: 5, name: "Master", note: "Supervisão e competência internacional" },
+    {
+      level: 1,
+      code: "P",
+      name: "Principiante",
+      note: "Base prática após a formação técnica",
+    },
+    {
+      level: 2,
+      code: "O",
+      name: "Operador Qualificado",
+      note: "Passaportes de segurança e acesso industrial por país",
+    },
+    {
+      level: 3,
+      code: "I",
+      name: "Técnico Industrial",
+      note: "Execução técnica, risco e manutenção industrial",
+    },
+    {
+      level: 4,
+      code: "R",
+      name: "Responsável Técnico",
+      note: "Certificações de responsabilidade, supervisão e maior âmbito",
+    },
+    {
+      level: 5,
+      code: "M",
+      name: "Master WORKLY",
+      note: "Especializações avançadas relevantes à profissão",
+    },
   ];
 
   return (
@@ -223,7 +426,7 @@ export function WorkerProfileView() {
             <View style={styles.heroStats}>
               <HeroStat value={worker.experience_years} label="anos" />
               <HeroStat value={String(obtainedCount) + "/" + String(totalCertificates)} label="certificados" />
-              <HeroStat value={"N" + String(currentLevel)} label={levelName} />
+              <HeroStat value={stageShort} label="etapa" />
               <HeroStat value={isRodolfo ? 3 : 1} label="países" />
             </View>
           </View>
@@ -273,7 +476,7 @@ export function WorkerProfileView() {
               <Text style={styles.sectionEyebrow}>CONQUISTAS</Text>
               <Text style={styles.sectionTitle}>Árvore de certificações</Text>
               <Text style={styles.sectionSubtitle}>
-                Do curso técnico ao nível Master
+                Da formação técnica ao Master WORKLY
               </Text>
             </View>
             <View style={[styles.treeMark, { borderColor: accent + "66" }]}>
@@ -284,7 +487,7 @@ export function WorkerProfileView() {
           <View style={styles.certificateProgress}>
             <View>
               <Text style={styles.progressValue}>{obtainedCount}/{totalCertificates}</Text>
-              <Text style={styles.progressLabel}>CERTIFICADOS / CONQUISTAS</Text>
+              <Text style={styles.progressLabel}>BADGES NO MAPA EUROPEU</Text>
             </View>
             <View style={styles.progressRight}>
               <Text style={[styles.currentLevel, { color: accent }]}>NÍVEL {currentLevel}</Text>
@@ -303,7 +506,7 @@ export function WorkerProfileView() {
             />
           </View>
           <Text style={styles.progressMeta}>
-            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} por conquistar
+            {documentedCount} registados · {pendingCount} a validar · {totalCertificates - obtainedCount} disponíveis no mapa
           </Text>
 
           <View style={styles.tree}>
@@ -326,12 +529,12 @@ export function WorkerProfileView() {
                       style={[
                         styles.levelNumber,
                         {
-                          borderColor: group.level <= currentLevel ? accent + "88" : workspaceColors.lineStrong,
-                          backgroundColor: group.level <= currentLevel ? accent + "18" : workspaceColors.panelStrong,
+                          borderColor: group.level <= currentStage ? accent + "88" : workspaceColors.lineStrong,
+                          backgroundColor: group.level <= currentStage ? accent + "18" : workspaceColors.panelStrong,
                         },
                       ]}
                     >
-                      <Text style={[styles.levelNumberText, group.level <= currentLevel ? { color: accent } : null]}>
+                      <Text style={[styles.levelNumberText, group.level <= currentStage ? { color: accent } : null]}>
                         {group.level}
                       </Text>
                     </View>
