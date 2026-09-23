@@ -167,6 +167,8 @@ def build_demo_state() -> dict:
                     "",
                     issued="2026-08-29",
                 ),
+                _certificate("Habilitação elétrica H0B0", "APAVE", "2028-09-01"),
+                _certificate("Trabalho em altura", "Safety Pro", "2027-11-20"),
             ],
             [
                 _project_item("best-1", "Daltile Quartz", "Tennessee, EUA", 2024),
