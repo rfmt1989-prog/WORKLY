@@ -57,6 +57,13 @@ type NodeSpec = Omit<AchievementNode, "status"> & {
   baseStatus: Exclude<AchievementStatus, "locked">;
 };
 
+const badgeColors = {
+  verified: "#F2C14E",
+  recorded: workspaceColors.blue,
+  pending: "#F59E0B",
+  available: "#687385",
+  locked: "#3E4652",
+};
 
 const rodolfoAreas = [
   { label: "Eletromecânica", icon: "settings-outline" as const },
@@ -98,7 +105,7 @@ function statusLabel(status: AchievementStatus) {
   if (status === "verified") return "VERIFICADO";
   if (status === "recorded") return "REGISTADO";
   if (status === "pending") return "A VALIDAR";
-  if (status === "available") return "DISPONÍVEL";
+  if (status === "available") return "POR OBTER";
   return "BLOQUEADO";
 }
 
@@ -111,10 +118,11 @@ function statusIcon(status: AchievementStatus) {
 }
 
 function statusTone(status: AchievementStatus, accent: string) {
-  if (status === "verified" || status === "recorded") return accent;
-  if (status === "pending") return workspaceColors.yellow;
-  if (status === "available") return workspaceColors.textSoft;
-  return workspaceColors.muted;
+  if (status === "verified") return badgeColors.verified;
+  if (status === "recorded") return accent;
+  if (status === "pending") return badgeColors.pending;
+  if (status === "available") return badgeColors.available;
+  return badgeColors.locked;
 }
 
 function resolveStatuses(specs: NodeSpec[]): AchievementNode[] {
@@ -928,8 +936,8 @@ function FamilyChain({
                     styles.nodeConnectorLine,
                     {
                       backgroundColor: isCompleted(node.status)
-                        ? accent + "66"
-                        : workspaceColors.lineStrong,
+                        ? statusTone(node.status, accent) + "77"
+                        : badgeColors.locked + "AA",
                     },
                   ]}
                 />
@@ -942,8 +950,8 @@ function FamilyChain({
                   size={13}
                   color={
                     isCompleted(node.status)
-                      ? accent
-                      : workspaceColors.muted
+                      ? statusTone(node.status, accent)
+                      : badgeColors.locked
                   }
                 />
                 <View
@@ -951,8 +959,8 @@ function FamilyChain({
                     styles.nodeConnectorLine,
                     {
                       backgroundColor: isCompleted(node.status)
-                        ? accent + "66"
-                        : workspaceColors.lineStrong,
+                        ? statusTone(node.status, accent) + "77"
+                        : badgeColors.locked + "AA",
                     },
                   ]}
                 />
@@ -996,6 +1004,10 @@ function AchievementBadge({
 }) {
   const tone = statusTone(node.status, accent);
   const locked = node.status === "locked";
+  const verified = node.status === "verified";
+  const obtained = node.status === "recorded";
+  const pending = node.status === "pending";
+  const unowned = node.status === "available" || node.status === "locked";
 
   return (
     <Pressable
@@ -1005,10 +1017,17 @@ function AchievementBadge({
       style={({ pressed }) => [
         styles.nodeCard,
         {
-          borderColor:
-            node.status === "verified" || node.status === "recorded"
-              ? tone + "66"
-              : workspaceColors.line,
+          borderColor: unowned ? badgeColors.locked + "BB" : tone + "88",
+          backgroundColor: verified
+            ? badgeColors.verified + "0C"
+            : obtained
+              ? accent + "0A"
+              : pending
+                ? badgeColors.pending + "08"
+                : workspaceColors.panelSoft,
+          shadowColor: tone,
+          shadowOpacity: verified ? 0.28 : obtained ? 0.18 : pending ? 0.12 : 0,
+          shadowRadius: verified ? 18 : 12,
         },
         pressed ? styles.nodePressed : null,
       ]}
@@ -1018,8 +1037,11 @@ function AchievementBadge({
           style={[
             styles.badgeOuter,
             {
-              borderColor: tone + (locked ? "55" : "99"),
-              backgroundColor: tone + (locked ? "08" : "12"),
+              borderColor: unowned ? badgeColors.locked : tone,
+              backgroundColor: unowned ? "#10151E" : tone + (verified ? "1F" : "13"),
+              shadowColor: tone,
+              shadowOpacity: verified ? 0.65 : obtained ? 0.42 : pending ? 0.28 : 0,
+              shadowRadius: verified ? 18 : 12,
             },
           ]}
         >
@@ -1027,7 +1049,8 @@ function AchievementBadge({
             style={[
               styles.badgeInner,
               {
-                borderColor: tone + "44",
+                borderColor: unowned ? badgeColors.locked + "CC" : tone + "99",
+                backgroundColor: unowned ? "#0B0F16" : workspaceColors.backgroundElevated,
               },
             ]}
           >
@@ -1036,6 +1059,11 @@ function AchievementBadge({
               size={26}
               color={tone}
             />
+            {verified ? (
+              <View style={styles.verifiedGem}>
+                <Ionicons name="checkmark" size={10} color="#0A0D12" />
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -1505,13 +1533,11 @@ const styles = StyleSheet.create({
   },
   nodeCard: {
     width: "100%",
-    minHeight: 92,
+    minHeight: 94,
     padding: 11,
     borderWidth: 1,
     borderRadius: 18,
     backgroundColor: workspaceColors.panelSoft,
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
   },
   nodePressed: {
     opacity: 0.75,
@@ -1523,25 +1549,36 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   badgeOuter: {
-    width: 58,
-    height: 58,
-    borderWidth: 1.5,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderWidth: 2,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
     transform: [{ rotate: "45deg" }],
-    shadowOpacity: 0.32,
-    shadowRadius: 12,
   },
   badgeInner: {
-    width: 44,
-    height: 44,
+    width: 45,
+    height: 45,
     borderWidth: 1,
     borderRadius: 13,
     backgroundColor: workspaceColors.backgroundElevated,
     alignItems: "center",
     justifyContent: "center",
     transform: [{ rotate: "-45deg" }],
+  },
+  verifiedGem: {
+    position: "absolute",
+    right: -6,
+    top: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: badgeColors.verified,
+    borderWidth: 2,
+    borderColor: workspaceColors.backgroundElevated,
+    alignItems: "center",
+    justifyContent: "center",
   },
   nodeText: {
     flex: 1,
