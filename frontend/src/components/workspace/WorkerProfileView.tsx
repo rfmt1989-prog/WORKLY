@@ -170,7 +170,7 @@ export function WorkerProfileView() {
     "h0 / b0",
     "habilitação elétrica",
   ]);
-  const heights = findCertificate(worker.certificates, ["altura", "heights"]);
+  const heights = findCertificate(worker.certificates, ["altura", "heights"]);\n  const riskChemical = findCertificate(worker.certificates, [\n    "risco químico",\n    "sensibilização atex",\n  ]);
 
   const nodeFromCertificate = (
     spec: Omit<NodeSpec, "baseStatus" | "certificate" | "evidence">,
@@ -323,7 +323,9 @@ export function WorkerProfileView() {
       family: "chemical-risk",
       scope: "Formação industrial · conteúdo ATEX",
       dependsOn: ["course"],
-      baseStatus: isRodolfo ? "verified" : "available",
+      certificate: riskChemical,
+      evidence: findEvidence(worker.documents, riskChemical),
+      baseStatus: isRodolfo && riskChemical ? "verified" : riskChemical ? "recorded" : "available",
       meta: isRodolfo
         ? [
             "SGP Formation",
