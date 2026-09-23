@@ -50,6 +50,7 @@ type AchievementNode = {
   certificate?: Certificate;
   evidence?: DemoDocument;
   meta?: string[];
+  verificationNote?: string;
 };
 
 type NodeSpec = Omit<AchievementNode, "status"> & {
@@ -204,20 +205,31 @@ export function WorkerProfileView() {
       meta: isRodolfo ? ["Portugal", "2008"] : [],
     },
 
-    nodeFromCertificate(
-      {
-        id: "ipaf-3ab",
-        title: "IPAF 3A / 3B",
-        subtitle: "Plataformas elevatórias móveis",
-        icon: "arrow-up-circle-outline",
-        stage: "base",
-        family: "powered-access",
-        scope: "Internacional",
-        dependsOn: ["course"],
-        meta: ["3A · móvel vertical", "3B · móvel multidirecional"],
-      },
-      ipaf,
-    ),
+    {
+      id: "ipaf-3ab",
+      title: "IPAF 3A / 3B",
+      subtitle: "PAL · Powered Access Licence",
+      icon: "arrow-up-circle-outline",
+      stage: "base",
+      family: "powered-access",
+      scope: "Internacional",
+      dependsOn: ["course"],
+      certificate: ipaf,
+      evidence: findEvidence(worker.documents, ipaf),
+      baseStatus: isRodolfo && ipaf ? "verified" : ipaf ? "recorded" : "available",
+      meta: isRodolfo
+        ? [
+            "PAL · 3A / 3B",
+            "Avaliado · 26/05/2026",
+            "Válido até · 31/05/2031",
+            "Going Up Portugal",
+            "Formação · 8 h",
+          ]
+        : ["3A · móvel vertical", "3B · móvel multidirecional"],
+      verificationNote: isRodolfo
+        ? "PAL e certificado de formação apresentados e conferidos. O ficheiro pessoal não é publicado no demo público."
+        : undefined,
+    },
     nodeFromCertificate(
       {
         id: "h0b0",
@@ -303,6 +315,28 @@ export function WorkerProfileView() {
     },
 
     {
+      id: "risk-chem-n1",
+      title: "Risco Químico · Nível 1",
+      subtitle: "Sensibilização ATEX · SGP Formation",
+      icon: "flask-outline",
+      stage: "industrial-access",
+      family: "chemical-risk",
+      scope: "Formação industrial · conteúdo ATEX",
+      dependsOn: ["course"],
+      baseStatus: isRodolfo ? "verified" : "available",
+      meta: isRodolfo
+        ? [
+            "SGP Formation",
+            "28–29/08/2026",
+            "7 h",
+            "Validação · Succès",
+          ]
+        : [],
+      verificationNote: isRodolfo
+        ? "Atestado de fim de formação apresentado e conferido. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
+        : undefined,
+    },
+    {
       id: "atex-n1",
       title: "Ism-ATEX N1",
       subtitle: "1E / 1M · execução",
@@ -310,9 +344,9 @@ export function WorkerProfileView() {
       stage: "technical",
       family: "atex",
       scope: "Indústria ATEX",
-      dependsOn: ["course"],
-      baseStatus: isRodolfo ? "pending" : "available",
-      meta: isRodolfo ? ["Comprovativo por associar"] : [],
+      dependsOn: ["risk-chem-n1"],
+      baseStatus: "available",
+      meta: ["Progressão WORKLY · não equivalência automática"],
     },
     {
       id: "electrical-b1",
@@ -558,6 +592,7 @@ export function WorkerProfileView() {
         ["france-n1", "france-n2"],
         ["b-vca", "vol-vca"],
         ["scc-018", "scc-017"],
+        ["risk-chem-n1"],
         ["site-induction"],
       ],
     },
@@ -565,7 +600,7 @@ export function WorkerProfileView() {
       key: "atex",
       title: "ATEX / atmosferas explosivas",
       subtitle: "Execução, responsabilidade e especialização",
-      chains: [["atex-n1", "atex-n2", "iecex-copc"]],
+      chains: [["risk-chem-n1", "atex-n1", "atex-n2", "iecex-copc"]],
     },
     {
       key: "refrigeration",
@@ -933,6 +968,7 @@ function familyDisplayName(family: string) {
     "work-at-height": "TRABALHO EM ALTURA",
     "first-aid": "PRIMEIROS SOCORROS",
     "explosive-atmospheres-advanced": "IECEx",
+    "chemical-risk": "RISCO QUÍMICO",
   };
   return names[family] ?? "";
 }
@@ -1168,6 +1204,13 @@ function AchievementModal({
           </View>
         ) : null}
 
+        {node.verificationNote ? (
+          <View style={[styles.verificationCard, { borderColor: accent + "55" }]}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={accent} />
+            <Text style={styles.verificationText}>{node.verificationNote}</Text>
+          </View>
+        ) : null}
+
         <View
           style={[
             styles.evidenceBox,
@@ -1199,7 +1242,9 @@ function AchievementModal({
                   ? "Comprovativo por associar"
                   : node.status === "locked"
                     ? "Badge ainda bloqueado"
-                    : "Sem documento associado"}
+                    : node.status === "verified"
+                      ? "Documento validado"
+                      : "Sem documento associado"}
             </Text>
             <Text style={styles.evidenceText}>
               {canOpenFile
@@ -1208,7 +1253,9 @@ function AchievementModal({
                   ? "Depois de associares o documento, a conquista pode passar a verificada."
                   : node.status === "locked"
                     ? "Conclui o passo anterior da progressão WORKLY para desbloquear este badge."
-                    : "Quando adicionares esta certificação, o documento fica ligado diretamente ao badge."}
+                    : node.status === "verified"
+                      ? "O comprovativo foi conferido, mas o ficheiro pessoal não é exposto no demo público."
+                      : "Quando adicionares esta certificação, o documento fica ligado diretamente ao badge."}
             </Text>
           </View>
         </View>
@@ -1448,11 +1495,13 @@ const styles = StyleSheet.create({
   },
   nodeCard: {
     width: "100%",
-    minHeight: 88,
-    padding: 10,
+    minHeight: 92,
+    padding: 11,
     borderWidth: 1,
-    borderRadius: 15,
+    borderRadius: 18,
     backgroundColor: workspaceColors.panelSoft,
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
   },
   nodePressed: {
     opacity: 0.75,
@@ -1467,18 +1516,22 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderWidth: 1.5,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    transform: [{ rotate: "45deg" }],
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
   },
   badgeInner: {
     width: 44,
     height: 44,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 13,
     backgroundColor: workspaceColors.backgroundElevated,
     alignItems: "center",
     justifyContent: "center",
+    transform: [{ rotate: "-45deg" }],
   },
   nodeText: {
     flex: 1,
@@ -1673,6 +1726,22 @@ const styles = StyleSheet.create({
     color: workspaceColors.textSoft,
     fontSize: 8,
     fontWeight: "700",
+  },
+  verificationCard: {
+    width: "100%",
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 11,
+    backgroundColor: workspaceColors.panelSoft,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  verificationText: {
+    flex: 1,
+    color: workspaceColors.textSoft,
+    fontSize: 8,
+    lineHeight: 12,
   },
   evidenceBox: {
     width: "100%",
