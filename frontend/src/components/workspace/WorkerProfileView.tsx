@@ -333,7 +333,7 @@ export function WorkerProfileView() {
     {
       id: "risk-chem-n1",
       title: "Risco Químico · Nível 1",
-      subtitle: "Sensibilização ATEX · SGP Formation",
+      subtitle: "VERIFICADO · SGP Formation · conteúdo ATEX",
       icon: "flask-outline",
       stage: "industrial-access",
       family: "chemical-risk",
@@ -597,6 +597,12 @@ export function WorkerProfileView() {
       ],
     },
     {
+      key: "atex",
+      title: "ATEX / atmosferas explosivas",
+      subtitle: "O teu ramo verificado começa no Risco Químico N1",
+      chains: [["risk-chem-n1", "atex-n1", "atex-n2", "iecex-copc"]],
+    },
+    {
       key: "electrical",
       title: "Eletricidade",
       subtitle: "Progressão por responsabilidade",
@@ -612,12 +618,6 @@ export function WorkerProfileView() {
         ["scc-018", "scc-017"],
         ["site-induction"],
       ],
-    },
-    {
-      key: "atex",
-      title: "ATEX / atmosferas explosivas",
-      subtitle: "Execução, responsabilidade e especialização",
-      chains: [["risk-chem-n1", "atex-n1", "atex-n2", "iecex-copc"]],
     },
     {
       key: "refrigeration",
