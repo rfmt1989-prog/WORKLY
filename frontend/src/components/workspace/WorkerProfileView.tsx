@@ -165,12 +165,16 @@ export function WorkerProfileView() {
     : worker.profession;
 
   const ipaf = findCertificate(worker.certificates, ["ipaf", "3a", "3b"]);
-  const electrical = findCertificate(worker.certificates, [
-    "h0b0",
-    "h0 / b0",
-    "habilitação elétrica",
-  ]);
-  const heights = findCertificate(worker.certificates, ["altura", "heights"]);
+  const electrical = isRodolfo
+    ? undefined
+    : findCertificate(worker.certificates, [
+        "h0b0",
+        "h0 / b0",
+        "habilitação elétrica",
+      ]);
+  const heights = isRodolfo
+    ? undefined
+    : findCertificate(worker.certificates, ["altura", "heights"]);
   const riskChemical = findCertificate(worker.certificates, [
     "risco químico",
     "sensibilização atex",
