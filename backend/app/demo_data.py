@@ -11,12 +11,12 @@ WORKER_DEMO_EMAIL = "worker.demo@workly.app"
 COMPANY_DEMO_EMAIL = "company.demo@workly.app"
 
 
-def _certificate(name: str, issuer: str, expires: str, status: str = "valid") -> dict:
+def _certificate(\n    name: str,\n    issuer: str,\n    expires: str,\n    status: str = "valid",\n    *,\n    issued: str = "2025-02-12",\n) -> dict:
     return {
         "id": f"cert-{name.lower().replace(' ', '-')[:24]}",
         "name": name,
         "issuer": issuer,
-        "issued_at": "2025-02-12",
+        "issued_at": issued,
         "expires_at": expires,
         "status": status,
         "file_name": f"{name.replace(' ', '_').lower()}.pdf",
@@ -148,9 +148,18 @@ def build_demo_state() -> dict:
                 ("Eletricidade industrial", 82),
             ],
             [
-                _certificate("IPAF 3a e 3b", "IPAF", "2029-03-15"),
-                _certificate("Habilitação elétrica H0B0", "APAVE", "2028-09-01"),
-                _certificate("Trabalho em altura", "Safety Pro", "2027-11-20"),
+                _certificate(
+                    "IPAF 3A / 3B · PAL",
+                    "IPAF · Going Up Portugal",
+                    "2031-05-31",
+                    issued="2026-05-26",
+                ),
+                _certificate(
+                    "Risco Químico Nível 1 · Sensibilização ATEX",
+                    "SGP Formation",
+                    "",
+                    issued="2026-08-29",
+                ),
             ],
             [
                 _project_item("best-1", "Daltile Quartz", "Tennessee, EUA", 2024),
