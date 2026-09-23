@@ -610,7 +610,6 @@ export function WorkerProfileView() {
         ["france-n1", "france-n2"],
         ["b-vca", "vol-vca"],
         ["scc-018", "scc-017"],
-        ["risk-chem-n1"],
         ["site-induction"],
       ],
     },
