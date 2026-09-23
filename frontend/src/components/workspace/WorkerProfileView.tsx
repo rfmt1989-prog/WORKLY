@@ -170,7 +170,11 @@ export function WorkerProfileView() {
     "h0 / b0",
     "habilitação elétrica",
   ]);
-  const heights = findCertificate(worker.certificates, ["altura", "heights"]);\n  const riskChemical = findCertificate(worker.certificates, [\n    "risco químico",\n    "sensibilização atex",\n  ]);
+  const heights = findCertificate(worker.certificates, ["altura", "heights"]);
+  const riskChemical = findCertificate(worker.certificates, [
+    "risco químico",
+    "sensibilização atex",
+  ]);
 
   const nodeFromCertificate = (
     spec: Omit<NodeSpec, "baseStatus" | "certificate" | "evidence">,
