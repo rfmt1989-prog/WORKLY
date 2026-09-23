@@ -11,7 +11,14 @@ WORKER_DEMO_EMAIL = "worker.demo@workly.app"
 COMPANY_DEMO_EMAIL = "company.demo@workly.app"
 
 
-def _certificate(\n    name: str,\n    issuer: str,\n    expires: str,\n    status: str = "valid",\n    *,\n    issued: str = "2025-02-12",\n) -> dict:
+def _certificate(
+    name: str,
+    issuer: str,
+    expires: str,
+    status: str = "valid",
+    *,
+    issued: str = "2025-02-12",
+) -> dict:
     return {
         "id": f"cert-{name.lower().replace(' ', '-')[:24]}",
         "name": name,
