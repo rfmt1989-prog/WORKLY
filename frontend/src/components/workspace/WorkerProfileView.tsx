@@ -581,37 +581,33 @@ export function WorkerProfileView() {
   const byId = new Map(achievements.map((item) => [item.id, item]));
   const treeSections = [
     {
-      key: "foundation",
-      title: "Formação",
-      subtitle: "Ponto de partida profissional",
+      key: "formation",
+      title: "Formação técnica",
+      subtitle: "Qualificação profissional de origem",
       chains: [["course"]],
     },
     {
-      key: "base",
-      title: "Base profissional",
-      subtitle: "Segurança e acesso essenciais",
-      chains: [
-        ["ipaf-3ab"],
-        ["work-height"],
-        ["first-aid"],
-      ],
+      key: "powered-access",
+      title: "Plataformas elevatórias",
+      subtitle: "IPAF e gestão de plataformas",
+      chains: [["ipaf-3ab", "ipaf-mm"]],
     },
     {
       key: "atex",
-      title: "ATEX / atmosferas explosivas",
-      subtitle: "O teu ramo verificado começa no Risco Químico N1",
+      title: "ATEX & risco químico",
+      subtitle: "Atmosferas explosivas e progressão Ex",
       chains: [["risk-chem-n1", "atex-n1", "atex-n2", "iecex-copc"]],
     },
     {
       key: "electrical",
       title: "Eletricidade",
-      subtitle: "Progressão por responsabilidade",
+      subtitle: "Habilitação, execução e responsabilidade",
       chains: [["h0b0", "electrical-b1", "electrical-b2"]],
     },
     {
-      key: "industrial-passports",
+      key: "industrial-safety",
       title: "Segurança industrial",
-      subtitle: "Passaportes usados nos principais mercados europeus",
+      subtitle: "Passaportes e acesso a instalações industriais",
       chains: [
         ["france-n1", "france-n2"],
         ["b-vca", "vol-vca"],
@@ -621,8 +617,8 @@ export function WorkerProfileView() {
     },
     {
       key: "refrigeration",
-      title: "Refrigeração UE",
-      subtitle: "Certificação F-Gas e refrigerantes naturais",
+      title: "Refrigeração & F-Gas",
+      subtitle: "Fluidos frigorigéneos e refrigerantes naturais",
       chains: [
         ["fgas-a2", "fgas-a1"],
         ["fgas-b"],
@@ -630,18 +626,43 @@ export function WorkerProfileView() {
       ],
     },
     {
-      key: "industrial-operations",
-      title: "Operações industriais",
-      subtitle: "Formações adicionais conforme função e equipamento",
+      key: "height-scaffold",
+      title: "Trabalho em altura & andaimes",
+      subtitle: "Proteção contra quedas e acesso em altura",
+      chains: [["work-height", "scaffolding"]],
+    },
+    {
+      key: "lifting",
+      title: "Elevação de cargas",
+      subtitle: "Rigging e equipamentos de elevação",
       chains: [
-        ["confined-space"],
         ["rigging"],
-        ["loto"],
         ["overhead-crane"],
-        ["forklift"],
-        ["scaffolding"],
-        ["ipaf-mm"],
       ],
+    },
+    {
+      key: "industrial-vehicles",
+      title: "Veículos industriais",
+      subtitle: "Condução e movimentação de materiais",
+      chains: [["forklift"]],
+    },
+    {
+      key: "confined-spaces",
+      title: "Espaços confinados",
+      subtitle: "Acesso, vigilância e resgate",
+      chains: [["confined-space"]],
+    },
+    {
+      key: "energy-isolation",
+      title: "LOTO & isolamento de energias",
+      subtitle: "Consignação e controlo de energias perigosas",
+      chains: [["loto"]],
+    },
+    {
+      key: "first-aid",
+      title: "Primeiros socorros",
+      subtitle: "Resposta a emergência em contexto laboral",
+      chains: [["first-aid"]],
     },
   ];
 
@@ -664,14 +685,6 @@ export function WorkerProfileView() {
     ),
   ).length;
 
-  const currentStage =
-    confirmedCount >= 12
-      ? "Responsável"
-      : confirmedCount >= 7
-        ? "Técnico"
-        : confirmedCount >= 4
-          ? "Operador"
-          : "Base";
 
   return (
     <View style={styles.root}>
@@ -713,8 +726,8 @@ export function WorkerProfileView() {
               accent={workspaceColors.yellow}
             />
             <MiniStat
-              value={currentStage}
-              label="etapa"
+              value={String(coveredFamilies) + "/" + String(families.length)}
+              label="famílias"
               icon="git-branch-outline"
               accent={accent}
             />
@@ -751,8 +764,8 @@ export function WorkerProfileView() {
             </View>
           </View>
           <Text style={styles.summaryText}>
-            Progressão vertical. Certificações nacionais equivalentes contam como
-            caminhos alternativos; não tens de possuir todas para evoluir.
+            Organizada por famílias. Cada ramo mostra apenas as certificações
+            dessa especialidade e a respetiva progressão.
           </Text>
         </View>
 
