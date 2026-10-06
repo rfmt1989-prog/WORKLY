@@ -555,7 +555,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
     {
       id: "risk-chem-n1",
       title: "Risco Químico · Nível 1",
-      subtitle: "VERIFICADO · SGP Formation · conteúdo ATEX",
+      subtitle: "Formação industrial · conteúdo ATEX",
       icon: "flask-outline",
       stage: "industrial-access",
       family: "chemical-risk",

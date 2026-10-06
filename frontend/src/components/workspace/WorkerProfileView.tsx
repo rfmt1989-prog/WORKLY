@@ -798,11 +798,12 @@ function CertificateDetails({
             />
           </View>
         ) : null}
-        {node.meta?.map((item) => (
-          <Text key={item} style={styles.detailText}>
-            {localizeDemoText(language, item)}
-          </Text>
-        ))}
+        {!node.certificate &&
+          node.meta?.map((item) => (
+            <Text key={item} style={styles.detailText}>
+              {localizeDemoText(language, item)}
+            </Text>
+          ))}
         {node.verificationNote ? (
           <Text style={styles.detailNote}>
             {localizeDemoText(language, node.verificationNote)}
