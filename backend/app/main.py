@@ -949,6 +949,7 @@ def update_worker(
         "best_projects",
         "certificates",
         "languages",
+        "avatar",
     }
     clean_patch = {key: value for key, value in patch.data.items() if key in allowed}
     with _state_lock:

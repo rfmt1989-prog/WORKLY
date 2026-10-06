@@ -31,6 +31,9 @@ export type Certificate = {
   expires_at: string;
   status: string;
   file_name: string;
+  profession_id?: string;
+  node_id?: string;
+  file_id?: string;
 };
 
 export type DemoDocument = {

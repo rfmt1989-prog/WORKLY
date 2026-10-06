@@ -18,6 +18,8 @@ A página de login inclui botões diretos para os dois perfis.
 
 - Registo, login por perfil, sessão persistente e logout.
 - Perfis Worker e Company completos e editáveis.
+- Perfil Worker com identificação, foto editável e árvores de certificados
+  independentes por profissão, com detalhes e associação de comprovativos.
 - Tema escuro responsivo, com identidade azul para Worker e vermelha para
   Company.
 - Dashboards por perfil, indicadores de confiança e produtividade e estados de

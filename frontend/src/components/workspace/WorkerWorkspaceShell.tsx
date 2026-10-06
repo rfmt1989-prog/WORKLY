@@ -99,7 +99,7 @@ export function WorkerWorkspaceShell() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { user, logout } = useAuth();
-  const { language, setLanguage } = useWorklyData();
+  const { state, language, setLanguage } = useWorklyData();
   const [activeSection, setActiveSection] = useState<WorkerSection>("home");
   const fade = useRef(new Animated.Value(1)).current;
   const compact = width < 720;
@@ -120,11 +120,11 @@ export function WorkerWorkspaceShell() {
 
   if (!user) return null;
 
-  const navItems: Array<{
+  const navItems: {
     id: WorkerSection;
     label: string;
     icon: IconName;
-  }> = [
+  }[] = [
     { id: "home", label: labels.home, icon: "home-outline" },
     { id: "points", label: labels.points, icon: "location-outline" },
     { id: "projects", label: labels.projects, icon: "business-outline" },
@@ -166,7 +166,9 @@ export function WorkerWorkspaceShell() {
           </View>
           <View>
             <Text style={styles.brandName}>WORKLY</Text>
-            <Text style={[styles.roleLabel, { color: accent }]}>{labels.worker}</Text>
+            <Text style={[styles.roleLabel, { color: accent }]}>
+              {labels.worker}
+            </Text>
           </View>
         </View>
 
@@ -186,7 +188,14 @@ export function WorkerWorkspaceShell() {
               pressed ? { opacity: 0.72 } : null,
             ]}
           >
-            <Avatar name={user.name} size={36} accent={accent} />
+            <Avatar
+              name={user.name}
+              source={
+                state?.workers.find((worker) => worker.id === user.id)?.avatar
+              }
+              size={36}
+              accent={accent}
+            />
             {!compact ? (
               <View style={styles.userText}>
                 <Text style={styles.userName} numberOfLines={1}>
@@ -255,7 +264,9 @@ export function WorkerWorkspaceShell() {
                   {item.label}
                 </Text>
                 {active ? (
-                  <View style={[styles.activeLine, { backgroundColor: accent }]} />
+                  <View
+                    style={[styles.activeLine, { backgroundColor: accent }]}
+                  />
                 ) : null}
               </Pressable>
             );
@@ -291,7 +302,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 36,
     height: 36,
-    borderRadius: 11,
+    borderRadius: 6,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -304,14 +315,14 @@ const styles = StyleSheet.create({
   },
   brandName: {
     color: workspaceColors.text,
-    fontSize: 14,
-    lineHeight: 17,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "900",
     letterSpacing: 1.4,
   },
   roleLabel: {
-    fontSize: 8,
-    lineHeight: 11,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "800",
     letterSpacing: 1,
   },
@@ -333,14 +344,14 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: workspaceColors.textSoft,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "700",
   },
   logoutHint: {
     color: workspaceColors.muted,
-    fontSize: 8,
-    lineHeight: 11,
+    fontSize: 10,
+    lineHeight: 14,
   },
   content: {
     flex: 1,
@@ -357,6 +368,8 @@ const styles = StyleSheet.create({
   },
   dockContent: {
     width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -367,7 +380,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     height: 57,
-    borderRadius: 13,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
@@ -384,8 +397,8 @@ const styles = StyleSheet.create({
   dockLabel: {
     maxWidth: "95%",
     color: workspaceColors.muted,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: "700",
     textAlign: "center",
   },

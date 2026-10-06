@@ -14,6 +14,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image } from "expo-image";
 
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
 
@@ -82,7 +83,9 @@ export function SectionTitle({
     <View style={styles.sectionTitleRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+        {subtitle ? (
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        ) : null}
       </View>
       {action}
     </View>
@@ -144,7 +147,9 @@ export function Button({
         styles.button,
         compact ? styles.buttonCompact : null,
         { backgroundColor, borderColor },
-        pressed && !disabled ? { opacity: 0.78, transform: [{ scale: 0.985 }] } : null,
+        pressed && !disabled
+          ? { opacity: 0.78, transform: [{ scale: 0.985 }] }
+          : null,
         disabled ? { opacity: 0.45 } : null,
         style,
       ]}
@@ -153,7 +158,9 @@ export function Button({
         <ActivityIndicator size="small" color={color} />
       ) : (
         <>
-          {icon ? <Ionicons name={icon} size={compact ? 15 : 17} color={color} /> : null}
+          {icon ? (
+            <Ionicons name={icon} size={compact ? 15 : 17} color={color} />
+          ) : null}
           <Text style={[styles.buttonLabel, { color }]}>{label}</Text>
         </>
       )}
@@ -183,7 +190,11 @@ export function IconButton({
         pressed ? { opacity: 0.65 } : null,
       ]}
     >
-      <Ionicons name={icon} size={19} color={accent ?? workspaceColors.textSoft} />
+      <Ionicons
+        name={icon}
+        size={19}
+        color={accent ?? workspaceColors.textSoft}
+      />
     </Pressable>
   );
 }
@@ -193,12 +204,15 @@ export function Avatar({
   size = 44,
   accent = workspaceColors.blue,
   flag,
+  source,
 }: {
   name: string;
   size?: number;
   accent?: string;
   flag?: string;
+  source?: string;
 }) {
+  const [failedSource, setFailedSource] = React.useState<string | null>(null);
   const initials = name
     .split(" ")
     .slice(0, 2)
@@ -220,9 +234,25 @@ export function Avatar({
           },
         ]}
       >
-        <Text style={[styles.avatarText, { fontSize: Math.max(12, size * 0.3) }]}>
-          {initials}
-        </Text>
+        {source && source !== failedSource ? (
+          <Image
+            source={{ uri: source }}
+            accessibilityLabel={name}
+            contentFit="cover"
+            onError={() => setFailedSource(source)}
+            style={{
+              width: size - 4,
+              height: size - 4,
+              borderRadius: size / 2,
+            }}
+          />
+        ) : (
+          <Text
+            style={[styles.avatarText, { fontSize: Math.max(12, size * 0.3) }]}
+          >
+            {initials}
+          </Text>
+        )}
       </View>
       {flag ? (
         <View
@@ -258,7 +288,12 @@ export function StatusPill({
           ? workspaceColors.orange
           : workspaceColors.muted;
   return (
-    <View style={[styles.pill, { borderColor: `${color}66`, backgroundColor: `${color}16` }]}>
+    <View
+      style={[
+        styles.pill,
+        { borderColor: `${color}66`, backgroundColor: `${color}16` },
+      ]}
+    >
       <View style={[styles.pillDot, { backgroundColor: color }]} />
       <Text style={[styles.pillText, { color }]}>{label}</Text>
     </View>
@@ -307,7 +342,11 @@ export function ProgressBar({
       <View
         style={[
           styles.progressFill,
-          { width: `${normalized}%`, backgroundColor: accent, shadowColor: accent },
+          {
+            width: `${normalized}%`,
+            backgroundColor: accent,
+            shadowColor: accent,
+          },
         ]}
       />
     </View>
@@ -370,7 +409,9 @@ export function ModalPanel({
           <View style={styles.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.modalTitle}>{title}</Text>
-              {subtitle ? <Text style={styles.modalSubtitle}>{subtitle}</Text> : null}
+              {subtitle ? (
+                <Text style={styles.modalSubtitle}>{subtitle}</Text>
+              ) : null}
             </View>
             <IconButton icon="close" label="Close" onPress={onClose} />
           </View>
@@ -402,7 +443,9 @@ export function EmptyState({
     <View style={styles.empty}>
       <Ionicons name={icon} size={34} color={workspaceColors.muted} />
       <Text style={styles.emptyTitle}>{title}</Text>
-      {description ? <Text style={styles.emptyDescription}>{description}</Text> : null}
+      {description ? (
+        <Text style={styles.emptyDescription}>{description}</Text>
+      ) : null}
     </View>
   );
 }
@@ -450,11 +493,7 @@ export function MetricCard({
     );
   }
 
-  return (
-    <Card style={styles.metricCard}>
-      {content}
-    </Card>
-  );
+  return <Card style={styles.metricCard}>{content}</Card>;
 }
 
 export const sharedStyles = StyleSheet.create({
