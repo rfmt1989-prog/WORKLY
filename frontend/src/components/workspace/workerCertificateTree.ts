@@ -284,10 +284,12 @@ export function buildProfessionTrees(
     });
 
     const legacyNode = achievementById.get(spec.id);
-    const evidence = findEvidence(worker.documents, directCertificate);
+    const legacyFoundation = spec.stage === "foundation" ? achievementById.get("course") : undefined;
+    const evidence = findEvidence(worker.documents, directCertificate || legacyFoundation?.certificate);
     const directStatus =
       certificateStatus(directCertificate) ||
-      (legacyNode && isCompleted(legacyNode.status) ? legacyNode.status : null);
+      (legacyNode && isCompleted(legacyNode.status) ? legacyNode.status : null) ||
+      (legacyFoundation && isCompleted(legacyFoundation.status) ? legacyFoundation.status : null);
 
     const prerequisitesMet = (spec.dependsOn || []).every((id) => {
       const dependency = resolved.get(id);
