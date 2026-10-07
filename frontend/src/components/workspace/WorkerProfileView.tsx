@@ -50,7 +50,6 @@ export function WorkerProfileView() {
   const { width } = useWindowDimensions();
   const compact = width < 1000;
   const oneColumn = width < 740;
-  const [filter, setFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<AchievementNode | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -85,20 +84,16 @@ export function WorkerProfileView() {
         <Text style={styles.muted}>{error || copy[language].loading}</Text>
       </View>
     );
-  const visible = filter
-    ? trees.filter((tree) => tree.id === filter)
-    : trees.slice(0, 4);
-  const expandedTree = trees.find((tree) => tree.id === expanded);
+  const visible = trees;
+  const primaryTree = trees[0];
+  const expandedTree =
+    primaryTree?.id === expanded ? primaryTree : undefined;
   const count = new Set(
     achievements.flatMap((node) =>
       node.certificate ? [node.certificate.id] : [],
     ),
   ).size;
-  const displayProfession =
-    worker.name.toLowerCase().includes("rodolfo maia") &&
-    /^nacellista/i.test(worker.profession)
-      ? "Técnico Eletromecânico · Refrigeração e Climatização"
-      : worker.profession;
+  const displayProfession = worker.profession;
 
   return (
     <View style={styles.root} testID="worker-profile">
@@ -225,19 +220,19 @@ export function WorkerProfileView() {
               <View style={styles.headingWrap}>
                 <Text style={styles.eyebrow}>
                   {text(
-                    "O teu percurso, organizado",
-                    "Your professional journey",
+                    "A tua profissão, organizada",
+                    "Your profession, organized",
                   )}
                 </Text>
                 <Text
                   style={[styles.title, oneColumn ? styles.titleCompact : null]}
                 >
-                  {text("Árvore de certificados", "Certificate trees")}
+                  {text("Árvore profissional", "Professional tree")}
                 </Text>
                 <Text style={styles.subtitle}>
                   {text(
-                    "Um percurso para cada profissão.",
-                    "A separate journey for each profession.",
+                    "Certificações da profissão principal e skills adicionais desbloqueáveis.",
+                    "Main profession certifications and unlockable additional skills.",
                   )}
                 </Text>
               </View>
@@ -246,7 +241,7 @@ export function WorkerProfileView() {
                 icon="add-outline"
                 onPress={() =>
                   setCertificateTarget({
-                    professionId: filter || trees[0]?.id || "professional",
+                    professionId: primaryTree?.id || "professional",
                   })
                 }
                 style={styles.addButton}
@@ -264,7 +259,7 @@ export function WorkerProfileView() {
               />
               <OverviewStat
                 value={trees.length}
-                label={text("profissões", "professions")}
+                label={text("profissão principal", "main profession")}
                 icon="git-branch-outline"
               />
               <OverviewStat
@@ -273,28 +268,13 @@ export function WorkerProfileView() {
                 icon="document-attach-outline"
               />
             </View>
-            <View style={styles.filters} accessibilityRole="tablist">
-              <ProfessionFilter
-                active={filter === null}
-                label={text("Visão geral", "Overview")}
-                onPress={() => setFilter(null)}
-              />
-              {trees.map((tree) => (
-                <ProfessionFilter
-                  key={tree.id}
-                  active={filter === tree.id}
-                  label={text(tree.title, tree.titleEn)}
-                  onPress={() => setFilter(tree.id)}
-                />
-              ))}
-            </View>
             <View style={styles.grid} testID="profession-trees">
               {visible.map((tree) => (
                 <ProfessionCard
                   key={tree.id}
                   tree={tree}
                   language={language}
-                  single={oneColumn || Boolean(filter)}
+                  single
                   onNode={setSelected}
                   onExpand={() => setExpanded(tree.id)}
                 />
@@ -343,42 +323,96 @@ export function WorkerProfileView() {
           }
         >
           <View>
-            {[expandedTree.root, ...expandedTree.nodes].map((node, index) => (
-              <View key={node.id} style={styles.fullTreeRow}>
-                <View style={styles.fullTreeRail}>
-                  <View
-                    style={[
-                      styles.fullTreeLine,
-                      index === 0 ? { top: "50%" } : null,
-                      index === expandedTree.nodes.length
-                        ? { bottom: "50%" }
-                        : null,
-                    ]}
-                  />
-                  <Diamond node={node} />
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={node.title}
-                  onPress={() => {
-                    setExpanded(null);
-                    setSelected(node);
-                  }}
-                  style={({ pressed }) => [
-                    styles.fullTreeContent,
-                    pressed ? styles.pressed : null,
-                  ]}
-                >
-                  <Text style={styles.nodeTitle}>
-                    {localizeDemoText(language, node.title)}
-                  </Text>
-                  <Text style={styles.nodeSubtitle}>
-                    {localizeDemoText(language, node.subtitle)}
-                  </Text>
-                  <NodeStatus node={node} language={language} />
-                </Pressable>
-              </View>
-            ))}
+            {[
+              expandedTree.root,
+              ...expandedTree.certifications,
+              ...expandedTree.additionalSkills,
+            ].map((node, index) => {
+              const skillStart = 1 + expandedTree.certifications.length;
+              const lastIndex =
+                expandedTree.certifications.length +
+                expandedTree.additionalSkills.length;
+              return (
+                <React.Fragment key={node.id}>
+                  {index === 1 ? (
+                    <View style={styles.treeSectionHeading}>
+                      <Ionicons
+                        name="ribbon-outline"
+                        size={16}
+                        color={workspaceColors.blueSoft}
+                      />
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Text style={styles.sectionLabel}>
+                          {text(
+                            "Certificações profissionais",
+                            "Professional certifications",
+                          )}
+                        </Text>
+                        <Text style={styles.treeSectionHint}>
+                          {text(
+                            "Formação e certificados diretamente ligados à profissão.",
+                            "Training and certificates directly linked to the profession.",
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {index === skillStart &&
+                  expandedTree.additionalSkills.length ? (
+                    <View style={styles.treeSectionHeading}>
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={16}
+                        color={workspaceColors.blueSoft}
+                      />
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Text style={styles.sectionLabel}>
+                          {text("Skills adicionais", "Additional skills")}
+                        </Text>
+                        <Text style={styles.treeSectionHint}>
+                          {text(
+                            "Competências complementares desbloqueadas à medida que o percurso profissional evolui.",
+                            "Complementary skills unlocked as the professional journey progresses.",
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  <View style={styles.fullTreeRow}>
+                    <View style={styles.fullTreeRail}>
+                      <View
+                        style={[
+                          styles.fullTreeLine,
+                          index === 0 ? { top: "50%" } : null,
+                          index === lastIndex ? { bottom: "50%" } : null,
+                        ]}
+                      />
+                      <Diamond node={node} />
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={node.title}
+                      onPress={() => {
+                        setExpanded(null);
+                        setSelected(node);
+                      }}
+                      style={({ pressed }) => [
+                        styles.fullTreeContent,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <Text style={styles.nodeTitle}>
+                        {localizeDemoText(language, node.title)}
+                      </Text>
+                      <Text style={styles.nodeSubtitle}>
+                        {localizeDemoText(language, node.subtitle)}
+                      </Text>
+                      <NodeStatus node={node} language={language} />
+                    </Pressable>
+                  </View>
+                </React.Fragment>
+              );
+            })}
           </View>
         </ModalPanel>
       ) : null}
@@ -461,37 +495,6 @@ function OverviewStat({
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
-  );
-}
-function ProfessionFilter({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.filter,
-        active ? styles.filterActive : null,
-        pressed ? styles.pressed : null,
-      ]}
-    >
-      <Text
-        style={[
-          styles.filterText,
-          active ? { color: workspaceColors.blueSoft } : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 function LegendItem({ label, color }: { label: string; color: string }) {
@@ -611,7 +614,10 @@ function ProfessionCard({
   onNode: (node: AchievementNode) => void;
   onExpand: () => void;
 }) {
-  const confirmed = tree.nodes.filter((node) =>
+  const confirmed = tree.certifications.filter((node) =>
+    isCompleted(node.status),
+  ).length;
+  const unlockedSkills = tree.additionalSkills.filter((node) =>
     isCompleted(node.status),
   ).length;
   return (
@@ -686,6 +692,22 @@ function ProfessionCard({
           </Text>
         )}
       </View>
+      <View style={styles.skillSummary}>
+        <View style={styles.skillSummaryLabel}>
+          <Ionicons
+            name="sparkles-outline"
+            size={15}
+            color={workspaceColors.blueSoft}
+          />
+          <Text style={styles.skillSummaryTitle}>
+            {uiText(language, "Skills adicionais", "Additional skills")}
+          </Text>
+        </View>
+        <Text style={styles.skillSummaryCount}>
+          {unlockedSkills}/{tree.additionalSkills.length}{" "}
+          {uiText(language, "desbloqueadas", "unlocked")}
+        </Text>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${uiText(language, "Ver árvore", "View tree")} · ${uiText(language, tree.title, tree.titleEn)}`}
@@ -696,8 +718,8 @@ function ProfessionCard({
         ]}
       >
         <Text style={styles.footerCount}>
-          {confirmed}/{tree.nodes.length}{" "}
-          {uiText(language, "registados", "recorded")}
+          {confirmed}/{tree.certifications.length}{" "}
+          {uiText(language, "certificados", "certificates")}
         </Text>
         <View style={styles.footerAction}>
           <Text style={styles.footerLabel}>
@@ -1058,6 +1080,40 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: workspaceColors.muted,
     marginTop: 18,
+  },
+  skillSummary: {
+    borderTopWidth: 1,
+    borderColor: "#1F3040",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#0C1621",
+  },
+  skillSummaryLabel: { flexDirection: "row", alignItems: "center", gap: 8 },
+  skillSummaryTitle: {
+    color: "#B9C9D8",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+  },
+  skillSummaryCount: { color: "#7892AA", fontSize: 11 },
+  treeSectionHeading: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingTop: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderColor: "#26394B",
+  },
+  treeSectionHint: {
+    color: "#7F95AA",
+    fontSize: 11,
+    lineHeight: 17,
   },
   cardFooter: {
     borderTopWidth: 1,
