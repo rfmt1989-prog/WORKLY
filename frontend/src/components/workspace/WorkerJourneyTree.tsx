@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Circle, Path, Polygon } from "react-native-svg";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
@@ -14,6 +15,74 @@ import {
   type ProfessionTree,
 } from "./workerCertificateTree";
 
+function TechGlyph({ node, size = 22, color }: { node: AchievementNode; size?: number; color: string }) {
+  const family = `${node.id} ${node.family} ${node.title}`.toLowerCase();
+  const skill = node.kind === "skill";
+
+  if (skill) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path d="M6 12L12 6L18 12L12 18Z" fill="none" stroke={color} strokeWidth="1.4" />
+        <Circle cx="6" cy="12" r="1.8" fill={color} />
+        <Circle cx="12" cy="6" r="1.8" fill={color} />
+        <Circle cx="18" cy="12" r="1.8" fill={color} />
+        <Circle cx="12" cy="18" r="1.8" fill={color} />
+      </Svg>
+    );
+  }
+
+  if (/electr|h0b0|b1|b2|loto/.test(family)) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path d="M13.7 2.8L6.8 12.2H11L9.9 21.2L17.4 10.5H13.1L13.7 2.8Z" fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+
+  if (/hvac|refrig|fgas|climat|snow/.test(family)) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path d="M12 3V21M4.2 7.5L19.8 16.5M4.2 16.5L19.8 7.5" stroke={color} strokeWidth="1.25" strokeLinecap="round" />
+        <Circle cx="12" cy="12" r="2" fill="none" stroke={color} strokeWidth="1.25" />
+      </Svg>
+    );
+  }
+
+  if (/atex|chem|risk|safety|vca|scc|first-aid/.test(family)) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Polygon points="12,3 21,12 12,21 3,12" fill="none" stroke={color} strokeWidth="1.3" />
+        <Path d="M12 7.5V13.5M12 16.7V16.9" stroke={color} strokeWidth="1.7" strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (/ipaf|lift|rigg|crane|fork|platform|height/.test(family)) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path d="M5 18H19M7 16L12 7L17 16M12 7V4M9.7 6.3L12 4L14.3 6.3" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+
+  if (node.kind === "profession") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Polygon points="12,3 19,8 17,17 12,21 7,17 5,8" fill="none" stroke={color} strokeWidth="1.35" />
+        <Path d="M8 12H16M12 8V16" stroke={color} strokeWidth="1.15" />
+      </Svg>
+    );
+  }
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Polygon points="12,3 19.5,7.5 19.5,16.5 12,21 4.5,16.5 4.5,7.5" fill="none" stroke={color} strokeWidth="1.25" />
+      <Circle cx="12" cy="12" r="2.2" fill="none" stroke={color} strokeWidth="1.25" />
+      <Path d="M12 5.8V8M12 16V18.2M5.9 12H8M16 12H18.1" stroke={color} strokeWidth="1.05" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function JourneySymbol({
   node,
   large = false,
@@ -23,8 +92,9 @@ export function JourneySymbol({
 }) {
   const color = statusTone(node.status, workspaceColors.blue);
   const inactive = node.status === "locked";
-  const size = large ? 62 : 46;
-  const diamondSize = large ? 38 : 29;
+  const size = large ? 68 : 50;
+  const core = large ? 40 : 30;
+  const tone = inactive ? "#536273" : color;
 
   return (
     <View
@@ -32,28 +102,32 @@ export function JourneySymbol({
         styles.symbolFrame,
         { width: size, height: size, borderRadius: size / 2 },
         node.status === "verified" && styles.symbolVerified,
-        { borderColor: inactive ? "#263647" : `${color}78`, shadowColor: color },
+        { borderColor: inactive ? "#243341" : `${color}5C`, shadowColor: color },
       ]}
     >
+      <View style={[styles.crosshairH, { backgroundColor: inactive ? "#1E2A35" : `${color}30` }]} />
+      <View style={[styles.crosshairV, { backgroundColor: inactive ? "#1E2A35" : `${color}30` }]} />
       {node.status === "verified" ? <View style={styles.verifiedHalo} /> : null}
       <View
         style={[
           styles.diamond,
           {
-            width: diamondSize,
-            height: diamondSize,
-            borderColor: inactive ? "#3C4B5B" : color,
-            backgroundColor: isCompleted(node.status) ? "#0C2841" : "#0B151F",
+            width: core,
+            height: core,
+            borderColor: inactive ? "#344352" : tone,
+            backgroundColor: isCompleted(node.status) ? "#0A2032" : "#08121B",
           },
         ]}
       >
-        <Ionicons
-          name={inactive ? "lock-closed-outline" : node.icon}
-          size={large ? 22 : 17}
-          color={inactive ? "#657486" : color}
-          style={styles.icon}
-        />
+        <View style={styles.icon}>
+          {inactive ? (
+            <Ionicons name="lock-closed-outline" size={large ? 18 : 14} color="#627184" />
+          ) : (
+            <TechGlyph node={node} size={large ? 24 : 18} color={tone} />
+          )}
+        </View>
       </View>
+      {node.status === "verified" ? <View style={styles.verifyDot} /> : null}
     </View>
   );
 }
@@ -114,7 +188,7 @@ export function WorkerJourneyTree({
       <View style={styles.origin}>
         <View style={styles.originGlow} />
         <View style={styles.originSymbol}>
-          <Ionicons name={tree.icon} size={25} color="#9CCFFF" />
+          <TechGlyph node={tree.root} size={28} color="#A8D8FF" />
         </View>
         <Text style={styles.originCaption}>
           {uiText(language, "PERCURSO", "JOURNEY")}
@@ -346,9 +420,9 @@ function NodeLabel({
 const styles = StyleSheet.create({
   board: {
     borderWidth: 1,
-    borderColor: "#1D3447",
-    borderRadius: 18,
-    backgroundColor: "#071019E8",
+    borderColor: "#183247",
+    borderRadius: 22,
+    backgroundColor: "#050B11F2",
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 18,
@@ -376,12 +450,12 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     borderWidth: 1,
-    borderColor: "#4B83B6",
-    backgroundColor: "#0B2032",
+    borderColor: "#3E76A6",
+    backgroundColor: "#071724",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2388FF",
-    shadowOpacity: 0.34,
+    shadowOpacity: 0.26,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
@@ -411,8 +485,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#28465E",
-    backgroundColor: "#0A1722",
+    borderColor: "#1E4058",
+    backgroundColor: "#07131D",
     zIndex: 2,
   },
   sectionTitle: {
@@ -474,7 +548,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#29475F",
+    backgroundColor: "#214157",
   },
   railFirst: {
     top: 43,
@@ -532,7 +606,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#07121C",
+    backgroundColor: "#050D14",
     shadowOpacity: 0.16,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -544,12 +618,15 @@ const styles = StyleSheet.create({
   },
   verifiedHalo: {
     position: "absolute",
-    width: "118%",
-    height: "118%",
+    width: "124%",
+    height: "124%",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#4E8DCA55",
+    borderColor: "#6DBBFF38",
   },
+  crosshairH: { position: "absolute", width: "124%", height: 1 },
+  crosshairV: { position: "absolute", height: "124%", width: 1 },
+  verifyDot: { position: "absolute", right: 2, top: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: "#A8D8FF", shadowColor: "#2388FF", shadowOpacity: .65, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
   diamond: {
     alignItems: "center",
     justifyContent: "center",
@@ -558,6 +635,8 @@ const styles = StyleSheet.create({
   },
   icon: {
     transform: [{ rotate: "-45deg" }],
+    alignItems: "center",
+    justifyContent: "center",
   },
   branchGateway: {
     width: "100%",
