@@ -11,9 +11,11 @@ import type { LanguageCode } from "@/src/demo/types";
 import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
-import { WorkerProgressPath } from "./WorkerProgressPath";
-import { JourneyStatus, JourneySymbol, WorkerJourneyTree } from "./WorkerJourneyTree";
+import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
+import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
+import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
+import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
 
 const accent = workspaceColors.blue;
@@ -33,7 +35,8 @@ export function WorkerProfileView() {
   const worker = state?.workers.find(item => item.id === user?.id);
   const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
   const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
-  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker) : null, [worker]);
+  const competencyAssessment = useMemo(() => worker ? assessWorkerCompetence(worker, state?.projects || []) : null, [worker, state?.projects]);
+  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment?.score) : null, [worker, competencyAssessment?.score]);
   const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree]);
   const text = (pt: string, en: string) => uiText(language, pt, en);
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
@@ -70,9 +73,9 @@ export function WorkerProfileView() {
           <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
-              {identity ? <View style={styles.scoreBadge}><Text style={styles.scoreValue}>{identity.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Valor profissional", "Professional value")}</Text></View> : null}
+              {competencyAssessment ? <View style={styles.scoreBadge}><Text style={styles.scoreValue}>{competencyAssessment.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Score de evidência", "Evidence score")}</Text></View> : null}
             </View>
-            {identity && primaryTree ? <WorkerProgressPath identity={identity} language={language} vertical={narrow} onRules={() => setRules(true)} /> : null}
+            {competencyAssessment && primaryTree ? <WorkerEvidenceScoreCard assessment={competencyAssessment} language={language} onDetails={() => setRules(true)} /> : null}
             {!primaryTree ? (
               <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
             ) : <View style={styles.journey}>
@@ -96,13 +99,13 @@ export function WorkerProfileView() {
                   testID="add-worker-certificate"
                 />
               </View>
-              <WorkerJourneyTree
-                key={primaryTree.id}
-                tree={primaryTree}
-                language={language}
-                stacked={width < 720}
-                onNode={setSelected}
-              />
+              {competencyAssessment ? (
+                <WorkerCompetencyTree
+                  assessment={competencyAssessment}
+                  language={language}
+                  onNode={setSelected}
+                />
+              ) : null}
               {specialtyTree ? (
                 <WorkerSpecialtyTree
                   tree={specialtyTree}
@@ -114,8 +117,12 @@ export function WorkerProfileView() {
           </View>
         </View>
       </ScrollView>
-      {rules && identity ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como evoluir", "How to progress")} subtitle={text("A confirmação dos comprovativos atribui pontos.", "Confirmed evidence earns points.")}>
-        <View style={styles.ruleList}>{identity.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{text(part.label, part.label_en)}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text><Text style={styles.detailNote}>{part.count} {text("confirmados", "confirmed")} · {part.points_each} {text("pontos por registo", "points per record")}</Text></View>)}<Text style={styles.detailNote}>{text("Só contam comprovativos verificados, dentro da validade e ligados à profissão principal. O nível Workly é uma classificação interna.", "Only verified, current evidence in the primary trade counts. The Workly level is an internal classification.")}</Text></View>
+      {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Critérios de valorização", "Assessment criteria")} subtitle={text("O nível exige score e critérios mínimos. Certificados de acesso ou segurança não compram senioridade.", "Level progression requires both score and minimum gates. Access or safety certificates do not buy seniority.")}>
+        <View style={styles.ruleList}>
+          {competencyAssessment.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{language === "pt" ? part.label : part.labelEn}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text><Text style={styles.detailNote}>{language === "pt" ? part.detail : part.detailEn}</Text></View>)}
+          <Text style={styles.detailNote}>{text("Competências essenciais e opcionais seguem a lógica ocupacional ESCO. Conhecimento, aptidões e responsabilidade/autonomia são avaliados separadamente. O nível WORKLY é interno e não corresponde a um nível EQF oficial.", "Essential and optional competences follow ESCO occupational logic. Knowledge, skills and responsibility/autonomy are assessed separately. The WORKLY level is internal and is not an official EQF level.")}</Text>
+          <Text style={styles.detailNote}>{text("Conformidade legal é contextual: depende do país, atividade, empregador e site. É mostrada à parte e não aumenta automaticamente o nível profissional.", "Legal compliance is contextual: it depends on country, activity, employer and site. It is shown separately and does not automatically increase professional level.")}</Text>
+        </View>
       </ModalPanel> : null}
       {about ? <ModalPanel visible onClose={() => setAbout(false)} title={text("Sobre e contactos", "About and contacts")}><View style={styles.detailContent}>
         <Text style={styles.detailText}>{localizeDemoText(language, worker.bio)}</Text>
