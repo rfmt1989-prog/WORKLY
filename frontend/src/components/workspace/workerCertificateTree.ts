@@ -320,6 +320,12 @@ export function buildProfessionTrees(
   }
 
   const hasProfessionalProgress = certifications.some((node) => node.status === "verified");
+  const representedSkills = new Set<string>();
+  const skillAliases: Record<string, string[]> = {
+    "work-height": ["em altura", "at height", "at heights"],
+    "confined-space": ["espaco confinado", "espacos confinados", "confined space"],
+    "first-aid": ["primeiros socorros", "first aid"],
+  };
 
   const presetSkills = (definition?.skillNodeIds || [])
     .map((id) => nodes.get(id))
@@ -330,9 +336,11 @@ export function buildProfessionTrees(
         const value = normalize(skill.name);
         return (
           normalizedTitle.includes(value) ||
-          value.includes(normalizedTitle)
+          value.includes(normalizedTitle) ||
+          (skillAliases[node.id] || []).some(alias => value.includes(alias))
         );
       });
+      if (savedSkill) representedSkills.add(normalize(savedSkill.name));
 
       return {
         ...node,
@@ -351,7 +359,7 @@ export function buildProfessionTrees(
     });
 
   const presetSkillNames = new Set(
-    presetSkills.map((node) => normalize(node.title)),
+    [...presetSkills.map((node) => normalize(node.title)), ...representedSkills],
   );
   const additionalSkills: AchievementNode[] = [...presetSkills];
   for (const node of achievements) {

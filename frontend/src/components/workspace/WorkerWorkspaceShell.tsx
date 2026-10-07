@@ -188,6 +188,12 @@ export function WorkerWorkspaceShell() {
               pressed ? { opacity: 0.72 } : null,
             ]}
           >
+            {activeSection === "home" ? (
+              <>
+                <Ionicons name="log-out-outline" size={21} color={workspaceColors.muted} />
+                {!compact ? <Text style={styles.logoutHint}>{labels.logout}</Text> : null}
+              </>
+            ) : <>
             <Avatar
               name={user.name}
               source={
@@ -204,6 +210,7 @@ export function WorkerWorkspaceShell() {
                 <Text style={styles.logoutHint}>{labels.logout}</Text>
               </View>
             ) : null}
+            </>}
           </Pressable>
         </View>
       </View>
