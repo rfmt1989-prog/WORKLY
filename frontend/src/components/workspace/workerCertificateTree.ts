@@ -118,7 +118,7 @@ export const professionDefinitions: ProfessionDefinition[] = [
     description: "Refrigeração, ar condicionado e eficiência",
     descriptionEn: "Refrigeration, air conditioning and efficiency",
     icon: "snow-outline",
-    matches: ["hvac", "climat", "refrig", "eletromec"],
+    matches: ["hvac", "avac", "climat", "refrig", "eletromec"],
     certificationNodeIds: ["course", "fgas-a2", "fgas-a1", "fgas-b", "fgas-c"],
     skillNodeIds: ["loto", "work-height", "confined-space", "first-aid"],
     previewIds: ["course", "fgas-a2"],
@@ -269,7 +269,7 @@ export function buildProfessionTrees(
     item.matches.some((needle) => professionValue.includes(needle)),
   );
 
-  const definitionId = definition?.id || "professional";
+  const definitionId = definition?.id || worker.professional_identity?.profession_id || "professional";
   const title = worker.profession;
   const titleEn = worker.profession;
   const icon = definition?.icon || ("ribbon-outline" as const);
@@ -287,7 +287,7 @@ export function buildProfessionTrees(
   };
 
   const explicitProfessionCertificates = achievements.filter(
-    (node) => node.certificate?.profession_id === definitionId,
+    (node) => node.certificate?.profession_id === definitionId && node.certificate.kind !== "skill",
   );
   const certificationIds = new Set([
     ...(definition?.certificationNodeIds || []),
@@ -299,8 +299,8 @@ export function buildProfessionTrees(
     .filter((node): node is AchievementNode => Boolean(node))
     .filter(
       (node) =>
-        !node.certificate?.profession_id ||
-        node.certificate.profession_id === definitionId,
+        node.certificate?.kind !== "skill" && (!node.certificate?.profession_id ||
+        node.certificate.profession_id === definitionId),
     )
     .map((node) => ({ ...node, kind: "certification" as const }));
 
@@ -310,6 +310,7 @@ export function buildProfessionTrees(
     for (const node of achievements) {
       if (
         node.certificate &&
+        node.certificate.kind !== "skill" &&
         !node.certificate.profession_id &&
         !certifications.some((item) => item.id === node.id)
       ) {
@@ -318,9 +319,7 @@ export function buildProfessionTrees(
     }
   }
 
-  const hasProfessionalProgress = certifications.some((node) =>
-    isCompleted(node.status),
-  );
+  const hasProfessionalProgress = certifications.some((node) => node.status === "verified");
 
   const presetSkills = (definition?.skillNodeIds || [])
     .map((id) => nodes.get(id))
@@ -338,10 +337,10 @@ export function buildProfessionTrees(
       return {
         ...node,
         kind: "skill" as const,
-        status: savedSkill
-          ? ("recorded" as AchievementStatus)
-          : isCompleted(node.status) || node.status === "pending"
-            ? node.status
+        status: isCompleted(node.status) || node.status === "pending"
+          ? node.status
+          : savedSkill
+            ? ("recorded" as AchievementStatus)
             : hasProfessionalProgress
               ? "available"
               : ("locked" as AchievementStatus),
@@ -355,6 +354,12 @@ export function buildProfessionTrees(
     presetSkills.map((node) => normalize(node.title)),
   );
   const additionalSkills: AchievementNode[] = [...presetSkills];
+  for (const node of achievements) {
+    if (node.certificate?.kind === "skill" && node.certificate.profession_id === definitionId && !additionalSkills.some((item) => item.id === node.id)) {
+      additionalSkills.push({ ...node, kind: "skill" });
+      presetSkillNames.add(normalize(node.title));
+    }
+  }
 
   for (const skill of worker.skills) {
     const normalizedSkill = normalize(skill.name);
@@ -373,7 +378,7 @@ export function buildProfessionTrees(
     additionalSkills.push({
       id: `skill-${normalizedSkill.replace(/[^a-z0-9]+/g, "-")}`,
       title: skill.name,
-      subtitle: "Skill adicional desbloqueada",
+      subtitle: "Competência declarada",
       icon: "sparkles-outline",
       status: "recorded",
       stage: "technical",

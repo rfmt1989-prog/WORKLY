@@ -34,6 +34,8 @@ export type Certificate = {
   profession_id?: string;
   node_id?: string;
   file_id?: string;
+  kind?: "certification" | "skill";
+  verified_by?: string;
 };
 
 export type DemoDocument = {
@@ -58,6 +60,30 @@ export type BestProject = {
   location: string;
   year: number;
   summary: string;
+  status?: "recorded" | "pending" | "verified";
+  profession_id?: string;
+  verified_by?: string;
+};
+
+export type ProfessionalLevel = {
+  id: string;
+  label: string;
+  label_en: string;
+  minimum: number;
+};
+
+export type ProfessionalIdentity = {
+  id: string;
+  profession_id: string;
+  score: number;
+  maximum: number;
+  level: ProfessionalLevel;
+  level_index: number;
+  levels: ProfessionalLevel[];
+  next_level: ProfessionalLevel | null;
+  points_to_next: number;
+  progress: number;
+  components: { id: string; label: string; label_en: string; points: number; maximum: number; count: number; points_each: number }[];
 };
 
 export type Worker = {
@@ -89,6 +115,7 @@ export type Worker = {
   company_id: string | null;
   current_project_id: string | null;
   schedule: string;
+  professional_identity?: ProfessionalIdentity;
 };
 
 export type Company = {

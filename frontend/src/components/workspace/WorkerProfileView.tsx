@@ -17,11 +17,12 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import type { LanguageCode } from "@/src/demo/types";
+import type { LanguageCode, ProfessionalIdentity } from "@/src/demo/types";
 import {
   Avatar,
   Button,
   ModalPanel,
+  ProgressBar,
   StatusPill,
   workspaceColors,
 } from "./primitives";
@@ -126,6 +127,7 @@ export function WorkerProfileView() {
                 ]}
               >
                 <Text style={styles.eyebrow}>WORKLY · WORKER</Text>
+                <Text style={styles.identityCode}>{text("Identidade profissional", "Professional identity")} · {worker.id}</Text>
                 <Text
                   style={[styles.name, compact ? styles.nameCompact : null]}
                 >
@@ -159,6 +161,16 @@ export function WorkerProfileView() {
               {text("Identificação", "Identity")}
             </Text>
             <View style={styles.identityRows}>
+              <IdentityRow
+                icon="construct-outline"
+                label={text("Experiência", "Experience")}
+                value={`${worker.experience_years} ${text("anos", "years")}`}
+              />
+              <IdentityRow
+                icon="calendar-outline"
+                label={text("Novas obras", "New projects")}
+                value={worker.availability ? text("Disponível", "Available") : text("Indisponível", "Unavailable")}
+              />
               <IdentityRow
                 icon="flag-outline"
                 label={text("País", "Country")}
@@ -216,6 +228,7 @@ export function WorkerProfileView() {
             ) : null}
           </View>
           <View style={styles.main}>
+            {worker.professional_identity ? <ProfessionalProgress identity={worker.professional_identity} language={language} /> : null}
             <View style={styles.mainHeader}>
               <View style={styles.headingWrap}>
                 <Text style={styles.eyebrow}>
@@ -297,6 +310,21 @@ export function WorkerProfileView() {
                 label={text("Por adicionar", "To add")}
                 color="#7D899C"
               />
+            </View>
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionLabel}>{text("Competências adicionais", "Additional skills")}</Text>
+              <Text style={styles.scoreHint}>{text("As competências declaradas só somam pontos após confirmação de um comprovativo.", "Declared skills only earn points after supporting evidence is confirmed.")}</Text>
+              <View style={styles.skillTags}>
+                {worker.skills.map((skill) => <View key={skill.name} style={styles.levelStep}><Text style={styles.scoreLabel}>{localizeDemoText(language, skill.name)}</Text></View>)}
+              </View>
+            </View>
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionLabel}>{text("Portefólio profissional", "Professional portfolio")}</Text>
+              {worker.best_projects.length ? worker.best_projects.map((project) => <View key={project.id} style={styles.portfolioItem}>
+                <Text style={styles.portfolioTitle}>{project.title}</Text>
+                <Text style={styles.scoreHint}>{project.location} · {project.year} · {project.status === "verified" ? text("Confirmado pela empresa", "Confirmed by company") : text("Declarado pelo worker", "Declared by worker")}</Text>
+                <Text style={styles.bio}>{project.summary}</Text>
+              </View>) : <Text style={styles.scoreHint}>{text("Adiciona as tuas obras em Editar perfil.", "Add your projects using Edit profile.")}</Text>}
             </View>
           </View>
         </View>
@@ -452,6 +480,33 @@ export function WorkerProfileView() {
       ) : null}
     </View>
   );
+}
+
+function ProfessionalProgress({ identity, language }: { identity: ProfessionalIdentity; language: LanguageCode }) {
+  const text = (pt: string, en: string) => uiText(language, pt, en);
+  return <View style={styles.scorePanel} testID="professional-progression">
+    <View style={styles.scoreHeading}>
+      <View style={{ flex: 1, gap: 6 }}>
+        <Text style={styles.sectionLabel}>{text("Nível profissional Workly", "Workly professional level")}</Text>
+        <Text style={styles.levelTitle}>{text(identity.level.label, identity.level.label_en)}</Text>
+      </View>
+      <View style={styles.scoreValueGroup}><Text style={styles.scoreValue}>{identity.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Pontuação profissional", "Professional score")}</Text></View>
+    </View>
+    <View style={styles.levelSteps}>
+      {identity.levels.map((level, index) => <View key={level.id} style={[styles.levelStep, index === identity.level_index ? styles.levelCurrent : null]}>
+        <Ionicons name={index <= identity.level_index ? "ribbon-outline" : "lock-closed-outline"} size={17} color={index <= identity.level_index ? workspaceColors.blueSoft : workspaceColors.muted} />
+        <Text style={styles.scoreLabel}>{text(level.label, level.label_en)}</Text><Text style={styles.scoreHint}>{level.minimum} {text("pts", "pts")}</Text>
+      </View>)}
+    </View>
+    <ProgressBar value={identity.progress} accent={workspaceColors.blue} />
+    <Text style={styles.scoreHint}>{identity.next_level ? text(`Faltam ${identity.points_to_next} pontos para ${identity.next_level.label}.`, `${identity.points_to_next} points to ${identity.next_level.label_en}.`) : text("Master alcançado nesta profissão.", "Master achieved in this profession.")}</Text>
+    <View style={styles.scoreComponents}>
+      {identity.components.map((part) => <View key={part.id} style={styles.scorePart}>
+        <Text style={styles.scoreLabel}>{text(part.label, part.label_en)}</Text><Text style={styles.scorePartValue}>{part.points}/{part.maximum}</Text><Text style={styles.scoreHint}>{part.count} {text("confirmados", "confirmed")} · {part.points_each} {text("pts cada", "pts each")}</Text>
+      </View>)}
+    </View>
+    <Text style={styles.scoreHint}>{text("Só contam comprovativos verificados e dentro da validade. Master exige 85 pontos, com certificações e obras confirmadas na profissão principal. O nível Workly é uma classificação interna.", "Only verified, current evidence counts. Master requires 85 points with certifications and confirmed projects in your primary trade. The Workly level is an internal classification.")}</Text>
+  </View>;
 }
 
 function Divider() {
@@ -859,6 +914,25 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  identityCode: { color: "#94AAC0", fontSize: 12, lineHeight: 18 },
+  scorePanel: { backgroundColor: "#0C1929", borderWidth: 1, borderColor: "#315379", borderRadius: 16, padding: 20, gap: 16, marginBottom: 24 },
+  scoreHeading: { flexDirection: "row", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "space-between" },
+  levelTitle: { color: "#EFF6FF", fontSize: 28, fontWeight: "700" },
+  scoreValueGroup: { gap: 4 },
+  scoreValue: { color: workspaceColors.blueSoft, fontSize: 34, fontWeight: "700" },
+  scoreMaximum: { fontSize: 18, color: "#94AAC0" },
+  scoreLabel: { fontSize: 14, lineHeight: 21, color: "#D3E2F0" },
+  scoreHint: { fontSize: 14, lineHeight: 21, color: "#94AAC0" },
+  levelSteps: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  levelStep: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7, borderWidth: 1, borderColor: "#2B3F55", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 10 },
+  levelCurrent: { borderColor: workspaceColors.blue, backgroundColor: "#112D4C" },
+  scoreComponents: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  scorePart: { flex: 1, minWidth: 150, gap: 5, backgroundColor: "#09131F", borderRadius: 10, padding: 14 },
+  scorePartValue: { color: "#EFF6FF", fontSize: 22, fontWeight: "700" },
+  profileSection: { gap: 12, marginTop: 28 },
+  skillTags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  portfolioItem: { backgroundColor: "#0C1929", padding: 16, gap: 6, borderRadius: 10, borderWidth: 1, borderColor: "#26394B" },
+  portfolioTitle: { color: "#EFF6FF", fontSize: 16, fontWeight: "600", lineHeight: 24 },
   root: { flex: 1, minHeight: 0, backgroundColor: "#080E15" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   content: { padding: 26, paddingBottom: 30 },

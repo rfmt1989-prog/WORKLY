@@ -17,7 +17,6 @@ import {
   workspaceColors,
 } from "./primitives";
 import {
-  professionDefinitions,
   type AchievementNode,
 } from "./workerCertificateTree";
 
@@ -39,7 +38,11 @@ export function WorkerIdentityEditor({
     languages: worker.languages.join(", "),
     bio: worker.bio,
     avatar: worker.avatar,
+    experience_years: String(worker.experience_years),
+    skills: worker.skills.map((skill) => skill.name).join("\n"),
+    portfolio: worker.best_projects.map((project) => `${project.title} | ${project.location} | ${project.year} | ${project.summary}`).join("\n"),
   }));
+  const [available, setAvailable] = useState(worker.availability);
   const [busy, setBusy] = useState(false);
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -67,13 +70,31 @@ export function WorkerIdentityEditor({
   };
   const save = async () => {
     if (busy || !form.name.trim() || !form.profession.trim()) return;
+    const experience = Number(form.experience_years.replace(",", "."));
+    const portfolioRows = form.portfolio.split("\n").map((row) => row.trim()).filter(Boolean);
+    if (!Number.isFinite(experience) || experience < 0 || experience > 80 || portfolioRows.some((row) => {
+      const [title, , year] = row.split("|").map((item) => item.trim());
+      return !title || !/^\d{4}$/.test(year || "") || Number(year) > new Date().getFullYear();
+    })) {
+      notify(text("Confirma os anos de experiência e o formato das obras.", "Check your years of experience and the project format."), "error");
+      return;
+    }
     setBusy(true);
     try {
+      const { skills: _skills, portfolio: _portfolio, experience_years: _experience, ...identity } = form;
       await updateWorker(worker.id, {
-        ...form,
+        ...identity,
         name: form.name.trim(),
         profession: form.profession.trim(),
         title: form.profession.trim(),
+        experience_years: experience,
+        availability: available,
+        skills: Array.from(new Set(form.skills.split("\n").map((item) => item.trim()).filter(Boolean))).map((name) => worker.skills.find((item) => item.name === name) || { name, level: 0 }),
+        best_projects: portfolioRows.map((row, index) => {
+          const [title, location, year, ...summary] = row.split("|").map((item) => item.trim());
+          const existing = worker.best_projects.find((item) => item.title === title && item.location === location && item.year === Number(year));
+          return { ...existing, id: existing?.id || `portfolio-${worker.id}-${Date.now().toString(36)}-${index}`, title, location, year: Number(year), summary: summary.join(" | ") };
+        }),
         languages: form.languages
           .split(",")
           .map((item) => item.trim())
@@ -88,7 +109,8 @@ export function WorkerIdentityEditor({
   };
   const fields: [keyof typeof form, string, string][] = [
     ["name", "Nome", "Name"],
-    ["profession", "Profissão", "Profession"],
+    ["profession", "Profissão principal", "Main profession"],
+    ["experience_years", "Anos de experiência", "Years of experience"],
     ["country", "País", "Country"],
     ["location", "Localização", "Location"],
     ["phone", "Telefone", "Phone"],
@@ -98,6 +120,8 @@ export function WorkerIdentityEditor({
       "Languages (comma separated)",
     ],
     ["bio", "Apresentação", "About"],
+    ["skills", "Competências adicionais (uma por linha)", "Additional skills (one per line)"],
+    ["portfolio", "Obras (uma por linha: Título | Local | Ano | Resumo)", "Projects (one per line: Title | Location | Year | Summary)"],
   ];
   return (
     <ModalPanel
@@ -124,6 +148,7 @@ export function WorkerIdentityEditor({
       }
     >
       <View style={styles.form}>
+        <Text style={styles.hint}>{text("Alteras a mesma identidade profissional. O nível é calculado pela Workly com base nos registos confirmados.", "You are editing the same professional identity. Workly calculates your level from confirmed records.")}</Text>
         <View style={styles.photoRow}>
           <Avatar name={form.name} source={form.avatar} size={72} />
           <Button
@@ -139,11 +164,14 @@ export function WorkerIdentityEditor({
             key={key}
             label={text(pt, en)}
             value={form[key]}
-            multiline={key === "bio"}
+            multiline={key === "bio" || key === "skills" || key === "portfolio"}
             editable={!busy}
             onChangeText={(value) => update(key, value)}
           />
         ))}
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: available, disabled: busy }} disabled={busy} onPress={() => setAvailable((value) => !value)} style={styles.option}>
+          <Text style={styles.optionText}>{available ? "☑" : "☐"} {text("Disponível para novas obras", "Available for new projects")}</Text>
+        </Pressable>
       </View>
     </ModalPanel>
   );
@@ -163,7 +191,8 @@ export function WorkerCertificateEditor({
   const { language, updateWorker, notify } = useWorklyData();
   const text = (pt: string, en: string) => uiText(language, pt, en);
   const certificate = node?.certificate;
-  const [profession, setProfession] = useState(professionId);
+  const profession = professionId;
+  const [kind, setKind] = useState<"certification" | "skill">(certificate?.kind || (node?.kind === "skill" ? "skill" : "certification"));
   const [name, setName] = useState(certificate?.name || node?.title || "");
   const [issuer, setIssuer] = useState(certificate?.issuer || "");
   const [issuedAt, setIssuedAt] = useState(certificate?.issued_at || "");
@@ -238,6 +267,7 @@ export function WorkerCertificateEditor({
         file_name: document?.file_name || existing?.file_name || "",
         file_id: document?.file_id || existing?.file_id,
         profession_id: profession,
+        kind,
         node_id: profession === professionId ? node?.id : undefined,
       };
       await updateWorker(worker.id, {
@@ -273,8 +303,8 @@ export function WorkerCertificateEditor({
       }}
       title={text("Adicionar certificado", "Add certificate")}
       subtitle={text(
-        "Associa cada certificado à profissão correspondente.",
-        "Associate each certificate with its profession.",
+        "O comprovativo pertence à tua identidade e à profissão principal.",
+        "Evidence belongs to your identity and primary profession.",
       )}
       footer={
         <>
@@ -294,31 +324,27 @@ export function WorkerCertificateEditor({
       }
     >
       <View style={styles.form}>
-        <Text style={styles.label}>{text("Profissão", "Profession")}</Text>
-        <View style={styles.options}>
-          {[
-            ...professionDefinitions,
-            {
-              id: "professional",
-              title: worker.profession,
-              titleEn: worker.profession,
-            },
-          ].map((item) => (
+        <Text style={styles.label}>{text("Profissão principal", "Main profession")}: {worker.profession}</Text>
+        <View style={styles.options} accessibilityRole="radiogroup">
+          {([
+            { id: "certification", title: "Certificação da profissão", titleEn: "Trade certification" },
+            { id: "skill", title: "Competência adicional", titleEn: "Additional skill" },
+          ] as const).map((item) => (
             <Pressable
               key={item.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: profession === item.id }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: kind === item.id }}
               disabled={busy}
-              onPress={() => setProfession(item.id)}
+              onPress={() => setKind(item.id)}
               style={[
                 styles.option,
-                profession === item.id ? styles.optionSelected : null,
+                kind === item.id ? styles.optionSelected : null,
               ]}
             >
               <Text
                 style={[
                   styles.optionText,
-                  profession === item.id
+                  kind === item.id
                     ? { color: workspaceColors.blueSoft }
                     : null,
                 ]}
