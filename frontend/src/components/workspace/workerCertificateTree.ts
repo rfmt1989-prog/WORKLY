@@ -363,11 +363,7 @@ export function buildProfessionTrees(
 
   for (const skill of worker.skills) {
     const normalizedSkill = normalize(skill.name);
-    const belongsToProfession = definition?.matches.some((needle) =>
-      normalizedSkill.includes(needle),
-    );
     if (
-      belongsToProfession ||
       Array.from(presetSkillNames).some(
         (name) =>
           name.includes(normalizedSkill) || normalizedSkill.includes(name),
@@ -387,6 +383,7 @@ export function buildProfessionTrees(
       meta: [`Nível · ${skill.level}%`],
       kind: "skill",
     });
+    presetSkillNames.add(normalizedSkill);
   }
 
   const preview = (definition?.previewIds || [])
