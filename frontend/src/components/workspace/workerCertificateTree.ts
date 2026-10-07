@@ -386,7 +386,7 @@ export function buildProfessionTrees(
 
   const preview = (definition?.previewIds || [])
     .map((id) => certifications.find((node) => node.id === id))
-    .filter((node): node is AchievementNode => Boolean(node));
+    .filter(Boolean) as AchievementNode[];
 
   const tree: ProfessionTree = {
     id: definitionId,
