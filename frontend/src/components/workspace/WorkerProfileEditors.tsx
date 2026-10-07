@@ -17,7 +17,7 @@ import {
   workspaceColors,
 } from "./primitives";
 import { type AchievementNode } from "./workerCertificateTree";
-import { professionCatalog } from "./professionCatalog";
+import { findProfessionDefinition, professionCatalog } from "./professionCatalog";
 
 export function WorkerIdentityEditor({
   worker,
@@ -30,7 +30,7 @@ export function WorkerIdentityEditor({
   const text = (pt: string, en: string) => uiText(language, pt, en);
   const [form, setForm] = useState(() => ({
     name: worker.name,
-    profession: worker.profession,
+    profession: findProfessionDefinition(worker.profession)?.title || worker.profession,
     country: worker.country,
     location: worker.location,
     phone: worker.phone,
@@ -81,6 +81,7 @@ export function WorkerIdentityEditor({
         profession: form.profession.trim(),
         title: form.profession.trim(),
         experience_years: experience,
+        availability: available,
         languages: form.languages
           .split(",")
           .map((item) => item.trim())
