@@ -533,8 +533,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: ipaf,
       evidence: findEvidence(worker.documents, ipaf),
-      baseStatus:
-        isRodolfo && ipaf ? "verified" : ipaf ? "recorded" : "available",
+      baseStatus: ipaf ? "recorded" : "available",
       meta: isRodolfo
         ? [
             "PAL · 3A / 3B",
@@ -545,7 +544,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
           ]
         : ["3A · móvel vertical", "3B · móvel multidirecional"],
       verificationNote: isRodolfo
-        ? "PAL e certificado de formação apresentados e conferidos. O ficheiro pessoal não é publicado no demo público."
+        ? "Dados de formação registados no perfil. O ficheiro pessoal não é publicado no demo público."
         : undefined,
     },
     nodeFromCertificate(
@@ -646,17 +645,12 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: riskChemical,
       evidence: findEvidence(worker.documents, riskChemical),
-      baseStatus:
-        isRodolfo && riskChemical
-          ? "verified"
-          : riskChemical
-            ? "recorded"
-            : "available",
+      baseStatus: riskChemical ? "recorded" : "available",
       meta: isRodolfo
         ? ["SGP Formation", "28–29/08/2026", "7 h", "Validação · Succès"]
         : [],
       verificationNote: isRodolfo
-        ? "Atestado de fim de formação apresentado e conferido. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
+        ? "Registo de formação industrial. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
         : undefined,
     },
     {
@@ -886,8 +880,11 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
   const resolvedSpecs = specs.map((spec) => {
     const certificate = worker.certificates.find(
       (item) => item.node_id === spec.id,
-    );
-    if (!certificate) return spec;
+    ) || spec.certificate;
+    if (!certificate) return {
+      ...spec,
+      baseStatus: spec.baseStatus === "verified" ? ("recorded" as const) : spec.baseStatus,
+    };
     return {
       ...spec,
       certificate,
