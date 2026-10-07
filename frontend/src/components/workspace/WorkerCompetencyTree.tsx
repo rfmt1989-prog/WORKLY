@@ -43,6 +43,7 @@ function toAchievement(item: CompetencyAssessment): AchievementNode {
         ? "Competência essencial da profissão"
         : "Competência opcional / contextual",
     kind: "skill",
+    certificate: item.certificate,
     meta: [
       `Nível de proficiência WORKLY · ${item.proficiency}/4 · ${item.proficiencyLabel}`,
       item.competency.critical
