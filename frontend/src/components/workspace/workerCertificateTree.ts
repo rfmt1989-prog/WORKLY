@@ -350,9 +350,9 @@ export function buildProfessionTrees(
   return [tree];
 }
 
-export function buildSpecialtyTree(worker: Worker): SpecialtyTree {
+export function buildSpecialtyTree(worker: Worker, evidenceScore?: number): SpecialtyTree {
   const definition = findProfessionDefinition(worker.profession);
-  const score = worker.professional_identity?.score ?? 0;
+  const score = evidenceScore ?? worker.professional_identity?.score ?? 0;
   const selected = new Set(worker.specialties || []);
 
   const nodes = specialtyCatalog.map((specialty) => {
@@ -383,8 +383,8 @@ export function buildSpecialtyTree(worker: Worker): SpecialtyTree {
 
     const requirement =
       score >= specialty.minScore
-        ? "Especialidade desbloqueada pela progressão WORKLY"
-        : `Desbloqueia aos ${specialty.minScore} pontos profissionais`;
+        ? "Especialidade disponível para desenvolvimento"
+        : `Disponível a partir de ${specialty.minScore} pontos de evidência`;
 
     return {
       id: specialty.id,
