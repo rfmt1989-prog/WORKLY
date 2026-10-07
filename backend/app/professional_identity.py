@@ -9,18 +9,24 @@ from typing import Any
 
 
 PROFESSION_MATCHES = {
-    "electrical": ("eletric", "electri"),
-    "hvac": ("hvac", "avac", "climat", "refrig", "eletromec"),
+    "electromechanics": ("eletromec", "electromech", "manutencao industrial", "maintenance technician"),
+    "electrical": ("eletric", "electrician", "electrical"),
+    "hvac": ("hvac", "avac", "climat", "refrig", "frigor"),
     "plumbing": ("canal", "plumb", "hidraul"),
     "solar": ("solar", "fotovolt", "photovolta"),
-    "industrial": ("industr", "montag", "ipaf", "plataform", "nacell", "heavy", "equipament", "metal"),
+    "welding": ("soldad", "weld", "serralh"),
+    "fire": ("incend", "fire", "sprinkler", "detec"),
+    "industrial": ("montag", "industrial assembly", "mechanical fitter", "mecanico montador", "equipament"),
 }
 CERTIFICATE_MATCHES = {
+    "electromechanics": ("eletromec", "motor", "variador", "automation", "automacao", "manutencao"),
     "electrical": ("eletric", "electri", "h0b0", "b1v", "b2v", "habilit"),
-    "hvac": ("hvac", "avac", "climat", "refrig", "eletromec", "f-gas", "fgas", "fluorado", "vrf"),
+    "hvac": ("hvac", "avac", "climat", "refrig", "f-gas", "fgas", "fluorado", "vrf"),
     "plumbing": ("canal", "plumb", "hidraul", "agua", "saneamento", "tubagem"),
     "solar": ("solar", "fotovolt", "photovolta"),
-    "industrial": ("industr", "ipaf", "plataform", "nacell", "atex", "iecex", "vca", "scc", "risco quim", "france n"),
+    "welding": ("soldad", "weld", "tig", "mig", "mag", "eletrodo"),
+    "fire": ("incend", "fire", "sprinkler", "detec", "extinc"),
+    "industrial": ("industr", "montag", "alinhamento", "torque", "bolting"),
 }
 ADDITIONAL_SKILL_MATCHES = ("loto", "altura", "height", "socorr", "first aid", "confin", "andaime", "scaffold", "rigging", "empilhador", "forklift", "ponte rolante")
 LEVELS = (
@@ -38,6 +44,8 @@ def normalize(value: str) -> str:
 
 def profession_id(profession: str) -> str:
     value = normalize(profession)
+    if not value:
+        return "unselected"
     for key, matches in PROFESSION_MATCHES.items():
         if any(match in value for match in matches):
             return key
