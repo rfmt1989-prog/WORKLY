@@ -16,9 +16,8 @@ import {
   ModalPanel,
   workspaceColors,
 } from "./primitives";
-import {
-  type AchievementNode,
-} from "./workerCertificateTree";
+import { type AchievementNode } from "./workerCertificateTree";
+import { professionCatalog } from "./professionCatalog";
 
 export function WorkerIdentityEditor({
   worker,
@@ -39,8 +38,6 @@ export function WorkerIdentityEditor({
     bio: worker.bio,
     avatar: worker.avatar,
     experience_years: String(worker.experience_years),
-    skills: worker.skills.map((skill) => skill.name).join("\n"),
-    portfolio: worker.best_projects.map((project) => `${project.title} | ${project.location} | ${project.year} | ${project.summary}`).join("\n"),
   }));
   const [available, setAvailable] = useState(worker.availability);
   const [busy, setBusy] = useState(false);
@@ -71,30 +68,19 @@ export function WorkerIdentityEditor({
   const save = async () => {
     if (busy || !form.name.trim() || !form.profession.trim()) return;
     const experience = Number(form.experience_years.replace(",", "."));
-    const portfolioRows = form.portfolio.split("\n").map((row) => row.trim()).filter(Boolean);
-    if (!Number.isFinite(experience) || experience < 0 || experience > 80 || portfolioRows.some((row) => {
-      const [title, , year] = row.split("|").map((item) => item.trim());
-      return !title || !/^\d{4}$/.test(year || "") || Number(year) > new Date().getFullYear();
-    })) {
-      notify(text("Confirma os anos de experiência e o formato das obras.", "Check your years of experience and the project format."), "error");
+    if (!Number.isFinite(experience) || experience < 0 || experience > 80) {
+      notify(text("Confirma os anos de experiência.", "Check your years of experience."), "error");
       return;
     }
     setBusy(true);
     try {
-      const { skills: _skills, portfolio: _portfolio, experience_years: _experience, ...identity } = form;
+      const { experience_years: _experience, ...identity } = form;
       await updateWorker(worker.id, {
         ...identity,
         name: form.name.trim(),
         profession: form.profession.trim(),
         title: form.profession.trim(),
         experience_years: experience,
-        availability: available,
-        skills: Array.from(new Set(form.skills.split("\n").map((item) => item.trim()).filter(Boolean))).map((name) => worker.skills.find((item) => item.name === name) || { name, level: 0 }),
-        best_projects: portfolioRows.map((row, index) => {
-          const [title, location, year, ...summary] = row.split("|").map((item) => item.trim());
-          const existing = worker.best_projects.find((item) => item.title === title && item.location === location && item.year === Number(year));
-          return { ...existing, id: existing?.id || `portfolio-${worker.id}-${Date.now().toString(36)}-${index}`, title, location, year: Number(year), summary: summary.join(" | ") };
-        }),
         languages: form.languages
           .split(",")
           .map((item) => item.trim())
@@ -109,7 +95,6 @@ export function WorkerIdentityEditor({
   };
   const fields: [keyof typeof form, string, string][] = [
     ["name", "Nome", "Name"],
-    ["profession", "Profissão principal", "Main profession"],
     ["experience_years", "Anos de experiência", "Years of experience"],
     ["country", "País", "Country"],
     ["location", "Localização", "Location"],
@@ -120,8 +105,6 @@ export function WorkerIdentityEditor({
       "Languages (comma separated)",
     ],
     ["bio", "Apresentação", "About"],
-    ["skills", "Competências adicionais (uma por linha)", "Additional skills (one per line)"],
-    ["portfolio", "Obras (uma por linha: Título | Local | Ano | Resumo)", "Projects (one per line: Title | Location | Year | Summary)"],
   ];
   return (
     <ModalPanel
@@ -159,12 +142,52 @@ export function WorkerIdentityEditor({
             onPress={() => void choosePhoto()}
           />
         </View>
+        <View style={styles.professionSection}>
+          <Text style={styles.sectionLabel}>{text("Profissão principal", "Main profession")}</Text>
+          <Text style={styles.hint}>
+            {text(
+              "Escolhe uma só profissão principal. A árvore profissional é criada a partir desta escolha.",
+              "Choose one main profession. The professional tree is created from this choice.",
+            )}
+          </Text>
+          <View style={styles.professionGrid}>
+            {professionCatalog.map((profession) => {
+              const selected = form.profession === profession.title;
+              return (
+                <Pressable
+                  key={profession.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  disabled={busy}
+                  onPress={() => update("profession", profession.title)}
+                  style={({ pressed }) => [
+                    styles.professionOption,
+                    selected && styles.professionOptionSelected,
+                    pressed && styles.professionOptionPressed,
+                  ]}
+                >
+                  <View style={[styles.professionIcon, selected && styles.professionIconSelected]}>
+                    <Text style={styles.professionGlyph}>{selected ? "◆" : "◇"}</Text>
+                  </View>
+                  <View style={styles.professionCopy}>
+                    <Text style={[styles.professionTitle, selected && styles.professionTitleSelected]}>
+                      {text(profession.title, profession.titleEn)}
+                    </Text>
+                    <Text style={styles.professionDescription} numberOfLines={2}>
+                      {text(profession.description, profession.descriptionEn)}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         {fields.map(([key, pt, en]) => (
           <Field
             key={key}
             label={text(pt, en)}
             value={form[key]}
-            multiline={key === "bio" || key === "skills" || key === "portfolio"}
+            multiline={key === "bio"}
             editable={!busy}
             onChangeText={(value) => update(key, value)}
           />
@@ -403,6 +426,19 @@ export function WorkerCertificateEditor({
   );
 }
 const styles = StyleSheet.create({
+  professionSection: { gap: 9 },
+  sectionLabel: { color: "#B8CAD9", fontSize: 11, lineHeight: 16, fontWeight: "700", letterSpacing: .8, textTransform: "uppercase" },
+  professionGrid: { gap: 8 },
+  professionOption: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderWidth: 1, borderColor: "#263A4B", borderRadius: 14, backgroundColor: "#09121A" },
+  professionOptionSelected: { borderColor: "#3D80B5", backgroundColor: "#0A1C2A" },
+  professionOptionPressed: { opacity: .78 },
+  professionIcon: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, borderColor: "#31485B", alignItems: "center", justifyContent: "center", backgroundColor: "#071019" },
+  professionIconSelected: { borderColor: "#579DDA", backgroundColor: "#0A2132" },
+  professionGlyph: { color: "#86C6FF", fontSize: 17 },
+  professionCopy: { flex: 1, minWidth: 0, gap: 3 },
+  professionTitle: { color: "#BAC9D6", fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  professionTitleSelected: { color: "#E4F1FC" },
+  professionDescription: { color: "#70869A", fontSize: 10, lineHeight: 15 },
   form: { gap: 14 },
   photoRow: {
     flexDirection: "row",
