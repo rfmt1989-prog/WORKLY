@@ -41,7 +41,6 @@ export function WorkerProfileView() {
   const text = (pt: string, en: string) => uiText(language, pt, en);
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
-  const identity = worker.professional_identity;
   const education = achievements.find(node => node.id === "course" && isCompleted(node.status) && !primaryTree?.certifications.some(item => item.id === node.id));
 
   return (
@@ -82,8 +81,8 @@ export function WorkerProfileView() {
               <View style={styles.actionRow}>
                 <Text style={styles.journeyHint}>
                   {text(
-                    "Certificações e competências ligadas à tua profissão, numa única linha de evolução.",
-                    "Certifications and skills connected to your profession in one progression line.",
+                    "Competências essenciais primeiro. Qualificações, experiência e autorizações servem como evidência — não como XP.",
+                    "Essential competences first. Qualifications, experience and authorisations act as evidence — not XP.",
                   )}
                 </Text>
                 <Button
