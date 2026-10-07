@@ -13,7 +13,8 @@ import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
 import { WorkerProgressPath } from "./WorkerProgressPath";
 import { JourneyStatus, JourneySymbol, WorkerJourneyTree } from "./WorkerJourneyTree";
-import { buildProfessionTrees, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
+import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
+import { buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
 
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
@@ -32,7 +33,8 @@ export function WorkerProfileView() {
   const worker = state?.workers.find(item => item.id === user?.id);
   const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
   const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
-  const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes])].map(node => [node.id, node])), [achievements, trees]);
+  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker) : null, [worker]);
+  const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree]);
   const text = (pt: string, en: string) => uiText(language, pt, en);
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
@@ -70,8 +72,10 @@ export function WorkerProfileView() {
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
               {identity ? <View style={styles.scoreBadge}><Text style={styles.scoreValue}>{identity.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Valor profissional", "Professional value")}</Text></View> : null}
             </View>
-            {identity ? <WorkerProgressPath identity={identity} language={language} vertical={narrow} onRules={() => setRules(true)} /> : null}
-            <View style={styles.journey}>
+            {identity && primaryTree ? <WorkerProgressPath identity={identity} language={language} vertical={narrow} onRules={() => setRules(true)} /> : null}
+            {!primaryTree ? (
+              <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
+            ) : <View style={styles.journey}>
               <View style={styles.actionRow}>
                 <Text style={styles.journeyHint}>
                   {text(
@@ -92,16 +96,21 @@ export function WorkerProfileView() {
                   testID="add-worker-certificate"
                 />
               </View>
-              {primaryTree ? (
-                <WorkerJourneyTree
-                  key={primaryTree.id}
-                  tree={primaryTree}
+              <WorkerJourneyTree
+                key={primaryTree.id}
+                tree={primaryTree}
+                language={language}
+                stacked={width < 720}
+                onNode={setSelected}
+              />
+              {specialtyTree ? (
+                <WorkerSpecialtyTree
+                  tree={specialtyTree}
                   language={language}
-                  stacked={width < 720}
                   onNode={setSelected}
                 />
               ) : null}
-            </View>
+            </View>}
           </View>
         </View>
       </ScrollView>
@@ -116,6 +125,52 @@ export function WorkerProfileView() {
       {selected ? <CertificateDetails node={selected} byId={byId} language={language} onClose={() => setSelected(null)} onAssociate={() => { setCertificateTarget({ professionId: primaryTree?.id || "professional", node: selected }); setSelected(null); }} /> : null}
       {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
       {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
+    </View>
+  );
+}
+
+function EmptyProfessionalProfile({
+  language,
+  onStart,
+}: {
+  language: LanguageCode;
+  onStart: () => void;
+}) {
+  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const steps = [
+    ["person-outline", text("Identificação", "Identity"), text("Completa os dados profissionais essenciais.", "Complete the essential professional details.")],
+    ["briefcase-outline", text("Profissão principal", "Main profession"), text("Escolhe uma profissão. Esta será a tua única árvore principal.", "Choose one profession. This becomes your only main tree.")],
+    ["ribbon-outline", text("Comprovativos", "Evidence"), text("Associa formação, certificados e experiência às etapas reais.", "Attach training, certificates and experience to real stages.")],
+    ["git-network-outline", text("Especialidades", "Specialties"), text("Novas áreas extra desbloqueiam com a tua progressão.", "Extra areas unlock as you progress.")],
+  ] as const;
+  return (
+    <View style={styles.emptyProfile} testID="empty-worker-profile">
+      <View style={styles.emptyCore}>
+        <View style={styles.emptyCoreRing}>
+          <Ionicons name="finger-print-outline" size={30} color="#8BC7FF" />
+        </View>
+        <Text style={styles.emptyEyebrow}>{text("NOVA IDENTIDADE PROFISSIONAL", "NEW PROFESSIONAL IDENTITY")}</Text>
+        <Text style={styles.emptyTitle}>{text("Constrói o teu perfil Worker", "Build your Worker profile")}</Text>
+        <Text style={styles.emptyDescription}>
+          {text(
+            "Começas com um perfil vazio. Escolhes uma profissão principal e a WORKLY gera o percurso correspondente sem misturar outras áreas.",
+            "You start with an empty profile. Choose one main profession and WORKLY generates the matching journey without mixing other trades.",
+          )}
+        </Text>
+      </View>
+      <View style={styles.emptySteps}>
+        {steps.map(([icon, title, description], index) => (
+          <View key={title} style={styles.emptyStep}>
+            <View style={styles.emptyStepIndex}><Text style={styles.emptyStepNumber}>{String(index + 1).padStart(2, "0")}</Text></View>
+            <Ionicons name={icon} size={19} color="#75B8F3" />
+            <View style={styles.emptyStepCopy}>
+              <Text style={styles.emptyStepTitle}>{title}</Text>
+              <Text style={styles.emptyStepDescription}>{description}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <Button label={text("Criar perfil profissional", "Create professional profile")} icon="add-outline" onPress={onStart} style={styles.emptyStart} />
     </View>
   );
 }
@@ -320,4 +375,18 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   related: { gap: 10, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 18 },
   education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
+  emptyProfile: { borderWidth: 1, borderColor: "#183247", borderRadius: 22, backgroundColor: "#050B11F2", padding: 22, gap: 20 },
+  emptyCore: { alignItems: "center", gap: 8, paddingVertical: 8 },
+  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#2F6388", backgroundColor: "#071725", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyEyebrow: { color: "#7292AD", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
+  emptyTitle: { color: "#E6EFF7", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
+  emptyDescription: { maxWidth: 620, color: "#849CAE", fontSize: 12, lineHeight: 20, textAlign: "center" },
+  emptySteps: { gap: 4 },
+  emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#132736", paddingVertical: 10 },
+  emptyStepIndex: { width: 30 },
+  emptyStepNumber: { color: "#456C8B", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
+  emptyStepCopy: { flex: 1, minWidth: 0, gap: 2 },
+  emptyStepTitle: { color: "#CADAE7", fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  emptyStepDescription: { color: "#70879B", fontSize: 10, lineHeight: 16 },
+  emptyStart: { alignSelf: "center", minWidth: 220 },
 });
