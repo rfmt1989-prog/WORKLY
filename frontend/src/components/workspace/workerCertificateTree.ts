@@ -270,8 +270,8 @@ export function buildProfessionTrees(
   );
 
   const definitionId = definition?.id || "professional";
-  const title = definition?.title || worker.profession;
-  const titleEn = definition?.titleEn || worker.profession;
+  const title = worker.profession;
+  const titleEn = worker.profession;
   const icon = definition?.icon || ("ribbon-outline" as const);
 
   const root: AchievementNode = {
@@ -325,16 +325,31 @@ export function buildProfessionTrees(
   const presetSkills = (definition?.skillNodeIds || [])
     .map((id) => nodes.get(id))
     .filter((node): node is AchievementNode => Boolean(node))
-    .map((node) => ({
-      ...node,
-      kind: "skill" as const,
-      status:
-        isCompleted(node.status) || node.status === "pending"
-          ? node.status
-          : hasProfessionalProgress
-            ? "available"
-            : ("locked" as AchievementStatus),
-    }));
+    .map((node) => {
+      const normalizedTitle = normalize(node.title);
+      const savedSkill = worker.skills.find((skill) => {
+        const value = normalize(skill.name);
+        return (
+          normalizedTitle.includes(value) ||
+          value.includes(normalizedTitle)
+        );
+      });
+
+      return {
+        ...node,
+        kind: "skill" as const,
+        status: savedSkill
+          ? ("recorded" as AchievementStatus)
+          : isCompleted(node.status) || node.status === "pending"
+            ? node.status
+            : hasProfessionalProgress
+              ? "available"
+              : ("locked" as AchievementStatus),
+        meta: savedSkill
+          ? [...(node.meta || []), `Nível · ${savedSkill.level}%`]
+          : node.meta,
+      };
+    });
 
   const presetSkillNames = new Set(
     presetSkills.map((node) => normalize(node.title)),
