@@ -197,8 +197,8 @@ export function WorkerJourneyTree({
       </View>
 
       <TimelineSection
-        title={uiText(language, "Certificações", "Certifications")}
-        icon="ribbon-outline"
+        title={uiText(language, "Percurso da profissão", "Trade progression")}
+        icon="git-branch-outline"
         nodes={tree.certifications}
         completed={completedCertifications}
         language={language}
@@ -232,8 +232,8 @@ export function WorkerJourneyTree({
       <Text style={styles.instruction}>
         {uiText(
           language,
-          "Toca num ícone para consultar a etapa ou associar um comprovativo.",
-          "Tap an icon to view the step or attach supporting evidence.",
+          "Toca numa etapa para ver requisitos e associar um comprovativo.",
+          "Tap a stage to view requirements and attach supporting evidence.",
         )}
       </Text>
     </View>
