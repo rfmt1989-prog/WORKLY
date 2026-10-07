@@ -84,6 +84,14 @@ export type ProfessionalIdentity = {
   points_to_next: number;
   progress: number;
   components: { id: string; label: string; label_en: string; points: number; maximum: number; count: number; points_each: number }[];
+  core_coverage?: number;
+  verified_projects?: number;
+  verified_qualifications?: number;
+  responsibility_evidence?: number;
+  verified_regulatory?: number;
+  regulatory_context?: string;
+  level_gate_note?: string;
+  framework_note?: string;
 };
 
 export type Worker = {
