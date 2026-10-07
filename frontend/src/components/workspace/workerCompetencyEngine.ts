@@ -20,6 +20,7 @@ export type CompetencyAssessment = {
   proficiency: 0 | 1 | 2 | 3 | 4;
   proficiencyLabel: string;
   proficiencyLabelEn: string;
+  certificate?: Worker["certificates"][number];
 };
 
 export type WorkerCompetencyAssessment = {
@@ -92,11 +93,14 @@ function workerProjectEvidence(
 ) {
   const projectIds = new Set(
     projects
-      .filter(
-        (project) =>
+      .filter((project) => {
+        const tagged = project as Project & { profession_id?: string };
+        return (
           project.status === "completed" &&
-          project.worker_ids.includes(worker.id),
-      )
+          project.worker_ids.includes(worker.id) &&
+          tagged.profession_id === professionId
+        );
+      })
       .map((project) => project.id),
   );
 
@@ -176,6 +180,11 @@ export function assessWorkerCompetence(
     else if (recorded) evidenceState = "recorded";
     else if (declared) evidenceState = "declared";
 
+    const certificate =
+      certificates.find(isCurrentVerified) ||
+      certificates.find((item) => item.status === "pending") ||
+      certificates[0];
+
     return {
       competency,
       evidenceState,
@@ -183,6 +192,7 @@ export function assessWorkerCompetence(
       proficiency,
       proficiencyLabel: labels[0],
       proficiencyLabelEn: labels[1],
+      certificate,
     };
   });
 
