@@ -703,9 +703,9 @@ def register(data: RegisterInput) -> dict[str, Any]:
         "company_id": company_id,
         "company_role": company_role,
         "avatar": "",
-        "title": "Novo trabalhador" if role == "worker" else "Utilizador da empresa",
-        "trust_score": 5.0,
-        "productivity_score": 5.0,
+        "title": "" if role == "worker" else "Utilizador da empresa",
+        "trust_score": 0.0 if role == "worker" else 5.0,
+        "productivity_score": 0.0 if role == "worker" else 5.0,
         "password_record": _password_record(data.password),
     }
     with _state_lock:
@@ -721,24 +721,25 @@ def register(data: RegisterInput) -> dict[str, Any]:
                 {
                     **_public_auth_user(user),
                     "avatar_color": "#1B6CFF",
-                    "age": 18,
-                    "country": "Portugal",
-                    "flag": "🇵🇹",
-                    "profession": "Novo trabalhador",
+                    "age": 0,
+                    "country": "",
+                    "flag": "",
+                    "profession": "",
                     "experience_years": 0,
-                    "location": "Portugal",
+                    "location": "",
                     "phone": "",
-                    "bio": "Perfil criado na demonstração WORKLY.",
+                    "bio": "",
                     "skills": [],
+                    "specialties": [],
                     "certificates": [],
-                    "availability": True,
+                    "availability": False,
                     "status": "available",
-                    "rating": 5.0,
+                    "rating": 0.0,
                     "best_projects": [],
                     "documents": [],
-                    "languages": ["Português"],
+                    "languages": [],
                     "current_project_id": None,
-                    "schedule": "08:00–17:00",
+                    "schedule": "",
                 }
             )
         elif not invitation:
@@ -961,6 +962,7 @@ def update_worker(
         "phone",
         "bio",
         "skills",
+        "specialties",
         "availability",
         "status",
         "trust_score",
@@ -976,6 +978,15 @@ def update_worker(
         if not isinstance(profession, str) or not profession.strip() or len(profession.strip()) > 100:
             raise HTTPException(status_code=422, detail="Indique uma profissão principal, até 100 caracteres.")
         clean_patch["profession"] = profession.strip()
+    if "specialties" in clean_patch:
+        specialties = clean_patch["specialties"]
+        if (
+            not isinstance(specialties, list)
+            or len(specialties) > 30
+            or any(not isinstance(item, str) or not item.strip() or len(item.strip()) > 80 for item in specialties)
+        ):
+            raise HTTPException(status_code=422, detail="Especialidades inválidas.")
+        clean_patch["specialties"] = list(dict.fromkeys(item.strip() for item in specialties))
     if "experience_years" in clean_patch:
         value = clean_patch["experience_years"]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 80:
