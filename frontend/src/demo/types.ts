@@ -103,6 +103,7 @@ export type Worker = {
   phone: string;
   bio: string;
   skills: Skill[];
+  specialties?: string[];
   certificates: Certificate[];
   availability: boolean;
   status: WorkerStatus;
