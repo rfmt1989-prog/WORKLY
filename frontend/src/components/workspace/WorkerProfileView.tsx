@@ -25,7 +25,6 @@ export function WorkerProfileView() {
   const compact = width < 960;
   const narrow = width < 600;
   const [selected, setSelected] = useState<AchievementNode | null>(null);
-  const [view, setView] = useState<"journey" | "portfolio">("journey");
   const [editing, setEditing] = useState(false);
   const [about, setAbout] = useState(false);
   const [rules, setRules] = useState(false);
@@ -49,7 +48,7 @@ export function WorkerProfileView() {
             <View style={[styles.identityHero, compact && styles.heroCompact]}>
               <Avatar name={worker.name} source={worker.avatar} size={compact ? 72 : 104} />
               <View style={[styles.identityHeading, compact && styles.headingCompact]}>
-                <Text style={styles.eyebrow}>{text("Perfil worker", "Worker profile")}</Text>
+                <Text style={styles.eyebrow}>{text("Identidade profissional", "Professional identity")}</Text>
                 <Text style={[styles.name, compact && styles.nameCompact]}>{worker.name}</Text>
                 <Text style={[styles.profession, compact && styles.professionCompact]}>{localizeDemoText(language, worker.profession)}</Text>
                 <StatusPill status={worker.status} label={worker.status === "on_site" ? copy[language].onSite : worker.status === "contracted" ? copy[language].contracted : copy[language].available} />
@@ -72,20 +71,37 @@ export function WorkerProfileView() {
               {identity ? <View style={styles.scoreBadge}><Text style={styles.scoreValue}>{identity.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Valor profissional", "Professional value")}</Text></View> : null}
             </View>
             {identity ? <WorkerProgressPath identity={identity} language={language} vertical={narrow} onRules={() => setRules(true)} /> : null}
-            <View accessibilityRole="tablist" style={styles.tabs}>
-              {([['journey', text("Árvore de evolução", "Progression tree"), 'git-branch-outline'], ['portfolio', text("Portefólio", "Portfolio"), 'briefcase-outline']] as const).map(([id, label, icon]) => <Pressable key={id} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: view === id }} onPress={() => setView(id)} style={({ pressed }) => [styles.tab, view === id && styles.tabActive, pressed && styles.pressed]}><Ionicons name={icon} size={16} color={view === id ? "#8EC5FF" : "#8197AB"} /><Text style={[styles.tabText, view === id && styles.tabTextActive]}>{label}</Text></Pressable>)}
+            <View style={styles.journey}>
+              <View style={styles.actionRow}>
+                <Text style={styles.journeyHint}>
+                  {text(
+                    "Certificações e competências ligadas à tua profissão, numa única linha de evolução.",
+                    "Certifications and skills connected to your profession in one progression line.",
+                  )}
+                </Text>
+                <Button
+                  label={text("Adicionar comprovativo", "Add evidence")}
+                  icon="add-outline"
+                  variant="secondary"
+                  onPress={() =>
+                    setCertificateTarget({
+                      professionId: primaryTree?.id || "professional",
+                    })
+                  }
+                  style={styles.addButton}
+                  testID="add-worker-certificate"
+                />
+              </View>
+              {primaryTree ? (
+                <WorkerJourneyTree
+                  key={primaryTree.id}
+                  tree={primaryTree}
+                  language={language}
+                  stacked={width < 720}
+                  onNode={setSelected}
+                />
+              ) : null}
             </View>
-            {view === "journey" ? <View style={styles.journey}>
-              <View style={styles.actionRow}><Text style={styles.journeyHint}>{text("Formação, prática e novas competências.", "Training, practice and new skills.")}</Text><Button label={text("Adicionar comprovativo", "Add evidence")} icon="add-outline" variant="secondary" onPress={() => setCertificateTarget({ professionId: primaryTree?.id || "professional" })} style={styles.addButton} testID="add-worker-certificate" /></View>
-              {primaryTree ? <WorkerJourneyTree key={primaryTree.id} tree={primaryTree} language={language} stacked={width < 720} onNode={setSelected} /> : null}
-            </View> : <View style={styles.portfolio} testID="worker-portfolio">
-              {worker.best_projects.length ? worker.best_projects.map(project => <View key={project.id} style={styles.portfolioItem}>
-                <View style={styles.projectHeading}><Ionicons name="business-outline" size={21} color="#8ABBEE" /><Text style={styles.portfolioTitle}>{project.title}</Text><Text style={styles.projectYear}>{project.year}</Text></View>
-                <Text style={styles.projectLocation}>{project.location}</Text>
-                <Text style={styles.projectSummary}>{project.summary}</Text>
-                <View style={styles.projectStatus}><Ionicons name={project.status === "verified" ? "shield-checkmark-outline" : "document-text-outline"} size={13} color="#8AA5BE" /><Text style={styles.projectLocation}>{project.status === "verified" ? text("Confirmado pela empresa", "Confirmed by company") : text("Declarado pelo worker", "Declared by worker")}</Text></View>
-              </View>) : <Text style={styles.muted}>{text("Adiciona as tuas obras em Editar perfil.", "Add your projects using Edit profile.")}</Text>}
-            </View>}
           </View>
         </View>
       </ScrollView>
@@ -238,8 +254,8 @@ const styles = StyleSheet.create({
   contentCompact: { padding: 16, paddingBottom: 24 },
   layout: { width: "100%", maxWidth: 1600, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 28 },
   layoutCompact: { flexDirection: "column", gap: 24 },
-  identity: { width: 266, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#2A3F53", backgroundColor: "#0B151FDA", borderRadius: 10 },
-  identityCompact: { width: "100%", padding: 18 },
+  identity: { width: 284, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#1D3A52", backgroundColor: "#08131CE8", borderRadius: 18, shadowColor: "#2388FF", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
+  identityCompact: { width: "100%", padding: 18, borderRadius: 16 },
   identityHero: { alignItems: "center", gap: 18 },
   heroCompact: { flexDirection: "row", alignItems: "center", gap: 18 },
   identityHeading: { width: "100%", alignItems: "center", gap: 8 },
@@ -250,7 +266,7 @@ const styles = StyleSheet.create({
   profession: { color: "#B1C2D2", fontSize: 12, lineHeight: 19, textAlign: "center", flexShrink: 1 },
   professionCompact: { textAlign: "left" },
   divider: { marginVertical: 22, flexDirection: "row", gap: 8, alignItems: "center" },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#2B4055" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#20394E" },
   dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#7998B5", transform: [{ rotate: "45deg" }] },
   identityRows: { gap: 18 },
   identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
@@ -262,13 +278,13 @@ const styles = StyleSheet.create({
   editButton: { marginTop: 24, borderRadius: 6, borderColor: "#355875", minHeight: 42 },
   aboutButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, minHeight: 42, marginTop: 4 },
   aboutLabel: { color: "#8BA5BC", fontSize: 11 },
-  main: { flex: 1, minWidth: 0, width: "100%", gap: 20 },
+  main: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   mainHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 },
   mainHeaderNarrow: { flexWrap: "nowrap", gap: 10 },
   headingWrap: { flexGrow: 1, flexShrink: 1, gap: 4 },
   title: { color: "#ECE8DF", fontFamily: serif, fontSize: 34, lineHeight: 44 },
   titleCompact: { fontSize: 27, lineHeight: 35 },
-  scoreBadge: { alignItems: "flex-end", gap: 4, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#304B66" },
+  scoreBadge: { alignItems: "flex-end", gap: 3, paddingVertical: 6, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#284965" },
   scoreValue: { color: "#8FC1F8", fontSize: 30, lineHeight: 36, fontWeight: "600" },
   scoreMaximum: { color: "#7F9BB4", fontSize: 15 },
   scoreLabel: { color: "#90A7BC", fontSize: 10, lineHeight: 15 },
