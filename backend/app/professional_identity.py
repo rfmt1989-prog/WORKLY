@@ -1,4 +1,15 @@
-"""Evidence-based Workly levels, calculated for one worker's primary trade."""
+"""Evidence-based WORKLY professional levels.
+
+The model intentionally separates:
+- occupation competences (essential vs optional);
+- verified work experience;
+- qualifications;
+- responsibility/autonomy;
+- regulatory/site authorisations.
+
+WORKLY levels are internal product levels. They are not EQF levels and do not
+replace national professional regulation or employer/site authorisation.
+"""
 
 from __future__ import annotations
 
@@ -9,37 +20,173 @@ from typing import Any
 
 
 PROFESSION_MATCHES = {
-    "electromechanics": ("eletromec", "electromech", "manutencao industrial", "maintenance technician"),
+    "electromechanics": (
+        "eletromec",
+        "electromech",
+        "manutencao industrial",
+        "maintenance technician",
+    ),
     "electrical": ("eletric", "electrician", "electrical"),
     "hvac": ("hvac", "avac", "climat", "refrig", "frigor"),
     "plumbing": ("canal", "plumb", "hidraul"),
     "solar": ("solar", "fotovolt", "photovolta"),
     "welding": ("soldad", "weld", "serralh"),
     "fire": ("incend", "fire", "sprinkler", "detec"),
-    "industrial": ("montag", "industrial assembly", "mechanical fitter", "mecanico montador", "equipament"),
+    "industrial": (
+        "montag",
+        "industrial assembly",
+        "mechanical fitter",
+        "mecanico montador",
+        "equipament",
+    ),
 }
-CERTIFICATE_MATCHES = {
-    "electromechanics": ("eletromec", "motor", "variador", "automation", "automacao", "manutencao"),
-    "electrical": ("eletric", "electri", "h0b0", "b1v", "b2v", "habilit"),
-    "hvac": ("hvac", "avac", "climat", "refrig", "f-gas", "fgas", "fluorado", "vrf"),
-    "plumbing": ("canal", "plumb", "hidraul", "agua", "saneamento", "tubagem"),
-    "solar": ("solar", "fotovolt", "photovolta"),
-    "welding": ("soldad", "weld", "tig", "mig", "mag", "eletrodo"),
-    "fire": ("incend", "fire", "sprinkler", "detec", "extinc"),
-    "industrial": ("industr", "montag", "alinhamento", "torque", "bolting"),
+
+# Essential competence evidence nodes. Each node may also recognise legacy IDs
+# so existing profiles keep their evidence when the competency model evolves.
+CORE_NODE_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
+    "electromechanics": {
+        "em-technical-reading": ("course", "em-technical-reading"),
+        "em-mechanical-systems": ("em-mechanical", "em-mechanical-systems"),
+        "em-electrical-systems": ("em-motors", "em-electrical-systems"),
+        "em-maintenance": ("em-maintenance",),
+        "em-fault-diagnosis": ("em-diagnostics", "em-fault-diagnosis"),
+        "em-safe-isolation": ("loto", "em-safe-isolation"),
+    },
+    "electrical": {
+        "el-technical-reading": ("course", "el-technical-reading"),
+        "el-installation": ("el-installation",),
+        "el-testing": ("el-testing",),
+        "el-maintenance": ("el-maintenance",),
+        "el-diagnostics": ("el-diagnostics",),
+        "el-isolation": ("loto", "el-isolation"),
+    },
+    "hvac": {
+        "hvac-principles": ("course", "hvac-principles"),
+        "hvac-installation": ("hvac-installation",),
+        "hvac-refrigeration": ("hvac-refrigeration", "fgas-a1", "fgas-a2"),
+        "hvac-electrical": ("hvac-electrical",),
+        "hvac-diagnostics": ("hvac-diagnostics",),
+        "hvac-commissioning": ("hvac-efficiency", "hvac-commissioning"),
+    },
+    "plumbing": {
+        "pl-reading": ("course", "pl-reading"),
+        "pl-water": ("water-networks", "pl-water"),
+        "pl-drainage": ("sanitation", "pl-drainage"),
+        "pl-joints": ("pl-joints",),
+        "pl-testing": ("pipe-testing", "pl-testing"),
+        "pl-diagnostics": ("pl-diagnostics",),
+    },
+    "solar": {
+        "pv-principles": ("course", "photovoltaic", "pv-principles"),
+        "pv-mounting": ("photovoltaic", "pv-mounting"),
+        "pv-dc": ("pv-dc-ac", "pv-dc"),
+        "pv-ac": ("pv-dc-ac", "pv-ac"),
+        "pv-testing": ("pv-commissioning", "pv-testing"),
+        "pv-maintenance": ("solar-maintenance", "pv-maintenance"),
+    },
+    "welding": {
+        "wel-drawings": ("course", "wel-prep", "wel-drawings"),
+        "wel-fitup": ("wel-prep", "wel-fitup"),
+        "wel-process": ("wel-process",),
+        "wel-quality": ("wel-quality",),
+        "wel-distortion": ("wel-distortion",),
+        "wel-safety": ("wel-safety",),
+    },
+    "fire": {
+        "fire-reading": ("course", "fire-reading"),
+        "fire-install": ("fire-install",),
+        "fire-detection": ("fire-detection",),
+        "fire-suppression": ("fire-suppression",),
+        "fire-testing": ("fire-maintenance", "fire-testing"),
+        "fire-handover": ("fire-handover",),
+    },
+    "industrial": {
+        "ind-drawings": ("course", "ind-drawings"),
+        "ind-assembly": ("ind-assembly",),
+        "ind-alignment": ("ind-alignment",),
+        "ind-bolting": ("ind-bolting",),
+        "ind-quality": ("ind-commission", "ind-quality"),
+        "ind-safe-work": ("loto", "ind-safe-work"),
+    },
 }
-ADDITIONAL_SKILL_MATCHES = ("loto", "altura", "height", "socorr", "first aid", "confin", "andaime", "scaffold", "rigging", "empilhador", "forklift", "ponte rolante")
+
+RESPONSIBILITY_NODE_ALIASES: dict[str, tuple[str, ...]] = {
+    "electromechanics": ("em-safe-isolation", "em-supervision", "em-lead"),
+    "electrical": ("el-isolation", "el-supervision"),
+    "hvac": ("hvac-commissioning", "hvac-industrial"),
+    "plumbing": ("pl-supervision",),
+    "solar": ("pv-lead",),
+    "welding": ("wel-safety", "wel-lead"),
+    "fire": ("fire-handover", "fire-lead"),
+    "industrial": ("ind-safe-work", "ind-supervision"),
+}
+
+REGULATORY_MATCHES: dict[str, tuple[str, ...]] = {
+    "electromechanics": ("h0b0", "b1v", "b2v", "br", "bc", "loto", "vca", "scc", "atex"),
+    "electrical": ("h0b0", "b0", "b1", "b2", "br", "bc", "loto"),
+    "hvac": ("fgas", "f-gas", "fluor", "co2", "nh3", "amoniaco"),
+    "plumbing": (),
+    "solar": ("habilit", "b1", "b2", "br", "altura", "height"),
+    "welding": (),
+    "fire": (),
+    "industrial": ("altura", "height", "ipaf", "3a", "3b", "vca", "scc", "atex"),
+}
+
 LEVELS = (
-    ("apprentice", "Aprendiz", "Apprentice", 0),
-    ("junior", "Júnior", "Junior", 20),
-    ("professional", "Profissional", "Professional", 40),
-    ("specialist", "Especialista", "Specialist", 65),
-    ("master", "Master", "Master", 85),
+    {
+        "id": "apprentice",
+        "label": "Aprendiz",
+        "label_en": "Apprentice",
+        "minimum": 0,
+        "core_coverage": 0,
+        "verified_projects": 0,
+        "responsibility_evidence": 0,
+    },
+    {
+        "id": "junior",
+        "label": "Júnior",
+        "label_en": "Junior",
+        "minimum": 15,
+        "core_coverage": 20,
+        "verified_projects": 0,
+        "responsibility_evidence": 0,
+    },
+    {
+        "id": "professional",
+        "label": "Profissional",
+        "label_en": "Professional",
+        "minimum": 40,
+        "core_coverage": 50,
+        "verified_projects": 1,
+        "responsibility_evidence": 0,
+    },
+    {
+        "id": "specialist",
+        "label": "Especialista",
+        "label_en": "Specialist",
+        "minimum": 65,
+        "core_coverage": 70,
+        "verified_projects": 2,
+        "responsibility_evidence": 1,
+    },
+    {
+        "id": "master",
+        "label": "Master",
+        "label_en": "Master",
+        "minimum": 85,
+        "core_coverage": 85,
+        "verified_projects": 3,
+        "responsibility_evidence": 2,
+    },
 )
 
 
 def normalize(value: str) -> str:
-    return "".join(char for char in unicodedata.normalize("NFKD", value.lower().strip()) if not unicodedata.combining(char))
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", value.lower().strip())
+        if not unicodedata.combining(char)
+    )
 
 
 def profession_id(profession: str) -> str:
@@ -49,7 +196,9 @@ def profession_id(profession: str) -> str:
     for key, matches in PROFESSION_MATCHES.items():
         if any(match in value for match in matches):
             return key
-    return "trade-" + (re.sub(r"[^a-z0-9]+", "-", value).strip("-") or "unselected")
+    return "trade-" + (
+        re.sub(r"[^a-z0-9]+", "-", value).strip("-") or "unselected"
+    )
 
 
 def _verified_current(certificate: dict[str, Any], today: date) -> bool:
@@ -58,63 +207,258 @@ def _verified_current(certificate: dict[str, Any], today: date) -> bool:
     try:
         issued = certificate.get("issued_at")
         expires = certificate.get("expires_at")
-        return (not issued or date.fromisoformat(issued) <= today) and (not expires or date.fromisoformat(expires) >= today)
+        return (not issued or date.fromisoformat(issued) <= today) and (
+            not expires or date.fromisoformat(expires) >= today
+        )
     except (TypeError, ValueError):
         return False
 
 
-def _certificate_kind(certificate: dict[str, Any]) -> str:
-    if certificate.get("kind") in {"certification", "skill"}:
-        return certificate["kind"]
-    return "skill" if any(match in normalize(str(certificate.get("name", ""))) for match in ADDITIONAL_SKILL_MATCHES) else "certification"
+def _certificate_matches_node(
+    certificate: dict[str, Any],
+    aliases: tuple[str, ...],
+) -> bool:
+    node_id = normalize(str(certificate.get("node_id", "")))
+    name = normalize(str(certificate.get("name", "")))
+    normalized_aliases = tuple(normalize(value) for value in aliases)
+    return any(
+        alias and (node_id == alias or alias in name)
+        for alias in normalized_aliases
+    )
 
 
-def professional_identity(worker: dict[str, Any], projects: list[dict[str, Any]], *, today: date | None = None) -> dict[str, Any]:
-    """Self-declared experience, skills and portfolio never award verified points."""
-    today = today or date.today()
-    area = profession_id(str(worker.get("profession", "")))
-    certificates: dict[tuple[str, str], dict[str, Any]] = {}
-    for item in worker.get("certificates", []):
-        if not _verified_current(item, today):
-            continue
-        explicit_area = item.get("profession_id")
-        name = normalize(str(item.get("name", "")))
-        relevant = explicit_area == area or (not explicit_area and any(match in name for match in CERTIFICATE_MATCHES.get(area, ())))
-        if not relevant:
-            continue
-        # The same qualification uploaded twice must not award points twice.
-        certificates.setdefault((name, normalize(str(item.get("issuer", "")))), item)
-    professional_count = sum(_certificate_kind(item) == "certification" for item in certificates.values())
-    skills_count = sum(_certificate_kind(item) == "skill" for item in certificates.values())
+def _verified_projects(
+    worker: dict[str, Any],
+    projects: list[dict[str, Any]],
+    area: str,
+) -> int:
     completed_ids = {
-        str(item["id"]) for item in projects
-        if item.get("id") and item.get("status") == "completed"
+        str(item["id"])
+        for item in projects
+        if item.get("id")
+        and item.get("status") == "completed"
         and worker["id"] in item.get("worker_ids", [])
         and item.get("profession_id") == area
     }
     completed_ids.update(
-        str(item["id"]) for item in worker.get("best_projects", [])
-        if item.get("id") and item.get("status") == "verified"
-        and item.get("verified_by") and item.get("profession_id") == area
+        str(item["id"])
+        for item in worker.get("best_projects", [])
+        if item.get("id")
+        and item.get("status") == "verified"
+        and item.get("verified_by")
+        and (not item.get("profession_id") or item.get("profession_id") == area)
     )
-    completed_projects = len(completed_ids)
-    components = [
-        {"id": "certifications", "label": "Certificações verificadas", "label_en": "Verified certifications", "points": min(professional_count, 5) * 10, "maximum": 50, "count": professional_count, "points_each": 10},
-        {"id": "skills", "label": "Competências comprovadas", "label_en": "Proven skills", "points": min(skills_count, 5) * 4, "maximum": 20, "count": skills_count, "points_each": 4},
-        {"id": "projects", "label": "Obras confirmadas na área", "label_en": "Confirmed projects in this trade", "points": min(completed_projects, 3) * 10, "maximum": 30, "count": completed_projects, "points_each": 10},
+    return len(completed_ids)
+
+
+def professional_identity(
+    worker: dict[str, Any],
+    projects: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Calculate evidence score and level gates for the primary trade.
+
+    Self-declared years, skills and portfolio entries never award verified
+    points. Regulatory/site cards are reported separately and do not increase
+    professional seniority by themselves.
+    """
+
+    today = today or date.today()
+    area = profession_id(str(worker.get("profession", "")))
+    verified_projects = _verified_projects(worker, projects, area)
+
+    certificates = list(worker.get("certificates", []))
+    current_verified = [item for item in certificates if _verified_current(item, today)]
+
+    core_nodes = CORE_NODE_ALIASES.get(area, {})
+    verified_core = 0
+    for aliases in core_nodes.values():
+        if any(_certificate_matches_node(item, aliases) for item in current_verified):
+            verified_core += 1
+    core_coverage = (
+        round(verified_core / len(core_nodes) * 100) if core_nodes else 0
+    )
+
+    responsibility_aliases = RESPONSIBILITY_NODE_ALIASES.get(area, ())
+    responsibility_evidence = sum(
+        1
+        for item in current_verified
+        if _certificate_matches_node(item, responsibility_aliases)
+    )
+
+    relevant = [
+        item
+        for item in certificates
+        if item.get("profession_id") == area
+        or any(
+            _certificate_matches_node(item, aliases)
+            for aliases in core_nodes.values()
+        )
     ]
-    score = sum(item["points"] for item in components)
-    level_index = max(index for index, item in enumerate(LEVELS) if score >= item[3])
-    levels = [{"id": key, "label": label, "label_en": label_en, "minimum": minimum} for key, label, label_en, minimum in LEVELS]
-    current = levels[level_index]
-    next_level = levels[level_index + 1] if level_index + 1 < len(levels) else None
-    span = (next_level["minimum"] if next_level else 100) - current["minimum"]
+    verified_relevant = [item for item in relevant if _verified_current(item, today)]
+    verified_qualifications = sum(
+        item.get("kind") != "skill" for item in verified_relevant
+    )
+
+    regulatory_terms = REGULATORY_MATCHES.get(area, ())
+    verified_regulatory = sum(
+        1
+        for item in current_verified
+        if any(
+            normalize(term) in normalize(str(item.get("name", "")))
+            for term in regulatory_terms
+        )
+    )
+
+    core_points = round(core_coverage * 0.40)
+    experience_points = min(25, verified_projects * 5)
+    qualification_points = min(15, verified_qualifications * 5)
+    autonomy_points = min(
+        10,
+        responsibility_evidence * 5 + (5 if verified_projects >= 3 else 0),
+    )
+
+    verifiable = [
+        item
+        for item in relevant
+        if item.get("status") in {"verified", "pending", "recorded"}
+    ]
+    quality_ratio = (
+        len(verified_relevant) / len(verifiable) if verifiable else 0
+    )
+    quality_points = round(quality_ratio * 10)
+
+    score = min(
+        100,
+        core_points
+        + experience_points
+        + qualification_points
+        + autonomy_points
+        + quality_points,
+    )
+
+    level_index = 0
+    for index, gate in enumerate(LEVELS):
+        eligible = (
+            score >= gate["minimum"]
+            and core_coverage >= gate["core_coverage"]
+            and verified_projects >= gate["verified_projects"]
+            and responsibility_evidence >= gate["responsibility_evidence"]
+        )
+        if eligible:
+            level_index = index
+
+    current = LEVELS[level_index]
+    next_level = LEVELS[level_index + 1] if level_index + 1 < len(LEVELS) else None
+    levels = [
+        {
+            "id": gate["id"],
+            "label": gate["label"],
+            "label_en": gate["label_en"],
+            "minimum": gate["minimum"],
+        }
+        for gate in LEVELS
+    ]
+
+    if next_level:
+        span = max(1, next_level["minimum"] - current["minimum"])
+        progress = max(
+            0,
+            min(100, round((score - current["minimum"]) / span * 100)),
+        )
+    else:
+        progress = 100
+
+    components = [
+        {
+            "id": "core",
+            "label": "Competências essenciais",
+            "label_en": "Essential competences",
+            "points": core_points,
+            "maximum": 40,
+            "count": verified_core,
+            "points_each": 0,
+        },
+        {
+            "id": "experience",
+            "label": "Experiência verificada",
+            "label_en": "Verified experience",
+            "points": experience_points,
+            "maximum": 25,
+            "count": verified_projects,
+            "points_each": 5,
+        },
+        {
+            "id": "qualifications",
+            "label": "Qualificações relevantes",
+            "label_en": "Relevant qualifications",
+            "points": qualification_points,
+            "maximum": 15,
+            "count": verified_qualifications,
+            "points_each": 5,
+        },
+        {
+            "id": "autonomy",
+            "label": "Autonomia e responsabilidade",
+            "label_en": "Autonomy & responsibility",
+            "points": autonomy_points,
+            "maximum": 10,
+            "count": responsibility_evidence,
+            "points_each": 5,
+        },
+        {
+            "id": "quality",
+            "label": "Qualidade da evidência",
+            "label_en": "Evidence quality",
+            "points": quality_points,
+            "maximum": 10,
+            "count": len(verified_relevant),
+            "points_each": 0,
+        },
+    ]
+
     return {
-        "id": worker["id"], "profession_id": area,
-        "score": score, "maximum": 100, "level": current,
-        "level_index": level_index, "levels": levels, "next_level": next_level,
-        "points_to_next": max(0, next_level["minimum"] - score) if next_level else 0,
-        "progress": round((score - current["minimum"]) / span * 100) if next_level else 100,
+        "id": worker["id"],
+        "profession_id": area,
+        "score": score,
+        "maximum": 100,
+        "level": {
+            "id": current["id"],
+            "label": current["label"],
+            "label_en": current["label_en"],
+            "minimum": current["minimum"],
+        },
+        "level_index": level_index,
+        "levels": levels,
+        "next_level": (
+            {
+                "id": next_level["id"],
+                "label": next_level["label"],
+                "label_en": next_level["label_en"],
+                "minimum": next_level["minimum"],
+            }
+            if next_level
+            else None
+        ),
+        "points_to_next": (
+            max(0, next_level["minimum"] - score) if next_level else 0
+        ),
+        "progress": progress,
         "components": components,
-        "master_requirements": "85 pontos; exige certificações e obras concluídas na profissão principal.",
+        "core_coverage": core_coverage,
+        "verified_projects": verified_projects,
+        "verified_qualifications": verified_qualifications,
+        "responsibility_evidence": responsibility_evidence,
+        "verified_regulatory": verified_regulatory,
+        "regulatory_context": (
+            "Os requisitos legais dependem do país, atividade, empregador e site."
+        ),
+        "level_gate_note": (
+            "O score sozinho não sobe o nível: são exigidos cobertura essencial, "
+            "experiência verificada e, nos níveis superiores, evidência de autonomia."
+        ),
+        "framework_note": (
+            "Nível interno WORKLY; não corresponde a um nível EQF oficial."
+        ),
     }
