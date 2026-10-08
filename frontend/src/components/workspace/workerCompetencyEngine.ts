@@ -207,6 +207,18 @@ function proficiencyLabels(level: number) {
   return ["Referência", "Reference"] as const;
 }
 
+function experiencePointsFromProjects(projects: number) {
+  if (projects <= 0) return 0;
+  if (projects === 1) return 5;
+  if (projects === 2) return 9;
+  if (projects === 3) return 13;
+  if (projects === 4) return 16;
+  if (projects === 5) return 19;
+  if (projects <= 7) return 21;
+  if (projects <= 9) return 23;
+  return 25;
+}
+
 export function assessWorkerCompetence(
   worker: Worker,
   projects: Project[],
@@ -310,13 +322,12 @@ export function assessWorkerCompetence(
   });
   const verifiedRegulatory = regulatoryMatched.filter(Boolean).length;
 
-  const corePoints = Math.round(coreCoverage * 0.4);
-  const experiencePoints = Math.min(25, verifiedProjects * 5);
+  const essentialProficiency = essential.length
+    ? essential.reduce((sum, item) => sum + item.proficiency, 0) / essential.length
+    : 0;
+  const technicalPoints = Math.round((essentialProficiency / 4) * 45);
+  const experiencePoints = experiencePointsFromProjects(verifiedProjects);
   const qualificationPoints = Math.min(15, verifiedQualifications * 5);
-  const autonomyPoints = Math.min(
-    10,
-    responsibilityEvidence * 5 + (verifiedProjects >= 3 ? 5 : 0),
-  );
 
   const verifiableEvidence = relevantCertificates.filter(
     (item) =>
@@ -328,18 +339,25 @@ export function assessWorkerCompetence(
   const verifiedProficiencyEvidence = verifiedRelevant.filter(
     (item) => evidenceTypeDefinition(inferredEvidenceType(item))?.countsForProficiency,
   );
-  const qualityRatio = verifiableEvidence.length
+  const verificationRatio = verifiableEvidence.length
     ? verifiedProficiencyEvidence.length / verifiableEvidence.length
     : 0;
-  const qualityPoints = Math.round(qualityRatio * 10);
+  const independentVerified = verifiedProficiencyEvidence.filter((item) =>
+    ["employer_validation", "technical_assessment"].includes(
+      inferredEvidenceType(item),
+    ),
+  ).length;
+  const verificationPoints = Math.round(verificationRatio * 10);
+  const independentBonus =
+    independentVerified >= 2 ? 5 : independentVerified === 1 ? 3 : 0;
+  const confidencePoints = Math.min(15, verificationPoints + independentBonus);
 
   const score = Math.min(
     100,
-    corePoints +
+    technicalPoints +
       experiencePoints +
       qualificationPoints +
-      autonomyPoints +
-      qualityPoints,
+      confidencePoints,
   );
 
   let achieved = worklyLevelGates[0];
@@ -413,13 +431,13 @@ export function assessWorkerCompetence(
     complianceLabelEn,
     components: [
       {
-        id: "core",
-        label: "Competências essenciais",
-        labelEn: "Essential competences",
-        points: corePoints,
-        maximum: 40,
-        detail: `${verifiedEssential.length}/${essential.length} com evidência verificada`,
-        detailEn: `${verifiedEssential.length}/${essential.length} with verified evidence`,
+        id: "technical",
+        label: "Competência técnica",
+        labelEn: "Technical competence",
+        points: technicalPoints,
+        maximum: 45,
+        detail: `Média ${essentialProficiency.toFixed(1)}/4 nas competências essenciais`,
+        detailEn: `Average ${essentialProficiency.toFixed(1)}/4 across essential competences`,
       },
       {
         id: "experience",
@@ -432,34 +450,25 @@ export function assessWorkerCompetence(
       },
       {
         id: "qualifications",
-        label: "Qualificações relevantes",
-        labelEn: "Relevant qualifications",
+        label: "Qualificações",
+        labelEn: "Qualifications",
         points: qualificationPoints,
         maximum: 15,
-        detail: `${verifiedQualifications} qualificação(ões) verificada(s)`,
-        detailEn: `${verifiedQualifications} verified qualification(s)`,
+        detail: `${verifiedQualifications} qualificação(ões) relevante(s) verificada(s)`,
+        detailEn: `${verifiedQualifications} relevant verified qualification(s)`,
       },
       {
-        id: "autonomy",
-        label: "Autonomia e responsabilidade",
-        labelEn: "Autonomy & responsibility",
-        points: autonomyPoints,
-        maximum: 10,
-        detail: `${responsibilityEvidence} evidência(s) específica(s)`,
-        detailEn: `${responsibilityEvidence} specific evidence item(s)`,
-      },
-      {
-        id: "quality",
-        label: "Qualidade da evidência",
-        labelEn: "Evidence quality",
-        points: qualityPoints,
-        maximum: 10,
+        id: "confidence",
+        label: "Confiança da evidência",
+        labelEn: "Evidence confidence",
+        points: confidencePoints,
+        maximum: 15,
         detail: verifiableEvidence.length
-          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} registos verificados`
-          : "Sem evidência associada",
+          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} provas verificadas · ${independentVerified} validação(ões) independente(s)`
+          : "Sem evidência profissional associada",
         detailEn: verifiableEvidence.length
-          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} records verified`
-          : "No evidence attached",
+          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} evidence items verified · ${independentVerified} independent validation(s)`
+          : "No professional evidence attached",
       },
     ],
     competencies,
