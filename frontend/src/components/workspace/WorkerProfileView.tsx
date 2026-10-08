@@ -13,11 +13,12 @@ import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
+import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
-import { buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
+import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
 
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
@@ -37,8 +38,9 @@ export function WorkerProfileView() {
   const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
   const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
   const competencyAssessment = useMemo(() => worker ? assessWorkerCompetence(worker, state?.projects || []) : null, [worker, state?.projects]);
-  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment?.score) : null, [worker, competencyAssessment?.score]);
-  const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree]);
+  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment) : null, [worker, competencyAssessment]);
+  const complianceTree = useMemo(() => worker ? buildComplianceTree(worker) : null, [worker]);
+  const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || []), ...(complianceTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree, complianceTree]);
   const text = (pt: string, en: string) => uiText(language, pt, en);
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
@@ -109,6 +111,13 @@ export function WorkerProfileView() {
               {specialtyTree ? (
                 <WorkerSpecialtyTree
                   tree={specialtyTree}
+                  language={language}
+                  onNode={setSelected}
+                />
+              ) : null}
+              {complianceTree ? (
+                <WorkerCompliancePanel
+                  tree={complianceTree}
                   language={language}
                   onNode={setSelected}
                 />
