@@ -470,11 +470,8 @@ export function buildComplianceTree(worker: Worker): ComplianceTree {
   const nodes = items.map((item) => {
     const evidence = worker.certificates.find((certificate) => {
       const name = normalizeValue(certificate.name);
-      return (
-        certificate.evidence_type === "authorisation" &&
-        item.evidenceAliases.some((alias) =>
-          name.includes(normalizeValue(alias)),
-        )
+      return item.evidenceAliases.some((alias) =>
+        name.includes(normalizeValue(alias)),
       );
     });
 
