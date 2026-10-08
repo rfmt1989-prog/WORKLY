@@ -10,6 +10,7 @@ import type {
   WorkerCompetencyAssessment,
 } from "./workerCompetencyEngine";
 import { competencyProfileFor } from "./competencyFramework";
+import { evidenceTypes, proficiencyCriterion } from "./competencyEvidenceModel";
 
 function toAchievement(item: CompetencyAssessment): AchievementNode {
   const stage =
@@ -45,10 +46,19 @@ function toAchievement(item: CompetencyAssessment): AchievementNode {
     kind: "skill",
     certificate: item.certificate,
     meta: [
-      `Nível de proficiência WORKLY · ${item.proficiency}/4 · ${item.proficiencyLabel}`,
+      `Proficiência WORKLY · ${item.proficiency}/4 · ${item.proficiencyLabel}`,
+      ...evidenceTypes
+        .filter((type) => (item.evidenceByType[type.id] || 0) > 0)
+        .map((type) => `${type.label}: ${item.evidenceByType[type.id] || 0}`),
+      item.proficiency < 4
+        ? `Próximo nível: ${proficiencyCriterion(item.proficiency + 1).headline}`
+        : "Nível máximo de proficiência interna atingido.",
+      ...(item.proficiency < 4
+        ? proficiencyCriterion(item.proficiency + 1).requirements
+        : proficiencyCriterion(4).requirements),
       item.competency.critical
         ? "Competência crítica para a cobertura nuclear da profissão."
-        : "A proficiência aumenta apenas com evidência profissional verificável.",
+        : "Competência opcional/contextual: melhora o perfil, mas não substitui o núcleo essencial.",
     ],
   };
 }
@@ -207,6 +217,10 @@ function CompetencySection({
                 </Text>
                 <View style={styles.bottomRow}>
                   <JourneyStatus node={node} language={language} />
+                  <View style={styles.evidenceSummary}>
+                    <Text style={styles.evidenceCount}>{item.evidenceCount}</Text>
+                    <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
+                  </View>
                   <View style={styles.level}>
                     <Text style={styles.levelValue}>{item.proficiency}/4</Text>
                     <Text style={styles.levelLabel}>
@@ -381,6 +395,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  evidenceSummary: { flexDirection: "row", alignItems: "center", gap: 4 },
+  evidenceCount: { color: "#88B9E2", fontSize: 9, lineHeight: 12, fontWeight: "700" },
+  evidenceLabel: { color: "#647D91", fontSize: 8, lineHeight: 12 },
   level: { flexDirection: "row", alignItems: "center", gap: 5 },
   levelValue: {
     color: "#8EC8F8",
