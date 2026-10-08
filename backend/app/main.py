@@ -999,6 +999,31 @@ def update_worker(
                 raise HTTPException(status_code=422, detail="Certificados inválidos.")
             if len({str(item["id"]) for item in incoming}) != len(incoming):
                 raise HTTPException(status_code=422, detail="Cada certificado deve ter um identificador único.")
+            allowed_evidence_types = {
+                "qualification",
+                "work_record",
+                "employer_validation",
+                "technical_assessment",
+                "authorisation",
+            }
+            for certificate in incoming:
+                evidence_type = certificate.get("evidence_type")
+                if evidence_type is not None and evidence_type not in allowed_evidence_types:
+                    raise HTTPException(status_code=422, detail="Tipo de evidência inválido.")
+                competency_id = certificate.get("competency_id")
+                if competency_id is not None and (
+                    not isinstance(competency_id, str) or len(competency_id.strip()) > 120
+                ):
+                    raise HTTPException(status_code=422, detail="Competência associada inválida.")
+                hours = certificate.get("hours")
+                if hours is not None and (
+                    isinstance(hours, bool)
+                    or not isinstance(hours, (int, float))
+                    or not math.isfinite(hours)
+                    or hours < 0
+                    or hours > 100000
+                ):
+                    raise HTTPException(status_code=422, detail="Horas de evidência inválidas.")
             existing = {item["id"]: item for item in worker.get("certificates", [])}
             incoming = deepcopy(incoming)
             if user["role"] == "worker":
