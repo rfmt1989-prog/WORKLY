@@ -210,25 +210,16 @@ function CompetencySection({
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.nodeDescription} numberOfLines={2}>
-                  {language === "pt"
-                    ? item.competency.description
-                    : item.competency.descriptionEn}
-                </Text>
-                <View style={styles.bottomRow}>
-                  <JourneyStatus node={node} language={language} />
-                  <View style={styles.evidenceSummary}>
-                    <Text style={styles.evidenceCount}>{item.evidenceCount}</Text>
-                    <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
-                  </View>
-                  <View style={styles.level}>
-                    <Text style={styles.levelValue}>{item.proficiency}/4</Text>
-                    <Text style={styles.levelLabel}>
-                      {language === "pt"
-                        ? item.proficiencyLabel
-                        : item.proficiencyLabelEn}
-                    </Text>
-                  </View>
+                <View style={styles.summaryLine}>
+                  <Text style={styles.levelValue}>{item.proficiency}/4</Text>
+                  <Text style={styles.levelLabel}>
+                    {language === "pt"
+                      ? item.proficiencyLabel
+                      : item.proficiencyLabelEn}
+                  </Text>
+                  <Text style={styles.summaryDot}>·</Text>
+                  <Text style={styles.evidenceCount}>{item.evidenceCount}</Text>
+                  <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
                 </View>
               </View>
             </Pressable>
@@ -387,18 +378,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     fontWeight: "700",
   },
-  nodeDescription: { color: "#72899C", fontSize: 10, lineHeight: 15 },
-  bottomRow: {
+  summaryLine: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 5,
   },
-  evidenceSummary: { flexDirection: "row", alignItems: "center", gap: 4 },
+  summaryDot: { color: "#40576B", fontSize: 9, lineHeight: 12 },
   evidenceCount: { color: "#88B9E2", fontSize: 9, lineHeight: 12, fontWeight: "700" },
   evidenceLabel: { color: "#647D91", fontSize: 8, lineHeight: 12 },
-  level: { flexDirection: "row", alignItems: "center", gap: 5 },
   levelValue: {
     color: "#8EC8F8",
     fontSize: 10,
