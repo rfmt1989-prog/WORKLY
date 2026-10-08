@@ -5,6 +5,7 @@ import {
   worklyLevelGates,
   type CompetencySpec,
 } from "./competencyFramework";
+import { evidenceTypeDefinition, type EvidenceType } from "./competencyEvidenceModel";
 
 export type CompetencyEvidenceState =
   | "verified"
@@ -21,6 +22,8 @@ export type CompetencyAssessment = {
   proficiencyLabel: string;
   proficiencyLabelEn: string;
   certificate?: Worker["certificates"][number];
+  evidence: Worker["certificates"];
+  evidenceByType: Partial<Record<EvidenceType, number>>;
 };
 
 export type WorkerCompetencyAssessment = {
@@ -69,11 +72,41 @@ function isCurrentVerified(certificate: Worker["certificates"][number]) {
 function matchingCertificates(worker: Worker, spec: CompetencySpec) {
   const aliases = [spec.id, ...spec.aliases].map(normalize);
   return worker.certificates.filter((certificate) => {
+    if (certificate.competency_id === spec.id) return true;
     if (certificate.node_id && aliases.includes(normalize(certificate.node_id)))
       return true;
     const name = normalize(certificate.name);
     return aliases.some((alias) => alias && name.includes(alias));
   });
+}
+
+function inferredEvidenceType(
+  certificate: Worker["certificates"][number],
+): EvidenceType {
+  if (certificate.evidence_type) return certificate.evidence_type;
+  const value = normalize(certificate.name);
+  const authorisationTerms = [
+    "ipaf",
+    "vca",
+    "scc",
+    "atex",
+    "h0b0",
+    "b0",
+    "b1",
+    "b2",
+    "br",
+    "bc",
+    "loto",
+    "altura",
+    "height",
+    "first aid",
+    "socorr",
+    "confined",
+    "confin",
+  ];
+  if (authorisationTerms.some((term) => value.includes(term)))
+    return "authorisation";
+  return "qualification";
 }
 
 function matchingDeclaredSkill(worker: Worker, spec: CompetencySpec) {
@@ -118,22 +151,51 @@ function workerProjectEvidence(
 }
 
 function proficiencyFromEvidence(
-  verified: number,
-  pending: number,
-  recorded: number,
+  evidence: Worker["certificates"],
   declared: boolean,
   verifiedProjects: number,
   dimension: CompetencySpec["dimension"],
 ): 0 | 1 | 2 | 3 | 4 {
-  if (!verified && !pending && !recorded && !declared) return 0;
-  if (!verified) return 1;
+  const proficiencyEvidence = evidence.filter(
+    (item) => evidenceTypeDefinition(inferredEvidenceType(item))?.countsForProficiency,
+  );
+  if (!proficiencyEvidence.length && !declared) return 0;
 
-  // Verified evidence demonstrates more than a self-declaration, while higher
-  // proficiency additionally needs repeated verified work and responsibility.
-  if (verifiedProjects < 2) return 2;
-  if (dimension === "responsibility" && verifiedProjects < 3) return 2;
-  if (verifiedProjects < 4) return 3;
-  if (dimension !== "responsibility") return 3;
+  const verified = proficiencyEvidence.filter(isCurrentVerified);
+  if (!verified.length) return 1;
+
+  const qualifications = verified.filter(
+    (item) => inferredEvidenceType(item) === "qualification",
+  );
+  const technical = verified.filter((item) =>
+    ["work_record", "employer_validation", "technical_assessment"].includes(
+      inferredEvidenceType(item),
+    ),
+  );
+  const independent = verified.filter((item) =>
+    ["employer_validation", "technical_assessment"].includes(
+      inferredEvidenceType(item),
+    ),
+  );
+
+  const demonstrated =
+    technical.length >= 1 ||
+    (dimension === "knowledge" && qualifications.length >= 1);
+  if (!demonstrated) return 1;
+
+  const advanced =
+    technical.length >= 2 &&
+    verifiedProjects >= 2 &&
+    (dimension !== "responsibility" || independent.length >= 1);
+  if (!advanced) return 2;
+
+  const reference =
+    technical.length >= 4 &&
+    verifiedProjects >= 4 &&
+    independent.length >= 1 &&
+    (dimension !== "responsibility" || independent.length >= 2);
+  if (!reference) return 3;
+
   return 4;
 }
 
@@ -165,9 +227,7 @@ export function assessWorkerCompetence(
     ).length;
     const declared = matchingDeclaredSkill(worker, competency);
     const proficiency = proficiencyFromEvidence(
-      verified,
-      pending,
-      recorded,
+      certificates,
       declared,
       verifiedProjects,
       competency.dimension,
@@ -185,6 +245,15 @@ export function assessWorkerCompetence(
       certificates.find((item) => item.status === "pending") ||
       certificates[0];
 
+    const evidenceByType = certificates.reduce<Partial<Record<EvidenceType, number>>>(
+      (acc, item) => {
+        const type = inferredEvidenceType(item);
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
+
     return {
       competency,
       evidenceState,
@@ -193,6 +262,8 @@ export function assessWorkerCompetence(
       proficiencyLabel: labels[0],
       proficiencyLabelEn: labels[1],
       certificate,
+      evidence: certificates,
+      evidenceByType,
     };
   });
 
@@ -200,7 +271,7 @@ export function assessWorkerCompetence(
     (item) => item.competency.relation === "essential",
   );
   const verifiedEssential = essential.filter(
-    (item) => item.evidenceState === "verified",
+    (item) => item.proficiency >= 2,
   );
   const coreCoverage = essential.length
     ? Math.round((verifiedEssential.length / essential.length) * 100)
@@ -217,20 +288,23 @@ export function assessWorkerCompetence(
   });
   const verifiedRelevant = relevantCertificates.filter(isCurrentVerified);
   const verifiedQualifications = verifiedRelevant.filter(
-    (item) => item.kind !== "skill",
+    (item) => inferredEvidenceType(item) === "qualification",
   ).length;
 
   const responsibilityEvidence = competencies.filter(
     (item) =>
       item.competency.dimension === "responsibility" &&
-      item.evidenceState === "verified",
+      item.proficiency >= 2,
   ).length;
 
   const regulatoryMatched = profile.regulatory.map((requirement) => {
     const aliases = requirement.aliases.map(normalize);
     const evidence = worker.certificates.find((certificate) => {
       const name = normalize(certificate.name);
-      return aliases.some((alias) => alias && name.includes(alias));
+      return (
+        inferredEvidenceType(certificate) === "authorisation" &&
+        aliases.some((alias) => alias && name.includes(alias))
+      );
     });
     return evidence && isCurrentVerified(evidence);
   });
@@ -245,10 +319,17 @@ export function assessWorkerCompetence(
   );
 
   const verifiableEvidence = relevantCertificates.filter(
-    (item) => item.status === "verified" || item.status === "pending" || item.status === "recorded",
+    (item) =>
+      evidenceTypeDefinition(inferredEvidenceType(item))?.countsForProficiency &&
+      (item.status === "verified" ||
+        item.status === "pending" ||
+        item.status === "recorded"),
+  );
+  const verifiedProficiencyEvidence = verifiedRelevant.filter(
+    (item) => evidenceTypeDefinition(inferredEvidenceType(item))?.countsForProficiency,
   );
   const qualityRatio = verifiableEvidence.length
-    ? verifiedRelevant.length / verifiableEvidence.length
+    ? verifiedProficiencyEvidence.length / verifiableEvidence.length
     : 0;
   const qualityPoints = Math.round(qualityRatio * 10);
 
@@ -374,10 +455,10 @@ export function assessWorkerCompetence(
         points: qualityPoints,
         maximum: 10,
         detail: verifiableEvidence.length
-          ? `${verifiedRelevant.length}/${verifiableEvidence.length} registos verificados`
+          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} registos verificados`
           : "Sem evidência associada",
         detailEn: verifiableEvidence.length
-          ? `${verifiedRelevant.length}/${verifiableEvidence.length} records verified`
+          ? `${verifiedProficiencyEvidence.length}/${verifiableEvidence.length} records verified`
           : "No evidence attached",
       },
     ],
