@@ -35,6 +35,11 @@ export type Certificate = {
   node_id?: string;
   file_id?: string;
   kind?: "certification" | "skill";
+  evidence_type?: "qualification" | "work_record" | "employer_validation" | "technical_assessment" | "authorisation";
+  competency_id?: string;
+  project_id?: string;
+  hours?: number;
+  context?: string;
   verified_by?: string;
 };
 
