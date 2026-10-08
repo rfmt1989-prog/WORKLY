@@ -75,7 +75,6 @@ export function WorkerProfileView() {
           <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
-              {competencyAssessment ? <View style={styles.scoreBadge}><Text style={styles.scoreValue}>{competencyAssessment.score}<Text style={styles.scoreMaximum}>/100</Text></Text><Text style={styles.scoreLabel}>{text("Score de evidência", "Evidence score")}</Text></View> : null}
             </View>
             {competencyAssessment && primaryTree ? <WorkerEvidenceScoreCard assessment={competencyAssessment} language={language} onDetails={() => setRules(true)} /> : null}
             {!primaryTree ? (
@@ -84,8 +83,8 @@ export function WorkerProfileView() {
               <View style={styles.actionRow}>
                 <Text style={styles.journeyHint}>
                   {text(
-                    "Competências essenciais primeiro. Qualificações, experiência e autorizações servem como evidência — não como XP.",
-                    "Essential competences first. Qualifications, experience and authorisations act as evidence — not XP.",
+                    "Toca numa competência para ver provas e critérios de progressão.",
+                    "Tap a competence to view evidence and progression criteria.",
                   )}
                 </Text>
                 <Button
@@ -126,11 +125,16 @@ export function WorkerProfileView() {
           </View>
         </View>
       </ScrollView>
-      {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Critérios de valorização", "Assessment criteria")} subtitle={text("O nível exige score e critérios mínimos. Certificados de acesso ou segurança não compram senioridade.", "Level progression requires both score and minimum gates. Access or safety certificates do not buy seniority.")}>
+      {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como é calculado o WORKLY VALUE", "How WORKLY VALUE is calculated")} subtitle={text("Quatro dimensões simples formam o valor 0–100. O nível profissional exige também critérios mínimos.", "Four simple dimensions create the 0–100 value. Professional level also requires minimum gates.")}>
         <View style={styles.ruleList}>
           {competencyAssessment.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{language === "pt" ? part.label : part.labelEn}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text><Text style={styles.detailNote}>{language === "pt" ? part.detail : part.detailEn}</Text></View>)}
-          <Text style={styles.detailNote}>{text("Competências essenciais e opcionais seguem a lógica ocupacional ESCO. Conhecimento, aptidões e responsabilidade/autonomia são avaliados separadamente. O nível WORKLY é interno e não corresponde a um nível EQF oficial.", "Essential and optional competences follow ESCO occupational logic. Knowledge, skills and responsibility/autonomy are assessed separately. The WORKLY level is internal and is not an official EQF level.")}</Text>
-          <Text style={styles.detailNote}>{text("Conformidade legal é contextual: depende do país, atividade, empregador e site. É mostrada à parte e não aumenta automaticamente o nível profissional.", "Legal compliance is contextual: it depends on country, activity, employer and site. It is shown separately and does not automatically increase professional level.")}</Text>
+          {competencyAssessment.missingGates.length ? (
+            <View style={styles.ruleItem}>
+              <Text style={styles.ruleTitle}>{text("Para o próximo nível", "For the next level")}</Text>
+              {(language === "pt" ? competencyAssessment.missingGates : competencyAssessment.missingGatesEn).map(item => <Text key={item} style={styles.detailNote}>· {item}</Text>)}
+            </View>
+          ) : null}
+          <Text style={styles.detailNote}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
         </View>
       </ModalPanel> : null}
       {about ? <ModalPanel visible onClose={() => setAbout(false)} title={text("Sobre e contactos", "About and contacts")}><View style={styles.detailContent}>
