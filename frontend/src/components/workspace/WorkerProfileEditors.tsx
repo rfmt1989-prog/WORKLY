@@ -18,6 +18,7 @@ import {
 } from "./primitives";
 import { type AchievementNode } from "./workerCertificateTree";
 import { findProfessionDefinition, professionCatalog } from "./professionCatalog";
+import { evidenceTypes, type EvidenceType } from "./competencyEvidenceModel";
 
 export function WorkerIdentityEditor({
   worker,
@@ -217,10 +218,13 @@ export function WorkerCertificateEditor({
   const certificate = node?.certificate;
   const profession = professionId;
   const [kind, setKind] = useState<"certification" | "skill">(certificate?.kind || (node?.kind === "skill" ? "skill" : "certification"));
+  const [evidenceType, setEvidenceType] = useState<EvidenceType>(certificate?.evidence_type || (node?.kind === "skill" ? "work_record" : "qualification"));
   const [name, setName] = useState(certificate?.name || node?.title || "");
   const [issuer, setIssuer] = useState(certificate?.issuer || "");
   const [issuedAt, setIssuedAt] = useState(certificate?.issued_at || "");
   const [expiresAt, setExpiresAt] = useState(certificate?.expires_at || "");
+  const [context, setContext] = useState(certificate?.context || "");
+  const [hours, setHours] = useState(certificate?.hours ? String(certificate.hours) : "");
   const [file, setFile] = useState<PickedWorklyFile | null>(null);
   const [uploaded, setUploaded] = useState<
     StoredDocumentResponse["document"] | null
@@ -281,8 +285,13 @@ export function WorkerCertificateEditor({
       const existing =
         certificate ||
         worker.certificates.find((item) => node && item.node_id === node.id);
+      const parsedHours = hours.trim() ? Number(hours.replace(",", ".")) : undefined;
+      if (parsedHours !== undefined && (!Number.isFinite(parsedHours) || parsedHours < 0 || parsedHours > 100000)) {
+        setError(text("Confirma o número de horas.", "Check the number of hours."));
+        return;
+      }
       const next: Certificate = {
-        id: existing?.id || `cert-${worker.id}-${Date.now().toString(36)}`,
+        id: existing?.id || `evidence-${worker.id}-${Date.now().toString(36)}`,
         name: name.trim(),
         issuer: issuer.trim(),
         issued_at: issuedAt,
@@ -292,6 +301,10 @@ export function WorkerCertificateEditor({
         file_id: document?.file_id || existing?.file_id,
         profession_id: profession,
         kind,
+        evidence_type: evidenceType,
+        competency_id: node?.id,
+        context: context.trim() || undefined,
+        hours: parsedHours,
         node_id: profession === professionId ? node?.id : undefined,
       };
       await updateWorker(worker.id, {
@@ -302,8 +315,8 @@ export function WorkerCertificateEditor({
       });
       notify(
         text(
-          "Certificado guardado na profissão.",
-          "Certificate saved to the profession.",
+          "Evidência guardada na identidade profissional.",
+          "Evidence saved to the professional identity.",
         ),
         "success",
       );
@@ -311,8 +324,8 @@ export function WorkerCertificateEditor({
     } catch {
       setError(
         text(
-          "Não foi possível guardar o certificado. Tenta novamente.",
-          "Could not save the certificate. Try again.",
+          "Não foi possível guardar a evidência. Tenta novamente.",
+          "Could not save the evidence. Try again.",
         ),
       );
     } finally {
@@ -325,10 +338,10 @@ export function WorkerCertificateEditor({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title={text("Adicionar certificado", "Add certificate")}
+      title={text("Adicionar evidência", "Add evidence")}
       subtitle={text(
-        "O comprovativo pertence à tua identidade e à profissão principal.",
-        "Evidence belongs to your identity and primary profession.",
+        "Escolhe o tipo de prova. Autorizações e cartões de segurança não aumentam automaticamente a proficiência.",
+        "Choose the evidence type. Authorisations and safety cards do not automatically increase proficiency.",
       )}
       footer={
         <>
@@ -339,7 +352,7 @@ export function WorkerCertificateEditor({
             onPress={onClose}
           />
           <Button
-            label={text("Guardar certificado", "Save certificate")}
+            label={text("Guardar evidência", "Save evidence")}
             loading={busy}
             disabled={!name.trim()}
             onPress={() => void save()}
@@ -349,6 +362,36 @@ export function WorkerCertificateEditor({
     >
       <View style={styles.form}>
         <Text style={styles.label}>{text("Profissão principal", "Main profession")}: {worker.profession}</Text>
+        {node ? <Text style={styles.competencyTarget}>{text("Competência", "Competence")}: {node.title}</Text> : null}
+        <View style={styles.evidenceSection}>
+          <Text style={styles.sectionLabel}>{text("Tipo de evidência", "Evidence type")}</Text>
+          <View style={styles.evidenceGrid} accessibilityRole="radiogroup">
+            {evidenceTypes.map((item) => {
+              const selected = evidenceType === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  disabled={busy}
+                  onPress={() => setEvidenceType(item.id)}
+                  style={({ pressed }) => [
+                    styles.evidenceOption,
+                    selected && styles.evidenceOptionSelected,
+                    pressed && styles.professionOptionPressed,
+                  ]}
+                >
+                  <Text style={[styles.evidenceTitle, selected && styles.evidenceTitleSelected]}>
+                    {text(item.label, item.labelEn)}
+                  </Text>
+                  <Text style={styles.evidenceDescription}>
+                    {text(item.description, item.descriptionEn)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <View style={styles.options} accessibilityRole="radiogroup">
           {([
             { id: "certification", title: "Certificação da profissão", titleEn: "Trade certification" },
@@ -379,13 +422,13 @@ export function WorkerCertificateEditor({
           ))}
         </View>
         <Field
-          label={text("Nome do certificado", "Certificate name")}
+          label={text("Título da evidência", "Evidence title")}
           value={name}
           editable={!busy}
           onChangeText={setName}
         />
         <Field
-          label={text("Entidade emissora", "Issuer")}
+          label={text("Entidade / empresa / avaliador", "Issuer / company / assessor")}
           value={issuer}
           editable={!busy}
           onChangeText={setIssuer}
@@ -404,6 +447,18 @@ export function WorkerCertificateEditor({
           editable={!busy}
           onChangeText={setExpiresAt}
         />
+        <Field
+          label={text("Contexto / obra / equipamento (opcional)", "Context / project / equipment (optional)")}
+          value={context}
+          editable={!busy}
+          onChangeText={setContext}
+        />
+        <Field
+          label={text("Horas associadas (opcional)", "Associated hours (optional)")}
+          value={hours}
+          editable={!busy}
+          onChangeText={setHours}
+        />
         <Button
           label={file?.name || text("Associar comprovativo", "Attach evidence")}
           icon="attach-outline"
@@ -413,8 +468,8 @@ export function WorkerCertificateEditor({
         />
         <Text style={styles.hint}>
           {text(
-            "PDF ou imagem · até 2 MB. Um comprovativo fica a validar até ser confirmado.",
-            "PDF or image · up to 2 MB. Evidence remains pending until confirmed.",
+            "PDF ou imagem · até 2 MB. Registos enviados pelo Worker ficam registados ou a validar até confirmação independente.",
+            "PDF or image · up to 2 MB. Worker-submitted records remain recorded or pending until independently confirmed.",
           )}
         </Text>
         {error ? (
@@ -427,6 +482,14 @@ export function WorkerCertificateEditor({
   );
 }
 const styles = StyleSheet.create({
+  evidenceSection: { gap: 9 },
+  evidenceGrid: { gap: 7 },
+  evidenceOption: { padding: 11, borderWidth: 1, borderColor: "#243B4D", borderRadius: 12, backgroundColor: "#071019", gap: 3 },
+  evidenceOptionSelected: { borderColor: "#3D80B5", backgroundColor: "#0A1C2A" },
+  evidenceTitle: { color: "#AFC1D0", fontSize: 11, lineHeight: 16, fontWeight: "600" },
+  evidenceTitleSelected: { color: "#DDECFA" },
+  evidenceDescription: { color: "#6D8599", fontSize: 9, lineHeight: 14 },
+  competencyTarget: { color: "#83BDF0", fontSize: 11, lineHeight: 16, fontWeight: "600" },
   professionSection: { gap: 9 },
   sectionLabel: { color: "#B8CAD9", fontSize: 11, lineHeight: 16, fontWeight: "700", letterSpacing: .8, textTransform: "uppercase" },
   professionGrid: { gap: 8 },
