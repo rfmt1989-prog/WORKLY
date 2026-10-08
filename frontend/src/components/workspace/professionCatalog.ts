@@ -194,23 +194,141 @@ export type SpecialtyCatalogEntry = {
   descriptionEn: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   minScore: number;
-  recommendedProfessions?: string[];
-  certificateAliases: string[];
+  minProficiency: number;
+  recommendedProfessions: string[];
+  requirementsByProfession?: Record<string, string[]>;
+  evidenceAliases: string[];
 };
 
 export const specialtyCatalog: SpecialtyCatalogEntry[] = [
-  { id: "work-height", title: "Trabalho em altura", titleEn: "Work at height", description: "Acesso e prevenção de queda", descriptionEn: "Access and fall prevention", icon: "body-outline", minScore: 5, certificateAliases: ["altura", "height"] },
-  { id: "ipaf-3ab", title: "Plataformas elevatórias", titleEn: "Powered access", description: "Operação de plataformas móveis", descriptionEn: "Mobile elevated work platforms", icon: "arrow-up-circle-outline", minScore: 10, certificateAliases: ["ipaf", "3a", "3b"] },
-  { id: "confined-space", title: "Espaços confinados", titleEn: "Confined spaces", description: "Acesso, vigilância e resgate", descriptionEn: "Access, standby and rescue", icon: "contract-outline", minScore: 10, certificateAliases: ["confinado", "confined"] },
-  { id: "loto", title: "LOTO / Consignação", titleEn: "LOTO / Isolation", description: "Isolamento seguro de energias", descriptionEn: "Safe energy isolation", icon: "lock-closed-outline", minScore: 10, certificateAliases: ["loto", "lockout", "consign"] },
-  { id: "first-aid", title: "Primeiros socorros", titleEn: "First aid", description: "Resposta inicial em emergência", descriptionEn: "Initial emergency response", icon: "medkit-outline", minScore: 5, certificateAliases: ["socorros", "first aid", "sst"] },
-  { id: "rigging", title: "Rigging / Slinging", titleEn: "Rigging / Slinging", description: "Preparação e orientação de cargas", descriptionEn: "Load preparation and guidance", icon: "git-compare-outline", minScore: 15, recommendedProfessions: ["industrial", "welding", "electromechanics"], certificateAliases: ["rigging", "sling"] },
-  { id: "overhead-crane", title: "Ponte rolante", titleEn: "Overhead crane", description: "Operação de equipamento de elevação", descriptionEn: "Lifting equipment operation", icon: "git-network-outline", minScore: 15, certificateAliases: ["ponte rolante", "overhead crane", "r484"] },
-  { id: "forklift", title: "Empilhador", titleEn: "Forklift", description: "Movimentação industrial de cargas", descriptionEn: "Industrial load handling", icon: "cube-outline", minScore: 10, certificateAliases: ["empilhador", "forklift", "r489"] },
-  { id: "atex", title: "ATEX", titleEn: "ATEX", description: "Trabalho em atmosferas potencialmente explosivas", descriptionEn: "Work in potentially explosive atmospheres", icon: "warning-outline", minScore: 20, recommendedProfessions: ["electrical", "electromechanics", "industrial"], certificateAliases: ["atex", "iecex"] },
-  { id: "fgas", title: "F-Gas", titleEn: "F-Gas", description: "Especialização regulamentada em gases fluorados", descriptionEn: "Regulated fluorinated-gas specialization", icon: "snow-outline", minScore: 15, recommendedProfessions: ["hvac"], certificateAliases: ["f-gas", "fgas", "fluor"] },
-  { id: "solar-extra", title: "Fotovoltaico", titleEn: "Photovoltaics", description: "Especialidade adicional em sistemas solares", descriptionEn: "Additional specialty in solar systems", icon: "sunny-outline", minScore: 20, recommendedProfessions: ["electrical", "electromechanics"], certificateAliases: ["fotovolta", "photovolta", "solar"] },
-  { id: "fire-extra", title: "Sistemas de incêndio", titleEn: "Fire systems", description: "Especialidade adicional em proteção contra incêndio", descriptionEn: "Additional specialty in fire protection", icon: "shield-outline", minScore: 20, recommendedProfessions: ["electrical", "plumbing", "industrial"], certificateAliases: ["incend", "fire", "sprinkler"] },
+  {
+    id: "industrial-automation",
+    title: "Automação industrial",
+    titleEn: "Industrial automation",
+    description: "Diagnóstico e intervenção em sensores, atuadores, variadores e PLC.",
+    descriptionEn: "Diagnostics and work on sensors, actuators, drives and PLCs.",
+    icon: "git-network-outline",
+    minScore: 30,
+    minProficiency: 2,
+    recommendedProfessions: ["electromechanics", "electrical"],
+    requirementsByProfession: {
+      electromechanics: ["em-electrical-systems", "em-fault-diagnosis"],
+      electrical: ["el-diagnostics", "el-controls"],
+    },
+    evidenceAliases: ["automacao", "automation", "plc", "variador"],
+  },
+  {
+    id: "photovoltaic-specialism",
+    title: "Fotovoltaico",
+    titleEn: "Photovoltaics",
+    description: "Especialização adicional em montagem, DC/AC e comissionamento fotovoltaico.",
+    descriptionEn: "Additional specialism in PV mounting, DC/AC and commissioning.",
+    icon: "sunny-outline",
+    minScore: 25,
+    minProficiency: 2,
+    recommendedProfessions: ["electrical", "electromechanics"],
+    requirementsByProfession: {
+      electrical: ["el-installation", "el-testing"],
+      electromechanics: ["em-electrical-systems", "em-safe-isolation"],
+    },
+    evidenceAliases: ["fotovolta", "photovolta", "solar"],
+  },
+  {
+    id: "fire-systems-specialism",
+    title: "Sistemas de incêndio",
+    titleEn: "Fire protection systems",
+    description: "Especialização em instalação, deteção, redes e ensaios de sistemas SCI.",
+    descriptionEn: "Specialism in installation, detection, networks and testing of fire systems.",
+    icon: "shield-outline",
+    minScore: 25,
+    minProficiency: 2,
+    recommendedProfessions: ["electrical", "plumbing", "industrial"],
+    requirementsByProfession: {
+      electrical: ["el-installation", "el-testing"],
+      plumbing: ["pl-water", "pl-testing"],
+      industrial: ["ind-assembly", "ind-quality"],
+    },
+    evidenceAliases: ["incend", "fire", "sprinkler", "detec"],
+  },
+  {
+    id: "industrial-refrigeration",
+    title: "Refrigeração industrial",
+    titleEn: "Industrial refrigeration",
+    description: "Sistemas frigoríficos de maior complexidade e refrigerantes específicos.",
+    descriptionEn: "Higher-complexity refrigeration systems and specific refrigerants.",
+    icon: "snow-outline",
+    minScore: 45,
+    minProficiency: 2,
+    recommendedProfessions: ["hvac"],
+    requirementsByProfession: {
+      hvac: ["hvac-refrigeration", "hvac-diagnostics", "hvac-commissioning"],
+    },
+    evidenceAliases: ["industrial refrigeration", "co2", "nh3", "amoniaco"],
+  },
+  {
+    id: "rigging-specialism",
+    title: "Rigging e movimentação de cargas",
+    titleEn: "Rigging & load handling",
+    description: "Preparação, seleção de acessórios, orientação e controlo de cargas.",
+    descriptionEn: "Load preparation, accessory selection, guidance and control.",
+    icon: "git-compare-outline",
+    minScore: 25,
+    minProficiency: 2,
+    recommendedProfessions: ["industrial", "welding", "electromechanics"],
+    requirementsByProfession: {
+      industrial: ["ind-safe-work", "ind-assembly"],
+      welding: ["wel-fitup", "wel-safety"],
+      electromechanics: ["em-maintenance", "em-safe-isolation"],
+    },
+    evidenceAliases: ["rigging", "sling", "lifting"],
+  },
+  {
+    id: "technical-supervision",
+    title: "Supervisão técnica",
+    titleEn: "Technical supervision",
+    description: "Planeamento, coordenação de equipa, controlo de qualidade e entrega.",
+    descriptionEn: "Planning, team coordination, quality control and handover.",
+    icon: "people-outline",
+    minScore: 60,
+    minProficiency: 2,
+    recommendedProfessions: ["electromechanics", "electrical", "hvac", "plumbing", "solar", "welding", "fire", "industrial"],
+    requirementsByProfession: {
+      electromechanics: ["em-fault-diagnosis", "em-safe-isolation"],
+      electrical: ["el-diagnostics", "el-isolation"],
+      hvac: ["hvac-diagnostics", "hvac-commissioning"],
+      plumbing: ["pl-testing", "pl-diagnostics"],
+      solar: ["pv-testing", "pv-maintenance"],
+      welding: ["wel-quality", "wel-safety"],
+      fire: ["fire-testing", "fire-handover"],
+      industrial: ["ind-quality", "ind-safe-work"],
+    },
+    evidenceAliases: ["supervisor", "lead", "encarregado", "coordena"],
+  },
+];
+
+export type ComplianceCatalogEntry = {
+  id: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  scope: "international" | "eu" | "national" | "employer" | "site";
+  relevantProfessions?: string[];
+  evidenceAliases: string[];
+};
+
+export const complianceCatalog: ComplianceCatalogEntry[] = [
+  { id:"work-height", title:"Trabalho em altura", titleEn:"Work at height", description:"Formação/autorização aplicável a tarefas com risco de queda.", descriptionEn:"Training/authorisation applicable to tasks with fall risk.", icon:"body-outline", scope:"site", evidenceAliases:["altura","height"] },
+  { id:"powered-access", title:"Plataformas elevatórias", titleEn:"Powered access", description:"Categoria e autorização para equipamento de acesso móvel.", descriptionEn:"Category and authorisation for mobile access equipment.", icon:"arrow-up-circle-outline", scope:"international", evidenceAliases:["ipaf","3a","3b","mewp"] },
+  { id:"confined-space", title:"Espaços confinados", titleEn:"Confined spaces", description:"Formação e autorização operacional conforme tarefa/site.", descriptionEn:"Operational training and authorisation according to task/site.", icon:"contract-outline", scope:"site", evidenceAliases:["confinado","confined"] },
+  { id:"loto", title:"LOTO / Consignação", titleEn:"LOTO / Isolation", description:"Procedimento de isolamento de energias conforme empresa/site.", descriptionEn:"Energy isolation procedure according to employer/site.", icon:"lock-closed-outline", scope:"employer", relevantProfessions:["electromechanics","electrical","industrial","hvac"], evidenceAliases:["loto","lockout","tagout","consign"] },
+  { id:"first-aid", title:"Primeiros socorros", titleEn:"First aid", description:"Capacidade de resposta inicial em emergência.", descriptionEn:"Initial emergency response capability.", icon:"medkit-outline", scope:"employer", evidenceAliases:["socorros","first aid","sst"] },
+  { id:"forklift", title:"Empilhador", titleEn:"Forklift", description:"Autorização/formação para movimentação de cargas com empilhador.", descriptionEn:"Training/authorisation for forklift load handling.", icon:"cube-outline", scope:"national", evidenceAliases:["empilhador","forklift","r489"] },
+  { id:"overhead-crane", title:"Ponte rolante", titleEn:"Overhead crane", description:"Autorização/formação para operação de ponte rolante.", descriptionEn:"Training/authorisation for overhead crane operation.", icon:"git-network-outline", scope:"national", evidenceAliases:["ponte rolante","overhead crane","r484"] },
+  { id:"atex", title:"ATEX / Atmosferas explosivas", titleEn:"ATEX / Explosive atmospheres", description:"Requisitos de formação/autorização dependentes da função e do site.", descriptionEn:"Training/authorisation requirements depend on role and site.", icon:"warning-outline", scope:"eu", relevantProfessions:["electrical","electromechanics","industrial"], evidenceAliases:["atex","iecex"] },
+  { id:"fgas", title:"F-Gas / Refrigerantes", titleEn:"F-Gas / Refrigerants", description:"Certificação regulatória aplicável ao âmbito de intervenção em refrigerantes.", descriptionEn:"Regulatory certification applicable to refrigerant work scope.", icon:"snow-outline", scope:"eu", relevantProfessions:["hvac"], evidenceAliases:["f-gas","fgas","fluor"] },
+  { id:"electrical-authorisation", title:"Habilitação elétrica", titleEn:"Electrical authorisation", description:"Âmbito dependente do país, tensão, tarefa e função do trabalhador.", descriptionEn:"Scope depends on country, voltage, task and worker role.", icon:"flash-outline", scope:"national", relevantProfessions:["electrical","electromechanics","solar"], evidenceAliases:["h0b0","b0","b1","b2","br","bc","habilit"] },
 ];
 
 export function normalizeProfession(value: string) {
