@@ -39,7 +39,7 @@ export function WorkerEvidenceScoreCard({
             <Text style={styles.scoreMax}>/100</Text>
           </Text>
           <Text style={styles.scoreLabel}>
-            {text("SCORE DE EVIDÊNCIA", "EVIDENCE SCORE")}
+            {text("WORKLY VALUE", "WORKLY VALUE")}
           </Text>
         </View>
       </View>
@@ -60,15 +60,7 @@ export function WorkerEvidenceScoreCard({
           value={String(assessment.verifiedQualifications)}
           label={text("Qualificações", "Qualifications")}
         />
-        <Metric
-          icon="shield-checkmark-outline"
-          value={
-            assessment.totalRegulatory
-              ? `${assessment.verifiedRegulatory}/${assessment.totalRegulatory}`
-              : "—"
-          }
-          label={text("Conformidade contextual", "Contextual compliance")}
-        />
+
       </View>
 
       <View style={styles.components}>
@@ -95,29 +87,20 @@ export function WorkerEvidenceScoreCard({
                 ]}
               />
             </View>
-            <Text style={styles.componentDetail}>
-              {language === "pt" ? item.detail : item.detailEn}
-            </Text>
+
           </View>
         ))}
       </View>
 
       {assessment.nextLevelId && assessment.missingGates.length ? (
         <View style={styles.gates}>
-          <View style={styles.gateHeading}>
-            <Ionicons name="lock-open-outline" size={14} color="#82BDF0" />
-            <Text style={styles.gateTitle}>
-              {text("Para o próximo nível", "For the next level")}
-            </Text>
-          </View>
-          {(language === "pt"
-            ? assessment.missingGates
-            : assessment.missingGatesEn
-          ).map((gate) => (
-            <Text key={gate} style={styles.gateText}>
-              · {gate}
-            </Text>
-          ))}
+          <Ionicons name="lock-open-outline" size={14} color="#82BDF0" />
+          <Text style={styles.gateText}>
+            {text(
+              `${assessment.missingGates.length} critério(s) em falta para o próximo nível`,
+              `${assessment.missingGatesEn.length} criterion/criteria remaining for the next level`,
+            )}
+          </Text>
         </View>
       ) : null}
 
@@ -245,21 +228,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: { height: "100%", backgroundColor: "#4E9DDB" },
-  componentDetail: { color: "#617A8F", fontSize: 8, lineHeight: 12 },
   gates: {
     borderTopWidth: 1,
     borderTopColor: "#173044",
     paddingTop: 12,
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
-  gateHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
-  gateTitle: {
-    color: "#A8C6DE",
-    fontSize: 10,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-  gateText: { color: "#728A9D", fontSize: 9, lineHeight: 14 },
+  gateText: { color: "#8299AC", fontSize: 9, lineHeight: 14 },
   detailsButton: {
     minHeight: 38,
     flexDirection: "row",
