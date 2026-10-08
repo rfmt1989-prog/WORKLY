@@ -25,7 +25,7 @@ export function WorkerSpecialtyTree({
           <Ionicons name="git-network-outline" size={18} color="#8BC7FF" />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>{text("ÁRVORE SECUNDÁRIA", "SECONDARY TREE")}</Text>
+          <Text style={styles.eyebrow}>{text("DESENVOLVIMENTO TÉCNICO", "TECHNICAL DEVELOPMENT")}</Text>
           <Text style={styles.title}>{text(tree.title, tree.titleEn)}</Text>
           <Text style={styles.description}>
             {text(tree.description, tree.descriptionEn)}
@@ -33,7 +33,7 @@ export function WorkerSpecialtyTree({
         </View>
         <View style={styles.count}>
           <Text style={styles.countValue}>{tree.unlockedCount}</Text>
-          <Text style={styles.countLabel}>{text("abertas", "open")}</Text>
+          <Text style={styles.countLabel}>{text("disponíveis", "available")}</Text>
         </View>
       </View>
 
@@ -82,8 +82,12 @@ export function WorkerSpecialtyTree({
                   {localizeDemoText(language, node.subtitle)}
                 </Text>
                 <JourneyStatus node={node} language={language} />
-                {locked && node.meta?.[0] ? (
-                  <Text style={styles.requirement}>{node.meta[0]}</Text>
+                {locked && node.meta?.length ? (
+                  <View style={styles.requirements}>
+                    {node.meta.slice(0, 3).map((item) => (
+                      <Text key={item} style={styles.requirement}>· {item}</Text>
+                    ))}
+                  </View>
                 ) : null}
               </View>
             </Pressable>
@@ -131,7 +135,8 @@ const styles=StyleSheet.create({
   nodeSubtitle:{color:"#72899D",fontSize:10,lineHeight:15},
   unlockChip:{borderWidth:1,borderColor:"#2E6F9D",backgroundColor:"#0A2031",borderRadius:999,paddingHorizontal:7,paddingVertical:2},
   unlockText:{color:"#7FC3FF",fontSize:7,lineHeight:10,letterSpacing:.8,fontWeight:"700"},
-  requirement:{color:"#657D91",fontSize:9,lineHeight:14,marginTop:2},
+  requirements:{gap:2,marginTop:3},
+  requirement:{color:"#657D91",fontSize:9,lineHeight:14},
   note:{flexDirection:"row",gap:8,paddingTop:12,borderTopWidth:1,borderTopColor:"#162938"},
   noteText:{flex:1,color:"#70879B",fontSize:9,lineHeight:15},
 });
