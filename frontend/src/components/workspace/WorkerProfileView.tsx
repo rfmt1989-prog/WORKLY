@@ -16,6 +16,7 @@ import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
+import { evidenceTypeDefinition } from "./competencyEvidenceModel";
 import { buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
 
 const accent = workspaceColors.blue;
@@ -233,7 +234,7 @@ function CertificateDetails({
             />
           ) : null}
           <Button
-            label={text("Associar certificado", "Associate certificate")}
+            label={text("Associar evidência", "Associate evidence")}
             icon="attach-outline"
             variant="secondary"
             onPress={onAssociate}
@@ -253,8 +254,27 @@ function CertificateDetails({
         {node.certificate ? (
           <View style={styles.detailsGrid}>
             <DetailRow
+              label={text("Tipo de evidência", "Evidence type")}
+              value={
+                node.certificate.evidence_type
+                  ? text(
+                      evidenceTypeDefinition(node.certificate.evidence_type)?.label || node.certificate.evidence_type,
+                      evidenceTypeDefinition(node.certificate.evidence_type)?.labelEn || node.certificate.evidence_type,
+                    )
+                  : text("Registo legado", "Legacy record")
+              }
+            />
+            <DetailRow
               label={text("Entidade", "Issuer")}
               value={node.certificate.issuer || "—"}
+            />
+            <DetailRow
+              label={text("Contexto", "Context")}
+              value={node.certificate.context || "—"}
+            />
+            <DetailRow
+              label={text("Horas", "Hours")}
+              value={node.certificate.hours ? String(node.certificate.hours) : "—"}
             />
             <DetailRow
               label={text("Emissão", "Issued")}
@@ -270,12 +290,16 @@ function CertificateDetails({
             />
           </View>
         ) : null}
-        {!node.certificate &&
-          node.meta?.map((item) => (
-            <Text key={item} style={styles.detailText}>
-              {localizeDemoText(language, item)}
-            </Text>
-          ))}
+        {node.meta?.length ? (
+          <View style={styles.criteriaBlock}>
+            <Text style={styles.sectionLabel}>{text("Critérios de progressão", "Progression criteria")}</Text>
+            {node.meta.map((item) => (
+              <Text key={item} style={styles.detailText}>
+                {localizeDemoText(language, item)}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         {node.verificationNote ? (
           <Text style={styles.detailNote}>
             {localizeDemoText(language, node.verificationNote)}
@@ -379,6 +403,7 @@ const styles = StyleSheet.create({
   detailNote: { color: "#8FA4B9", fontSize: 12, lineHeight: 20 },
   detailsGrid: { gap: 14, padding: 16, borderWidth: 1, borderColor: "#2A3F54", borderRadius: 7 },
   detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 16 },
   related: { gap: 10, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 18 },
   education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
   emptyProfile: { borderWidth: 1, borderColor: "#183247", borderRadius: 22, backgroundColor: "#050B11F2", padding: 22, gap: 20 },
