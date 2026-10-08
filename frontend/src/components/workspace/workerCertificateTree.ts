@@ -2,7 +2,8 @@ import type Ionicons from "@expo/vector-icons/Ionicons";
 import type React from "react";
 import type { Certificate, DemoDocument, Worker } from "@/src/demo/types";
 import { workspaceColors } from "./primitives";
-import { findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
+import { complianceCatalog, findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
+import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 
 export type AchievementStatus =
   | "verified"
@@ -248,6 +249,16 @@ export type SpecialtyTree = {
   unlockedCount: number;
 };
 
+export type ComplianceTree = {
+  id: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  nodes: AchievementNode[];
+  validCount: number;
+};
+
 function normalizeValue(value: string) {
   return value
     .toLowerCase()
@@ -350,41 +361,73 @@ export function buildProfessionTrees(
   return [tree];
 }
 
-export function buildSpecialtyTree(worker: Worker, evidenceScore?: number): SpecialtyTree {
+export function buildSpecialtyTree(
+  worker: Worker,
+  assessment?: WorkerCompetencyAssessment | null,
+): SpecialtyTree {
   const definition = findProfessionDefinition(worker.profession);
-  const score = evidenceScore ?? worker.professional_identity?.score ?? 0;
+  const score = assessment?.score ?? 0;
   const selected = new Set(worker.specialties || []);
+  const proficiency = new Map(
+    (assessment?.competencies || []).map((item) => [
+      item.competency.id,
+      item.proficiency,
+    ]),
+  );
 
-  const nodes = specialtyCatalog.map((specialty) => {
-    const certificate = worker.certificates.find((item) => {
+  const relevant = specialtyCatalog.filter(
+    (specialty) =>
+      !definition ||
+      specialty.recommendedProfessions.includes(definition.id),
+  );
+
+  const nodes = relevant.map((specialty) => {
+    const requirements =
+      (definition &&
+        specialty.requirementsByProfession?.[definition.id]) ||
+      [];
+    const completedRequirements = requirements.filter(
+      (id) => (proficiency.get(id) || 0) >= specialty.minProficiency,
+    );
+    const technicalGate =
+      !requirements.length || completedRequirements.length === requirements.length;
+    const scoreGate = score >= specialty.minScore;
+    const active = selected.has(specialty.id);
+
+    const evidence = worker.certificates.find((item) => {
       const name = normalizeValue(item.name);
       return (
+        item.competency_id === specialty.id ||
         item.node_id === specialty.id ||
-        specialty.certificateAliases.some((alias) =>
+        specialty.evidenceAliases.some((alias) =>
           name.includes(normalizeValue(alias)),
         )
       );
     });
-
-    const proofStatus = certificateStatus(certificate);
-    const recommended =
-      !specialty.recommendedProfessions?.length ||
-      (definition && specialty.recommendedProfessions.includes(definition.id));
-    const unlockedByProgress = score >= specialty.minScore;
-    const active = selected.has(specialty.id);
+    const proofStatus = certificateStatus(evidence);
 
     const status: AchievementStatus = proofStatus
       ? proofStatus
       : active
         ? "recorded"
-        : unlockedByProgress
+        : technicalGate && scoreGate
           ? "available"
           : "locked";
 
-    const requirement =
-      score >= specialty.minScore
-        ? "Especialidade disponível para desenvolvimento"
-        : `Disponível a partir de ${specialty.minScore} pontos de evidência`;
+    const missing = requirements.filter(
+      (id) => (proficiency.get(id) || 0) < specialty.minProficiency,
+    );
+    const criteria = [
+      `Score mínimo: ${specialty.minScore}/100`,
+      `Proficiência mínima nos pré-requisitos: ${specialty.minProficiency}/4`,
+      requirements.length
+        ? `Pré-requisitos técnicos: ${completedRequirements.length}/${requirements.length}`
+        : "Sem pré-requisitos técnicos adicionais",
+      ...(missing.length
+        ? [`Ainda por demonstrar: ${missing.join(", ")}`]
+        : []),
+      "Desbloquear permite desenvolver a especialização; não substitui formação, licença ou autorização legal aplicável.",
+    ];
 
     return {
       id: specialty.id,
@@ -392,31 +435,91 @@ export function buildSpecialtyTree(worker: Worker, evidenceScore?: number): Spec
       subtitle: specialty.description,
       icon: specialty.icon,
       status,
-      stage: specialty.minScore >= 20 ? "responsibility" : "technical",
+      stage: specialty.minScore >= 60 ? "master" : "responsibility",
       family: "extra-specialty",
-      scope: recommended
-        ? "Especialidade adicional recomendada"
-        : "Especialidade adicional transversal",
-      certificate,
-      evidence: findEvidence(worker.documents, certificate),
-      meta: [
-        requirement,
-        "O desbloqueio WORKLY não substitui requisitos legais, formação ou autorização aplicável.",
-      ],
+      scope: "Especialização técnica adicional",
+      certificate: evidence,
+      evidence: findEvidence(worker.documents, evidence),
+      meta: criteria,
       kind: "skill" as const,
     };
   });
 
   return {
     id: "extra-specialties",
-    title: "Especialidades extra",
-    titleEn: "Extra specialties",
+    title: "Especializações",
+    titleEn: "Specialisations",
     description:
-      "Competências adicionais desbloqueadas à medida que a identidade profissional evolui.",
+      "Novas áreas técnicas desbloqueadas apenas quando existem bases profissionais demonstradas.",
     descriptionEn:
-      "Additional specialties unlocked as the professional identity progresses.",
+      "New technical areas unlocked only when the required professional foundations are demonstrated.",
     nodes,
     unlockedCount: nodes.filter((node) => node.status !== "locked").length,
+  };
+}
+
+export function buildComplianceTree(worker: Worker): ComplianceTree {
+  const definition = findProfessionDefinition(worker.profession);
+  const items = complianceCatalog.filter(
+    (item) =>
+      !item.relevantProfessions?.length ||
+      !definition ||
+      item.relevantProfessions.includes(definition.id),
+  );
+
+  const nodes = items.map((item) => {
+    const evidence = worker.certificates.find((certificate) => {
+      const name = normalizeValue(certificate.name);
+      return (
+        certificate.evidence_type === "authorisation" &&
+        item.evidenceAliases.some((alias) =>
+          name.includes(normalizeValue(alias)),
+        )
+      );
+    });
+
+    const status = evidence
+      ? certificateStatus(evidence) || "recorded"
+      : ("available" as AchievementStatus);
+
+    return {
+      id: item.id,
+      title: item.title,
+      subtitle: item.description,
+      icon: item.icon,
+      status,
+      stage: "industrial-access" as const,
+      family: "compliance",
+      scope:
+        item.scope === "eu"
+          ? "Conformidade UE"
+          : item.scope === "national"
+            ? "Conformidade nacional"
+            : item.scope === "employer"
+              ? "Requisito de empresa"
+              : item.scope === "site"
+                ? "Requisito de site"
+                : "Reconhecimento internacional",
+      certificate: evidence,
+      evidence: findEvidence(worker.documents, evidence),
+      meta: [
+        "Não altera diretamente o nível profissional WORKLY.",
+        "Serve para indicar se o Worker possui um requisito contextual válido para determinada tarefa, empresa, país ou site.",
+      ],
+      kind: "certification" as const,
+    };
+  });
+
+  return {
+    id: "compliance",
+    title: "Conformidade & Autorizações",
+    titleEn: "Compliance & Authorisations",
+    description:
+      "Cartões, habilitações e autorizações necessárias para trabalhar em contextos específicos.",
+    descriptionEn:
+      "Cards, qualifications and authorisations required for specific work contexts.",
+    nodes,
+    validCount: nodes.filter((node) => node.status === "verified").length,
   };
 }
 
