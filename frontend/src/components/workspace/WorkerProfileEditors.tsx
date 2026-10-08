@@ -217,8 +217,8 @@ export function WorkerCertificateEditor({
   const text = (pt: string, en: string) => uiText(language, pt, en);
   const certificate = node?.certificate;
   const profession = professionId;
-  const [kind, setKind] = useState<"certification" | "skill">(certificate?.kind || (node?.kind === "skill" ? "skill" : "certification"));
-  const [evidenceType, setEvidenceType] = useState<EvidenceType>(certificate?.evidence_type || (node?.kind === "skill" ? "work_record" : "qualification"));
+  const [evidenceType, setEvidenceType] = useState<EvidenceType>(certificate?.evidence_type || (node?.family === "compliance" ? "authorisation" : node?.kind === "skill" ? "work_record" : "qualification"));
+  const kind: "certification" | "skill" = evidenceType === "qualification" || evidenceType === "authorisation" ? "certification" : "skill";
   const [name, setName] = useState(certificate?.name || node?.title || "");
   const [issuer, setIssuer] = useState(certificate?.issuer || "");
   const [issuedAt, setIssuedAt] = useState(certificate?.issued_at || "");
@@ -391,35 +391,6 @@ export function WorkerCertificateEditor({
               );
             })}
           </View>
-        </View>
-        <View style={styles.options} accessibilityRole="radiogroup">
-          {([
-            { id: "certification", title: "Certificação da profissão", titleEn: "Trade certification" },
-            { id: "skill", title: "Competência adicional", titleEn: "Additional skill" },
-          ] as const).map((item) => (
-            <Pressable
-              key={item.id}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: kind === item.id }}
-              disabled={busy}
-              onPress={() => setKind(item.id)}
-              style={[
-                styles.option,
-                kind === item.id ? styles.optionSelected : null,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  kind === item.id
-                    ? { color: workspaceColors.blueSoft }
-                    : null,
-                ]}
-              >
-                {text(item.title, item.titleEn)}
-              </Text>
-            </Pressable>
-          ))}
         </View>
         <Field
           label={text("Título da evidência", "Evidence title")}
