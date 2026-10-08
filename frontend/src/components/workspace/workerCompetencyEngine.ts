@@ -378,8 +378,8 @@ export function assessWorkerCompetence(
   const missingGatesEn: string[] = [];
   if (next) {
     if (score < next.minimum) {
-      missingGates.push(`Score de evidência: ${score}/${next.minimum}`);
-      missingGatesEn.push(`Evidence score: ${score}/${next.minimum}`);
+      missingGates.push(`WORKLY VALUE: ${score}/${next.minimum}`);
+      missingGatesEn.push(`WORKLY VALUE: ${score}/${next.minimum}`);
     }
     if (coreCoverage < next.coreCoverage) {
       missingGates.push(`Cobertura essencial: ${coreCoverage}%/${next.coreCoverage}%`);
