@@ -132,6 +132,46 @@ REGULATORY_MATCHES: dict[str, tuple[str, ...]] = {
     "industrial": ("altura", "height", "ipaf", "3a", "3b", "vca", "scc", "atex"),
 }
 
+KNOWLEDGE_NODE_IDS = {
+    "em-technical-reading",
+    "el-technical-reading",
+    "hvac-principles",
+    "pl-reading",
+    "pv-principles",
+    "wel-drawings",
+    "fire-reading",
+    "ind-drawings",
+}
+
+AUTHORISATION_TERMS = (
+    "ipaf",
+    "vca",
+    "scc",
+    "atex",
+    "h0b0",
+    "b0",
+    "b1",
+    "b2",
+    "br",
+    "bc",
+    "loto",
+    "altura",
+    "height",
+    "first aid",
+    "socorr",
+    "confined",
+    "confin",
+    "fgas",
+    "f-gas",
+    "fluor",
+)
+
+TECHNICAL_EVIDENCE_TYPES = {
+    "work_record",
+    "employer_validation",
+    "technical_assessment",
+}
+
 LEVELS = (
     {
         "id": "apprentice",
@@ -214,6 +254,51 @@ def _verified_current(certificate: dict[str, Any], today: date) -> bool:
         return False
 
 
+
+def _evidence_type(certificate: dict[str, Any]) -> str:
+    explicit = str(certificate.get("evidence_type", "")).strip()
+    if explicit in {
+        "qualification",
+        "work_record",
+        "employer_validation",
+        "technical_assessment",
+        "authorisation",
+    }:
+        return explicit
+    name = normalize(str(certificate.get("name", "")))
+    if any(term in name for term in AUTHORISATION_TERMS):
+        return "authorisation"
+    return "qualification"
+
+
+def _matches_competency(
+    certificate: dict[str, Any],
+    competency_id: str,
+    aliases: tuple[str, ...],
+) -> bool:
+    if str(certificate.get("competency_id", "")).strip() == competency_id:
+        return True
+    return _certificate_matches_node(certificate, aliases)
+
+
+def _demonstrates_competency(
+    certificate: dict[str, Any],
+    competency_id: str,
+    aliases: tuple[str, ...],
+    today: date,
+) -> bool:
+    if not _verified_current(certificate, today):
+        return False
+    if not _matches_competency(certificate, competency_id, aliases):
+        return False
+    evidence_type = _evidence_type(certificate)
+    if evidence_type == "authorisation":
+        return False
+    if competency_id in KNOWLEDGE_NODE_IDS:
+        return evidence_type in {"qualification", *TECHNICAL_EVIDENCE_TYPES}
+    return evidence_type in TECHNICAL_EVIDENCE_TYPES
+
+
 def _certificate_matches_node(
     certificate: dict[str, Any],
     aliases: tuple[str, ...],
@@ -273,8 +358,11 @@ def professional_identity(
 
     core_nodes = CORE_NODE_ALIASES.get(area, {})
     verified_core = 0
-    for aliases in core_nodes.values():
-        if any(_certificate_matches_node(item, aliases) for item in current_verified):
+    for competency_id, aliases in core_nodes.items():
+        if any(
+            _demonstrates_competency(item, competency_id, aliases, today)
+            for item in certificates
+        ):
             verified_core += 1
     core_coverage = (
         round(verified_core / len(core_nodes) * 100) if core_nodes else 0
@@ -284,7 +372,11 @@ def professional_identity(
     responsibility_evidence = sum(
         1
         for item in current_verified
-        if _certificate_matches_node(item, responsibility_aliases)
+        if _evidence_type(item) in TECHNICAL_EVIDENCE_TYPES
+        and (
+            str(item.get("competency_id", "")).strip() in responsibility_aliases
+            or _certificate_matches_node(item, responsibility_aliases)
+        )
     )
 
     relevant = [
@@ -298,14 +390,15 @@ def professional_identity(
     ]
     verified_relevant = [item for item in relevant if _verified_current(item, today)]
     verified_qualifications = sum(
-        item.get("kind") != "skill" for item in verified_relevant
+        _evidence_type(item) == "qualification" for item in verified_relevant
     )
 
     regulatory_terms = REGULATORY_MATCHES.get(area, ())
     verified_regulatory = sum(
         1
         for item in current_verified
-        if any(
+        if _evidence_type(item) == "authorisation"
+        and any(
             normalize(term) in normalize(str(item.get("name", "")))
             for term in regulatory_terms
         )
@@ -322,10 +415,16 @@ def professional_identity(
     verifiable = [
         item
         for item in relevant
-        if item.get("status") in {"verified", "pending", "recorded"}
+        if _evidence_type(item) != "authorisation"
+        and item.get("status") in {"verified", "pending", "recorded"}
+    ]
+    verified_proficiency = [
+        item
+        for item in verified_relevant
+        if _evidence_type(item) != "authorisation"
     ]
     quality_ratio = (
-        len(verified_relevant) / len(verifiable) if verifiable else 0
+        len(verified_proficiency) / len(verifiable) if verifiable else 0
     )
     quality_points = round(quality_ratio * 10)
 
@@ -413,7 +512,7 @@ def professional_identity(
             "label_en": "Evidence quality",
             "points": quality_points,
             "maximum": 10,
-            "count": len(verified_relevant),
+            "count": len(verified_proficiency),
             "points_each": 0,
         },
     ]
