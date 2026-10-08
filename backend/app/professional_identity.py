@@ -186,8 +186,8 @@ LEVELS = (
         "id": "junior",
         "label": "Júnior",
         "label_en": "Junior",
-        "minimum": 15,
-        "core_coverage": 20,
+        "minimum": 20,
+        "core_coverage": 25,
         "verified_projects": 0,
         "responsibility_evidence": 0,
     },
@@ -195,18 +195,18 @@ LEVELS = (
         "id": "professional",
         "label": "Profissional",
         "label_en": "Professional",
-        "minimum": 40,
-        "core_coverage": 50,
-        "verified_projects": 1,
+        "minimum": 45,
+        "core_coverage": 60,
+        "verified_projects": 2,
         "responsibility_evidence": 0,
     },
     {
         "id": "specialist",
         "label": "Especialista",
         "label_en": "Specialist",
-        "minimum": 65,
-        "core_coverage": 70,
-        "verified_projects": 2,
+        "minimum": 70,
+        "core_coverage": 75,
+        "verified_projects": 5,
         "responsibility_evidence": 1,
     },
     {
@@ -214,8 +214,8 @@ LEVELS = (
         "label": "Master",
         "label_en": "Master",
         "minimum": 85,
-        "core_coverage": 85,
-        "verified_projects": 3,
+        "core_coverage": 90,
+        "verified_projects": 8,
         "responsibility_evidence": 2,
     },
 )
@@ -336,6 +336,82 @@ def _verified_projects(
     return len(completed_ids)
 
 
+def _experience_points(projects: int) -> int:
+    if projects <= 0:
+        return 0
+    if projects == 1:
+        return 5
+    if projects == 2:
+        return 9
+    if projects == 3:
+        return 13
+    if projects == 4:
+        return 16
+    if projects == 5:
+        return 19
+    if projects <= 7:
+        return 21
+    if projects <= 9:
+        return 23
+    return 25
+
+
+def _competency_proficiency(
+    certificates: list[dict[str, Any]],
+    competency_id: str,
+    aliases: tuple[str, ...],
+    verified_projects: int,
+    today: date,
+    *,
+    knowledge: bool = False,
+    responsibility: bool = False,
+) -> int:
+    evidence = [
+        item
+        for item in certificates
+        if _matches_competency(item, competency_id, aliases)
+        and _evidence_type(item) != "authorisation"
+    ]
+    if not evidence:
+        return 0
+
+    verified = [item for item in evidence if _verified_current(item, today)]
+    if not verified:
+        return 1
+
+    qualifications = [
+        item for item in verified if _evidence_type(item) == "qualification"
+    ]
+    technical = [
+        item for item in verified if _evidence_type(item) in TECHNICAL_EVIDENCE_TYPES
+    ]
+    independent = [
+        item
+        for item in verified
+        if _evidence_type(item) in {"employer_validation", "technical_assessment"}
+    ]
+
+    demonstrated = bool(technical) or (knowledge and bool(qualifications))
+    if not demonstrated:
+        return 1
+
+    advanced = (
+        len(technical) >= 2
+        and verified_projects >= 2
+        and (not responsibility or len(independent) >= 1)
+    )
+    if not advanced:
+        return 2
+
+    reference = (
+        len(technical) >= 4
+        and verified_projects >= 4
+        and len(independent) >= 1
+        and (not responsibility or len(independent) >= 2)
+    )
+    return 4 if reference else 3
+
+
 def professional_identity(
     worker: dict[str, Any],
     projects: list[dict[str, Any]],
@@ -357,27 +433,42 @@ def professional_identity(
     current_verified = [item for item in certificates if _verified_current(item, today)]
 
     core_nodes = CORE_NODE_ALIASES.get(area, {})
-    verified_core = 0
+    responsibility_aliases = RESPONSIBILITY_NODE_ALIASES.get(area, ())
+    proficiencies: dict[str, int] = {}
     for competency_id, aliases in core_nodes.items():
-        if any(
-            _demonstrates_competency(item, competency_id, aliases, today)
-            for item in certificates
-        ):
-            verified_core += 1
+        proficiencies[competency_id] = _competency_proficiency(
+            certificates,
+            competency_id,
+            aliases,
+            verified_projects,
+            today,
+            knowledge=competency_id in KNOWLEDGE_NODE_IDS,
+            responsibility=competency_id in responsibility_aliases,
+        )
+
+    verified_core = sum(level >= 2 for level in proficiencies.values())
     core_coverage = (
         round(verified_core / len(core_nodes) * 100) if core_nodes else 0
     )
-
-    responsibility_aliases = RESPONSIBILITY_NODE_ALIASES.get(area, ())
-    responsibility_evidence = sum(
-        1
-        for item in current_verified
-        if _evidence_type(item) in TECHNICAL_EVIDENCE_TYPES
-        and (
-            str(item.get("competency_id", "")).strip() in responsibility_aliases
-            or _certificate_matches_node(item, responsibility_aliases)
-        )
+    essential_average = (
+        sum(proficiencies.values()) / len(proficiencies) if proficiencies else 0
     )
+
+    responsibility_ids = set(RESPONSIBILITY_NODE_ALIASES.get(area, ()))
+    demonstrated_responsibility = {
+        competency_id
+        for competency_id in responsibility_ids
+        if any(
+            _verified_current(item, today)
+            and _evidence_type(item) in TECHNICAL_EVIDENCE_TYPES
+            and (
+                str(item.get("competency_id", "")).strip() == competency_id
+                or _certificate_matches_node(item, (competency_id,))
+            )
+            for item in certificates
+        )
+    }
+    responsibility_evidence = len(demonstrated_responsibility)
 
     relevant = [
         item
@@ -404,13 +495,9 @@ def professional_identity(
         )
     )
 
-    core_points = round(core_coverage * 0.40)
-    experience_points = min(25, verified_projects * 5)
+    technical_points = round((essential_average / 4) * 45)
+    experience_points = _experience_points(verified_projects)
     qualification_points = min(15, verified_qualifications * 5)
-    autonomy_points = min(
-        10,
-        responsibility_evidence * 5 + (5 if verified_projects >= 3 else 0),
-    )
 
     verifiable = [
         item
@@ -423,18 +510,23 @@ def professional_identity(
         for item in verified_relevant
         if _evidence_type(item) != "authorisation"
     ]
-    quality_ratio = (
+    verification_ratio = (
         len(verified_proficiency) / len(verifiable) if verifiable else 0
     )
-    quality_points = round(quality_ratio * 10)
+    independent_verified = sum(
+        _evidence_type(item) in {"employer_validation", "technical_assessment"}
+        for item in verified_proficiency
+    )
+    verification_points = round(verification_ratio * 10)
+    independent_bonus = 5 if independent_verified >= 2 else 3 if independent_verified == 1 else 0
+    confidence_points = min(15, verification_points + independent_bonus)
 
     score = min(
         100,
-        core_points
+        technical_points
         + experience_points
         + qualification_points
-        + autonomy_points
-        + quality_points,
+        + confidence_points,
     )
 
     level_index = 0
@@ -471,11 +563,11 @@ def professional_identity(
 
     components = [
         {
-            "id": "core",
-            "label": "Competências essenciais",
-            "label_en": "Essential competences",
-            "points": core_points,
-            "maximum": 40,
+            "id": "technical",
+            "label": "Competência técnica",
+            "label_en": "Technical competence",
+            "points": technical_points,
+            "maximum": 45,
             "count": verified_core,
             "points_each": 0,
         },
@@ -486,32 +578,23 @@ def professional_identity(
             "points": experience_points,
             "maximum": 25,
             "count": verified_projects,
-            "points_each": 5,
+            "points_each": 0,
         },
         {
             "id": "qualifications",
-            "label": "Qualificações relevantes",
-            "label_en": "Relevant qualifications",
+            "label": "Qualificações",
+            "label_en": "Qualifications",
             "points": qualification_points,
             "maximum": 15,
             "count": verified_qualifications,
             "points_each": 5,
         },
         {
-            "id": "autonomy",
-            "label": "Autonomia e responsabilidade",
-            "label_en": "Autonomy & responsibility",
-            "points": autonomy_points,
-            "maximum": 10,
-            "count": responsibility_evidence,
-            "points_each": 5,
-        },
-        {
-            "id": "quality",
-            "label": "Qualidade da evidência",
-            "label_en": "Evidence quality",
-            "points": quality_points,
-            "maximum": 10,
+            "id": "confidence",
+            "label": "Confiança da evidência",
+            "label_en": "Evidence confidence",
+            "points": confidence_points,
+            "maximum": 15,
             "count": len(verified_proficiency),
             "points_each": 0,
         },
