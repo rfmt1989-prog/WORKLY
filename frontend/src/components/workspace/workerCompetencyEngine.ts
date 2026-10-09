@@ -6,6 +6,7 @@ import {
   type CompetencySpec,
 } from "./competencyFramework";
 import { evidenceTypeDefinition, type EvidenceType } from "./competencyEvidenceModel";
+import { experienceMonths, verifiedExperienceHours } from "./workerExperience";
 
 export type CompetencyEvidenceState =
   | "verified"
@@ -35,6 +36,8 @@ export type WorkerCompetencyAssessment = {
   nextLevelId: string | null;
   coreCoverage: number;
   verifiedProjects: number;
+  verifiedExperienceMonths: number;
+  verifiedExperienceHours: number;
   verifiedQualifications: number;
   responsibilityEvidence: number;
   verifiedRegulatory: number;
@@ -207,16 +210,13 @@ function proficiencyLabels(level: number) {
   return ["Referência", "Reference"] as const;
 }
 
-function experiencePointsFromProjects(projects: number) {
-  if (projects <= 0) return 0;
-  if (projects === 1) return 5;
-  if (projects === 2) return 9;
-  if (projects === 3) return 13;
-  if (projects === 4) return 16;
-  if (projects === 5) return 19;
-  if (projects <= 7) return 21;
-  if (projects <= 9) return 23;
-  return 25;
+function experiencePoints(
+  verifiedMonths: number,
+  verifiedProjects: number,
+) {
+  const durationPoints = Math.min(15, Math.round(verifiedMonths / 4));
+  const projectPoints = Math.min(10, verifiedProjects * 2);
+  return Math.min(25, durationPoints + projectPoints);
 }
 
 export function assessWorkerCompetence(
@@ -229,6 +229,8 @@ export function assessWorkerCompetence(
   if (!profile) return null;
 
   const verifiedProjects = workerProjectEvidence(worker, projects, profession.id);
+  const verifiedWorkMonths = experienceMonths(worker.work_experience, true);
+  const verifiedWorkHours = verifiedExperienceHours(worker.work_experience);
 
   const competencies = profile.competencies.map((competency) => {
     const certificates = matchingCertificates(worker, competency);
@@ -326,7 +328,7 @@ export function assessWorkerCompetence(
     ? essential.reduce((sum, item) => sum + item.proficiency, 0) / essential.length
     : 0;
   const technicalPoints = Math.round((essentialProficiency / 4) * 45);
-  const experiencePoints = experiencePointsFromProjects(verifiedProjects);
+  const experienceScore = experiencePoints(verifiedWorkMonths, verifiedProjects);
   const qualificationPoints = Math.min(15, verifiedQualifications * 5);
 
   const verifiableEvidence = relevantCertificates.filter(
@@ -355,7 +357,7 @@ export function assessWorkerCompetence(
   const score = Math.min(
     100,
     technicalPoints +
-      experiencePoints +
+      experienceScore +
       qualificationPoints +
       confidencePoints,
   );
@@ -366,6 +368,7 @@ export function assessWorkerCompetence(
       score >= gate.minimum &&
       coreCoverage >= gate.coreCoverage &&
       verifiedProjects >= gate.verifiedProjects &&
+      verifiedWorkMonths >= gate.verifiedExperienceMonths &&
       responsibilityEvidence >= gate.responsibilityEvidence;
     if (eligible) achieved = gate;
   }
@@ -391,6 +394,14 @@ export function assessWorkerCompetence(
       );
       missingGatesEn.push(
         `Verified projects: ${verifiedProjects}/${next.verifiedProjects}`,
+      );
+    }
+    if (verifiedWorkMonths < next.verifiedExperienceMonths) {
+      missingGates.push(
+        `Experiência verificada: ${Math.round(verifiedWorkMonths)} meses/${next.verifiedExperienceMonths}`,
+      );
+      missingGatesEn.push(
+        `Verified experience: ${Math.round(verifiedWorkMonths)} months/${next.verifiedExperienceMonths}`,
       );
     }
     if (responsibilityEvidence < next.responsibilityEvidence) {
@@ -423,6 +434,8 @@ export function assessWorkerCompetence(
     nextLevelId: next?.id || null,
     coreCoverage,
     verifiedProjects,
+    verifiedExperienceMonths: verifiedWorkMonths,
+    verifiedExperienceHours: verifiedWorkHours,
     verifiedQualifications,
     responsibilityEvidence,
     verifiedRegulatory,
@@ -443,10 +456,10 @@ export function assessWorkerCompetence(
         id: "experience",
         label: "Experiência verificada",
         labelEn: "Verified experience",
-        points: experiencePoints,
+        points: experienceScore,
         maximum: 25,
-        detail: `${verifiedProjects} obra(s) confirmada(s)`,
-        detailEn: `${verifiedProjects} confirmed project(s)`,
+        detail: `${Math.round(verifiedWorkMonths)} meses verificados · ${verifiedProjects} obra(s) confirmada(s)${verifiedWorkHours ? ` · ${verifiedWorkHours} h` : ""}`,
+        detailEn: `${Math.round(verifiedWorkMonths)} verified months · ${verifiedProjects} confirmed project(s)${verifiedWorkHours ? ` · ${verifiedWorkHours} h` : ""}`,
       },
       {
         id: "qualifications",
