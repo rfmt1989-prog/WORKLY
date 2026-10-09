@@ -7,7 +7,7 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import type { LanguageCode } from "@/src/demo/types";
+import type { LanguageCode, WorkExperience } from "@/src/demo/types";
 import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
@@ -16,6 +16,9 @@ import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
 import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
+import { WorkerExperienceTimeline } from "./WorkerExperienceTimeline";
+import { WorkerExperienceEditor } from "./WorkerExperienceEditor";
+import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
 import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
@@ -33,7 +36,7 @@ export function WorkerProfileView({
   onOpenAttendance?: () => void;
 }) {
   const { user } = useAuth();
-  const { state, language, error } = useWorklyData();
+  const { state, language, error, notify } = useWorklyData();
   const { width } = useWindowDimensions();
   const compact = width < 960;
   const narrow = width < 600;
@@ -42,6 +45,8 @@ export function WorkerProfileView({
   const [about, setAbout] = useState(false);
   const [rules, setRules] = useState(false);
   const [certificateTarget, setCertificateTarget] = useState<{ professionId: string; node?: AchievementNode } | null>(null);
+  const [experienceTarget, setExperienceTarget] = useState<WorkExperience | null | undefined>(undefined);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const worker = state?.workers.find(item => item.id === user?.id);
   const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
   const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
@@ -53,6 +58,25 @@ export function WorkerProfileView({
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
   const education = achievements.find(node => node.id === "course" && isCompleted(node.status) && !primaryTree?.certifications.some(item => item.id === node.id));
+
+  const exportPdf = async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      await exportWorkerProfilePdf(worker, competencyAssessment, specialtyTree, complianceTree, language);
+      notify(
+        text(
+          Platform.OS === "web" ? "Abriu a exportação PDF do perfil." : "Perfil PDF preparado para partilhar.",
+          Platform.OS === "web" ? "Profile PDF export opened." : "Profile PDF prepared for sharing.",
+        ),
+        "success",
+      );
+    } catch {
+      notify(text("Não foi possível gerar o PDF.", "Could not generate the PDF."), "error");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   return (
     <View style={styles.root} testID="worker-profile">
@@ -97,11 +121,25 @@ export function WorkerProfileView({
               ) : (
                 <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
               )}
+              <WorkerExperienceTimeline
+                entries={worker.work_experience || []}
+                language={language}
+                onAdd={() => setExperienceTarget(null)}
+                onEdit={(entry) => setExperienceTarget(entry)}
+              />
               <View style={styles.profileActions}>
                 <Button
                   label={text("Abrir percurso", "Open journey")}
                   icon="git-branch-outline"
                   onPress={onOpenJourney || (() => {})}
+                  style={styles.profileActionButton}
+                />
+                <Button
+                  label={text("Exportar PDF", "Export PDF")}
+                  icon="document-text-outline"
+                  variant="secondary"
+                  loading={exportingPdf}
+                  onPress={() => void exportPdf()}
                   style={styles.profileActionButton}
                 />
                 <Button
@@ -186,6 +224,7 @@ export function WorkerProfileView({
       </View></ModalPanel> : null}
       {selected ? <CertificateDetails node={selected} byId={byId} language={language} onClose={() => setSelected(null)} onAssociate={() => { setCertificateTarget({ professionId: primaryTree?.id || "professional", node: selected }); setSelected(null); }} /> : null}
       {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
+      {experienceTarget !== undefined ? <WorkerExperienceEditor worker={worker} experience={experienceTarget || undefined} onClose={() => setExperienceTarget(undefined)} /> : null}
       {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
     </View>
   );
