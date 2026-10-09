@@ -726,6 +726,7 @@ def register(data: RegisterInput) -> dict[str, Any]:
                     "flag": "",
                     "profession": "",
                     "experience_years": 0,
+                    "work_experience": [],
                     "location": "",
                     "phone": "",
                     "bio": "",
@@ -958,6 +959,7 @@ def update_worker(
         "profession",
         "title",
         "experience_years",
+        "work_experience",
         "location",
         "phone",
         "bio",
@@ -991,8 +993,65 @@ def update_worker(
         value = clean_patch["experience_years"]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 80:
             raise HTTPException(status_code=422, detail="Indique entre 0 e 80 anos de experiência.")
+    if "work_experience" in clean_patch:
+        entries = clean_patch["work_experience"]
+        if not isinstance(entries, list) or len(entries) > 80:
+            raise HTTPException(status_code=422, detail="Histórico de experiência inválido.")
+        seen_experience_ids: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise HTTPException(status_code=422, detail="Experiência inválida.")
+            entry_id = str(entry.get("id", "")).strip()
+            company = str(entry.get("company", "")).strip()
+            role_name = str(entry.get("role", "")).strip()
+            start_date = str(entry.get("start_date", "")).strip()
+            end_date = str(entry.get("end_date", "")).strip()
+            if not entry_id or entry_id in seen_experience_ids or not company or not role_name:
+                raise HTTPException(status_code=422, detail="Experiência incompleta.")
+            seen_experience_ids.add(entry_id)
+            try:
+                start = datetime.fromisoformat(start_date)
+                end = datetime.now(timezone.utc) if entry.get("current") else datetime.fromisoformat(end_date)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Datas da experiência inválidas.")
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            if end < start:
+                raise HTTPException(status_code=422, detail="A data final não pode ser anterior ao início.")
+            hours = entry.get("hours")
+            if hours is not None and (
+                isinstance(hours, bool)
+                or not isinstance(hours, (int, float))
+                or not math.isfinite(hours)
+                or hours < 0
+                or hours > 200000
+            ):
+                raise HTTPException(status_code=422, detail="Horas da experiência inválidas.")
+            if entry.get("status") not in {"recorded", "pending", "verified"}:
+                entry["status"] = "recorded"
+        clean_patch["work_experience"] = deepcopy(entries)
     with _state_lock:
         worker = _find("workers", worker_id)
+        if "work_experience" in clean_patch:
+            existing_experience = {
+                item.get("id"): item for item in worker.get("work_experience", [])
+            }
+            incoming_experience = deepcopy(clean_patch["work_experience"])
+            if user["role"] == "worker":
+                for entry in incoming_experience:
+                    previous = existing_experience.get(entry.get("id"))
+                    if previous == entry:
+                        continue
+                    entry["status"] = "pending" if previous and previous.get("status") == "verified" else "recorded"
+                    entry.pop("verified_by", None)
+            else:
+                for entry in incoming_experience:
+                    previous = existing_experience.get(entry.get("id"))
+                    if entry.get("status") == "verified" and previous != entry:
+                        entry["verified_by"] = user["sub"]
+            clean_patch["work_experience"] = incoming_experience
         if "certificates" in clean_patch:
             incoming = clean_patch["certificates"]
             if not isinstance(incoming, list) or any(not isinstance(item, dict) or not item.get("id") or not str(item.get("name", "")).strip() for item in incoming):
