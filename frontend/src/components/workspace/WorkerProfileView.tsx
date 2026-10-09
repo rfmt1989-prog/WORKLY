@@ -23,7 +23,15 @@ import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWor
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
 
-export function WorkerProfileView() {
+export function WorkerProfileView({
+  mode = "combined",
+  onOpenJourney,
+  onOpenAttendance,
+}: {
+  mode?: "combined" | "profile" | "journey";
+  onOpenJourney?: () => void;
+  onOpenAttendance?: () => void;
+}) {
   const { user } = useAuth();
   const { state, language, error } = useWorklyData();
   const { width } = useWindowDimensions();
@@ -50,8 +58,8 @@ export function WorkerProfileView() {
     <View style={styles.root} testID="worker-profile">
       <WorkerProfileBackdrop />
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
-        <View style={[styles.layout, compact && styles.layoutCompact]}>
-          <View style={[styles.identity, compact && styles.identityCompact]} testID="worker-identification">
+        <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
+          {mode !== "journey" ? <View style={[styles.identity, compact && styles.identityCompact]} testID="worker-identification">
             <View style={[styles.identityHero, compact && styles.heroCompact]}>
               <Avatar name={worker.name} source={worker.avatar} size={compact ? 72 : 104} />
               <View style={[styles.identityHeading, compact && styles.headingCompact]}>
@@ -71,8 +79,42 @@ export function WorkerProfileView() {
             <Button label={text("Editar perfil", "Edit profile")} icon="create-outline" variant="secondary" onPress={() => setEditing(true)} style={styles.editButton} testID="edit-worker-profile" />
             <Pressable accessibilityRole="button" onPress={() => setAbout(true)} style={({ pressed }) => [styles.aboutButton, pressed && styles.pressed]}><Text style={styles.aboutLabel}>{text("Sobre e contactos", "About and contacts")}</Text><Ionicons name="arrow-forward-outline" size={14} color="#89A5BC" /></Pressable>
             <Text style={styles.identityCode}>ID · {worker.id}</Text>
-          </View>
-          <View style={styles.main}>
+          </View> : null}
+          {mode === "profile" ? (
+            <View style={styles.profileOverview}>
+              <View style={styles.mainHeader}>
+                <View style={styles.headingWrap}>
+                  <Text style={styles.eyebrow}>{text("Visão profissional", "Professional overview")}</Text>
+                  <Text style={[styles.title, narrow && styles.titleCompact]}>{text("O teu valor WORKLY", "Your WORKLY value")}</Text>
+                </View>
+              </View>
+              {competencyAssessment && primaryTree ? (
+                <WorkerEvidenceScoreCard
+                  assessment={competencyAssessment}
+                  language={language}
+                  onDetails={() => setRules(true)}
+                />
+              ) : (
+                <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
+              )}
+              <View style={styles.profileActions}>
+                <Button
+                  label={text("Abrir percurso", "Open journey")}
+                  icon="git-branch-outline"
+                  onPress={onOpenJourney || (() => {})}
+                  style={styles.profileActionButton}
+                />
+                <Button
+                  label={text("Check-in / Pontos", "Check-in")}
+                  icon="location-outline"
+                  variant="secondary"
+                  onPress={onOpenAttendance || (() => {})}
+                  style={styles.profileActionButton}
+                />
+              </View>
+            </View>
+          ) : null}
+          {mode !== "profile" ? <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
             </View>
@@ -122,7 +164,7 @@ export function WorkerProfileView() {
                 />
               ) : null}
             </View>}
-          </View>
+          </View> : null}
         </View>
       </ScrollView>
       {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como é calculado o WORKLY VALUE", "How WORKLY VALUE is calculated")} subtitle={text("Quatro dimensões simples formam o valor 0–100. O nível profissional exige também critérios mínimos.", "Four simple dimensions create the 0–100 value. Professional level also requires minimum gates.")}>
@@ -352,6 +394,10 @@ const styles = StyleSheet.create({
   contentCompact: { padding: 16, paddingBottom: 24 },
   layout: { width: "100%", maxWidth: 1600, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 28 },
   layoutCompact: { flexDirection: "column", gap: 24 },
+  layoutJourney: { maxWidth: 1180 },
+  profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
+  profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  profileActionButton: { minWidth: 170, flexGrow: 1 },
   identity: { width: 284, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#1D3A52", backgroundColor: "#08131CE8", borderRadius: 18, shadowColor: "#2388FF", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
   identityCompact: { width: "100%", padding: 18, borderRadius: 16 },
   identityHero: { alignItems: "center", gap: 18 },
