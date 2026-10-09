@@ -180,6 +180,7 @@ LEVELS = (
         "minimum": 0,
         "core_coverage": 0,
         "verified_projects": 0,
+        "verified_experience_months": 0,
         "responsibility_evidence": 0,
     },
     {
@@ -189,6 +190,7 @@ LEVELS = (
         "minimum": 20,
         "core_coverage": 25,
         "verified_projects": 0,
+        "verified_experience_months": 0,
         "responsibility_evidence": 0,
     },
     {
@@ -198,6 +200,7 @@ LEVELS = (
         "minimum": 45,
         "core_coverage": 60,
         "verified_projects": 2,
+        "verified_experience_months": 12,
         "responsibility_evidence": 0,
     },
     {
@@ -207,6 +210,7 @@ LEVELS = (
         "minimum": 70,
         "core_coverage": 75,
         "verified_projects": 5,
+        "verified_experience_months": 36,
         "responsibility_evidence": 1,
     },
     {
@@ -216,6 +220,7 @@ LEVELS = (
         "minimum": 85,
         "core_coverage": 90,
         "verified_projects": 8,
+        "verified_experience_months": 60,
         "responsibility_evidence": 2,
     },
 )
@@ -336,24 +341,47 @@ def _verified_projects(
     return len(completed_ids)
 
 
-def _experience_points(projects: int) -> int:
-    if projects <= 0:
-        return 0
-    if projects == 1:
-        return 5
-    if projects == 2:
-        return 9
-    if projects == 3:
-        return 13
-    if projects == 4:
-        return 16
-    if projects == 5:
-        return 19
-    if projects <= 7:
-        return 21
-    if projects <= 9:
-        return 23
-    return 25
+def _verified_experience_months(worker: dict[str, Any], today: date) -> float:
+    ranges: list[tuple[date, date]] = []
+    for entry in worker.get("work_experience", []):
+        if entry.get("status") != "verified":
+            continue
+        try:
+            start = date.fromisoformat(str(entry.get("start_date", "")))
+            end = today if entry.get("current") else date.fromisoformat(str(entry.get("end_date", "")))
+        except (TypeError, ValueError):
+            continue
+        if end < start:
+            continue
+        ranges.append((start, end))
+    if not ranges:
+        return 0.0
+    ranges.sort(key=lambda item: item[0])
+    merged: list[list[date]] = []
+    for start, end in ranges:
+        if not merged or start > merged[-1][1]:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+    days = sum((end - start).days for start, end in merged)
+    return round(days / 30.4375, 1)
+
+
+def _verified_experience_hours(worker: dict[str, Any]) -> int:
+    total = 0.0
+    for entry in worker.get("work_experience", []):
+        if entry.get("status") != "verified":
+            continue
+        hours = entry.get("hours")
+        if isinstance(hours, (int, float)) and not isinstance(hours, bool):
+            total += max(0.0, float(hours))
+    return round(total)
+
+
+def _experience_points(verified_months: float, projects: int) -> int:
+    duration_points = min(15, round(verified_months / 4))
+    project_points = min(10, projects * 2)
+    return min(25, duration_points + project_points)
 
 
 def _competency_proficiency(
@@ -428,6 +456,8 @@ def professional_identity(
     today = today or date.today()
     area = profession_id(str(worker.get("profession", "")))
     verified_projects = _verified_projects(worker, projects, area)
+    verified_experience_months = _verified_experience_months(worker, today)
+    verified_experience_hours = _verified_experience_hours(worker)
 
     certificates = list(worker.get("certificates", []))
     current_verified = [item for item in certificates if _verified_current(item, today)]
@@ -496,7 +526,7 @@ def professional_identity(
     )
 
     technical_points = round((essential_average / 4) * 45)
-    experience_points = _experience_points(verified_projects)
+    experience_points = _experience_points(verified_experience_months, verified_projects)
     qualification_points = min(15, verified_qualifications * 5)
 
     verifiable = [
@@ -535,6 +565,7 @@ def professional_identity(
             score >= gate["minimum"]
             and core_coverage >= gate["core_coverage"]
             and verified_projects >= gate["verified_projects"]
+            and verified_experience_months >= gate["verified_experience_months"]
             and responsibility_evidence >= gate["responsibility_evidence"]
         )
         if eligible:
@@ -630,6 +661,8 @@ def professional_identity(
         "components": components,
         "core_coverage": core_coverage,
         "verified_projects": verified_projects,
+        "verified_experience_months": verified_experience_months,
+        "verified_experience_hours": verified_experience_hours,
         "verified_qualifications": verified_qualifications,
         "responsibility_evidence": responsibility_evidence,
         "verified_regulatory": verified_regulatory,
