@@ -23,6 +23,21 @@ export type Skill = {
   level: number;
 };
 
+export type WorkExperience = {
+  id: string;
+  company: string;
+  role: string;
+  country: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  current: boolean;
+  description: string;
+  hours?: number;
+  status: "recorded" | "pending" | "verified";
+  verified_by?: string;
+};
+
 export type Certificate = {
   id: string;
   name: string;
@@ -112,6 +127,7 @@ export type Worker = {
   profession: string;
   title: string;
   experience_years: number;
+  work_experience?: WorkExperience[];
   location: string;
   phone: string;
   bio: string;
