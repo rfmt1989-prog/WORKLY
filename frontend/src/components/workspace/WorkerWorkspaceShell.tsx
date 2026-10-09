@@ -23,12 +23,12 @@ import { WorkerProfileView } from "./WorkerProfileView";
 import { ProjectsView } from "./ProjectsView";
 import { Avatar, roleAccent, workspaceColors } from "./primitives";
 
-type WorkerSection = "home" | "points" | "projects" | "documents";
+type WorkerSection = "profile" | "journey" | "attendance" | "projects" | "documents";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 type WorkerNavLabels = {
-  home: string;
-  points: string;
+  profile: string;
+  journey: string;
   projects: string;
   documents: string;
   worker: string;
@@ -37,56 +37,56 @@ type WorkerNavLabels = {
 
 const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   pt: {
-    home: "Início",
-    points: "Pontos",
+    profile: "Perfil",
+    journey: "Percurso",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABALHADOR",
     logout: "Sair",
   },
   en: {
-    home: "Home",
-    points: "Check-in",
+    profile: "Profile",
+    journey: "Journey",
     projects: "Projects",
     documents: "Documents",
     worker: "WORKER",
     logout: "Log out",
   },
   fr: {
-    home: "Accueil",
-    points: "Pointage",
+    profile: "Profil",
+    journey: "Parcours",
     projects: "Chantiers",
     documents: "Documents",
     worker: "TRAVAILLEUR",
     logout: "Déconnexion",
   },
   es: {
-    home: "Inicio",
-    points: "Fichaje",
+    profile: "Perfil",
+    journey: "Trayectoria",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABAJADOR",
     logout: "Salir",
   },
   ro: {
-    home: "Acasă",
-    points: "Pontaj",
+    profile: "Profil",
+    journey: "Parcurs",
     projects: "Șantiere",
     documents: "Documente",
     worker: "LUCRĂTOR",
     logout: "Ieșire",
   },
   de: {
-    home: "Start",
-    points: "Zeiterfassung",
+    profile: "Profil",
+    journey: "Laufbahn",
     projects: "Baustellen",
     documents: "Dokumente",
     worker: "MITARBEITER",
     logout: "Abmelden",
   },
   nl: {
-    home: "Start",
-    points: "Registratie",
+    profile: "Profiel",
+    journey: "Traject",
     projects: "Projecten",
     documents: "Documenten",
     worker: "WERKNEMER",
@@ -100,7 +100,7 @@ export function WorkerWorkspaceShell() {
   const { width } = useWindowDimensions();
   const { user, logout } = useAuth();
   const { state, language, setLanguage } = useWorklyData();
-  const [activeSection, setActiveSection] = useState<WorkerSection>("home");
+  const [activeSection, setActiveSection] = useState<WorkerSection>("profile");
   const fade = useRef(new Animated.Value(1)).current;
   const compact = width < 720;
   const accent = roleAccent("worker");
@@ -125,22 +125,30 @@ export function WorkerWorkspaceShell() {
     label: string;
     icon: IconName;
   }[] = [
-    { id: "home", label: labels.home, icon: "home-outline" },
-    { id: "points", label: labels.points, icon: "location-outline" },
+    { id: "profile", label: labels.profile, icon: "person-outline" },
+    { id: "journey", label: labels.journey, icon: "git-branch-outline" },
     { id: "projects", label: labels.projects, icon: "business-outline" },
     { id: "documents", label: labels.documents, icon: "folder-open-outline" },
   ];
 
   const content = (() => {
     switch (activeSection) {
-      case "points":
+      case "journey":
+        return <WorkerProfileView mode="journey" />;
+      case "attendance":
         return <AttendanceView />;
       case "projects":
         return <ProjectsView />;
       case "documents":
         return <DocumentsView key="worker-documents" mode="archive" />;
       default:
-        return <WorkerProfileView />;
+        return (
+          <WorkerProfileView
+            mode="profile"
+            onOpenJourney={() => setActiveSection("journey")}
+            onOpenAttendance={() => setActiveSection("attendance")}
+          />
+        );
     }
   })();
 
@@ -188,7 +196,7 @@ export function WorkerWorkspaceShell() {
               pressed ? { opacity: 0.72 } : null,
             ]}
           >
-            {activeSection === "home" ? (
+            {activeSection === "profile" ? (
               <>
                 <Ionicons name="log-out-outline" size={21} color={workspaceColors.muted} />
                 {!compact ? <Text style={styles.logoutHint}>{labels.logout}</Text> : null}
