@@ -106,6 +106,8 @@ export type ProfessionalIdentity = {
   components: { id: string; label: string; label_en: string; points: number; maximum: number; count: number; points_each: number }[];
   core_coverage?: number;
   verified_projects?: number;
+  verified_experience_months?: number;
+  verified_experience_hours?: number;
   verified_qualifications?: number;
   responsibility_evidence?: number;
   verified_regulatory?: number;
