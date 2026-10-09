@@ -27,7 +27,7 @@ import { storage } from "@/src/utils/storage";
 
 import { useAuth } from "./AuthContext";
 
-const STATE_STORAGE_KEY = "workly_demo_state:v1";
+const STATE_STORAGE_KEY = "workly_demo_state:v2-blank-profile";
 const LANGUAGE_STORAGE_KEY = "workly_language:v1";
 const SERVER_SYNC_INTERVAL_MS = 4_000;
 
