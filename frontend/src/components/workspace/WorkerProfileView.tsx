@@ -85,18 +85,18 @@ export function WorkerProfileView({
         <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
           {mode !== "journey" ? <View style={[styles.identity, compact && styles.identityCompact]} testID="worker-identification">
             <View style={[styles.identityHero, compact && styles.heroCompact]}>
-              <Avatar name={worker.name} source={worker.avatar} size={compact ? 72 : 104} />
+              <Avatar name={worker.name || "W"} source={worker.avatar} size={compact ? 72 : 104} />
               <View style={[styles.identityHeading, compact && styles.headingCompact]}>
                 <Text style={styles.eyebrow}>{text("Identidade profissional", "Professional identity")}</Text>
-                <Text style={[styles.name, compact && styles.nameCompact]}>{worker.name}</Text>
-                <Text style={[styles.profession, compact && styles.professionCompact]}>{localizeDemoText(language, worker.profession)}</Text>
-                <StatusPill status={worker.status} label={worker.status === "on_site" ? copy[language].onSite : worker.status === "contracted" ? copy[language].contracted : copy[language].available} />
+                <Text style={[styles.name, compact && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
+                <Text style={[styles.profession, compact && styles.professionCompact]}>{worker.profession ? localizeDemoText(language, worker.profession) : text("Profissão por definir", "Profession not set")}</Text>
+                {worker.profession ? <StatusPill status={worker.status} label={worker.status === "on_site" ? copy[language].onSite : worker.status === "contracted" ? copy[language].contracted : worker.availability ? copy[language].available : text("Indisponível", "Unavailable")} /> : null}
               </View>
             </View>
             <View style={styles.divider}><View style={styles.dividerLine} /><View style={styles.dividerDiamond} /><View style={styles.dividerLine} /></View>
             <View style={[styles.identityRows, compact && styles.identityRowsCompact]}>
               <IdentityRow icon="construct-outline" label={text("Experiência", "Experience")} value={`${worker.experience_years} ${text("anos", "years")}`} />
-              <IdentityRow icon="location-outline" label={text("Localização", "Location")} value={`${worker.flag} ${worker.location}`} />
+              <IdentityRow icon="location-outline" label={text("Localização", "Location")} value={worker.location ? `${worker.flag} ${worker.location}`.trim() : "—"} />
               <IdentityRow icon="language-outline" label={text("Idiomas", "Languages")} value={worker.languages.map(item => localizeDemoText(language, item)).join(" · ") || "—"} />
               <IdentityRow icon="calendar-outline" label={text("Novas obras", "New projects")} value={worker.availability ? text("Disponível", "Available") : text("Indisponível", "Unavailable")} />
             </View>
@@ -241,8 +241,8 @@ function EmptyProfessionalProfile({
   const steps = [
     ["person-outline", text("Identificação", "Identity"), text("Completa os dados profissionais essenciais.", "Complete the essential professional details.")],
     ["briefcase-outline", text("Profissão principal", "Main profession"), text("Escolhe uma profissão. Esta será a tua única árvore principal.", "Choose one profession. This becomes your only main tree.")],
-    ["ribbon-outline", text("Comprovativos", "Evidence"), text("Associa formação, certificados e experiência às etapas reais.", "Attach training, certificates and experience to real stages.")],
-    ["git-network-outline", text("Especialidades", "Specialties"), text("Novas áreas extra desbloqueiam com a tua progressão.", "Extra areas unlock as you progress.")],
+    ["briefcase-outline", text("Experiência", "Experience"), text("Regista empresas, funções e datas. Os anos são calculados automaticamente.", "Record companies, roles and dates. Years are calculated automatically.")],
+    ["ribbon-outline", text("Evidências e especialidades", "Evidence & specialties"), text("Liga qualificações e provas às competências para desbloquear progressão.", "Link qualifications and evidence to competences to unlock progression.")],
   ] as const;
   return (
     <View style={styles.emptyProfile} testID="empty-worker-profile">
