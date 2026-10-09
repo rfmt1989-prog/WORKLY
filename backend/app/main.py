@@ -29,6 +29,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .demo_data import (
     COMPANY_DEMO_EMAIL,
+    DEMO_GENERATION,
     DEMO_PASSWORD,
     WORKER_DEMO_EMAIL,
     fresh_demo_state,
@@ -94,6 +95,10 @@ app.add_middleware(
 _state_lock = threading.RLock()
 _persistence = PersistenceStore()
 _state, _registered_users = _persistence.load(fresh_demo_state())
+if _state.get("demo_generation") != DEMO_GENERATION:
+    _state = fresh_demo_state()
+    _registered_users = {}
+    _persistence.save(_state, _registered_users)
 for _project in _state.get("projects", []):
     _project.setdefault("tasks", [])
     _project.setdefault("safety_items", [])
