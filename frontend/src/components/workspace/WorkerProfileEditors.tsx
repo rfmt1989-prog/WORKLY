@@ -38,7 +38,6 @@ export function WorkerIdentityEditor({
     languages: worker.languages.join(", "),
     bio: worker.bio,
     avatar: worker.avatar,
-    experience_years: String(worker.experience_years),
   }));
   const [available, setAvailable] = useState(worker.availability);
   const [busy, setBusy] = useState(false);
@@ -68,20 +67,13 @@ export function WorkerIdentityEditor({
   };
   const save = async () => {
     if (busy || !form.name.trim() || !form.profession.trim()) return;
-    const experience = Number(form.experience_years.replace(",", "."));
-    if (!Number.isFinite(experience) || experience < 0 || experience > 80) {
-      notify(text("Confirma os anos de experiência.", "Check your years of experience."), "error");
-      return;
-    }
     setBusy(true);
     try {
-      const { experience_years: _experience, ...identity } = form;
       await updateWorker(worker.id, {
-        ...identity,
+        ...form,
         name: form.name.trim(),
         profession: form.profession.trim(),
         title: form.profession.trim(),
-        experience_years: experience,
         availability: available,
         languages: form.languages
           .split(",")
@@ -97,7 +89,6 @@ export function WorkerIdentityEditor({
   };
   const fields: [keyof typeof form, string, string][] = [
     ["name", "Nome", "Name"],
-    ["experience_years", "Anos de experiência", "Years of experience"],
     ["country", "País", "Country"],
     ["location", "Localização", "Location"],
     ["phone", "Telefone", "Phone"],
@@ -133,7 +124,7 @@ export function WorkerIdentityEditor({
       }
     >
       <View style={styles.form}>
-        <Text style={styles.hint}>{text("Alteras a mesma identidade profissional. O nível é calculado pela Workly com base nos registos confirmados.", "You are editing the same professional identity. Workly calculates your level from confirmed records.")}</Text>
+        <Text style={styles.hint}>{text("A identificação e a profissão ficam aqui. O tempo de experiência é calculado automaticamente no Histórico de trabalho.", "Identity and profession stay here. Experience duration is calculated automatically from Work history.")}</Text>
         <View style={styles.photoRow}>
           <Avatar name={form.name} source={form.avatar} size={72} />
           <Button
