@@ -1,4 +1,5 @@
 import type { LanguageCode } from "./types";
+import { uiText } from "./fullUi";
 
 type Secondary = Exclude<LanguageCode, "pt" | "en">;
 
@@ -683,7 +684,55 @@ const levels: Record<Secondary, Record<string,string>> = {
 export function professionalText(language: LanguageCode, portuguese: string, english: string) {
   if (language === "pt") return portuguese;
   if (language === "en") return english;
-  return common[language][english] ?? english;
+  return common[language][english] ?? uiText(language, portuguese, english);
+}
+
+export function professionalFormat(
+  language: LanguageCode,
+  portuguese: string,
+  english: string,
+  variables: Record<string, string | number>,
+) {
+  return professionalText(language, portuguese, english).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key]) : match,
+  );
+}
+
+export function scopeText(language: LanguageCode, scope: string) {
+  const pairs: Record<string, [string, string]> = {
+    "Conformidade UE": ["Conformidade UE", "EU compliance"],
+    "Conformidade nacional": ["Conformidade nacional", "National compliance"],
+    "Requisito de empresa": ["Requisito de empresa", "Employer requirement"],
+    "Requisito de site": ["Requisito de site", "Site requirement"],
+    "Reconhecimento internacional": ["Reconhecimento internacional", "International recognition"],
+    "Especialização técnica adicional": ["Especialização técnica adicional", "Additional technical specialisation"],
+  };
+  const pair = pairs[scope];
+  return pair ? professionalText(language, pair[0], pair[1]) : scope;
+}
+
+export function specialtyRequirementText(language: LanguageCode, value: string) {
+  const rules: [string, string, string][] = [
+    ["Score mínimo:", "Score mínimo", "Minimum score"],
+    ["Proficiência mínima nos pré-requisitos:", "Proficiência mínima nos pré-requisitos", "Minimum prerequisite proficiency"],
+    ["Pré-requisitos técnicos:", "Pré-requisitos técnicos", "Technical prerequisites"],
+    ["Sem pré-requisitos técnicos adicionais", "Sem pré-requisitos técnicos adicionais", "No additional technical prerequisites"],
+    ["Ainda por demonstrar:", "Ainda por demonstrar", "Still to demonstrate"],
+  ];
+  for (const [prefix, pt, en] of rules) {
+    if (value === prefix || value.startsWith(prefix)) {
+      const suffix = value.slice(prefix.length);
+      return `${professionalText(language, pt, en)}${suffix ? `: ${suffix.replace(/^:\s*/, "")}` : ""}`;
+    }
+  }
+  if (value.startsWith("Desbloquear permite")) {
+    return professionalText(
+      language,
+      "Desbloquear permite desenvolver a especialização; não substitui formação, licença ou autorização legal aplicável.",
+      "Unlocking enables specialisation development; it does not replace applicable legal training, licence or authorisation.",
+    );
+  }
+  return value;
 }
 
 export function professionTitle(language: LanguageCode, id: string, portuguese: string, english: string) {
