@@ -1,9 +1,10 @@
 import { Platform } from "react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import type { LanguageCode, Worker } from "@/src/demo/types";
+import type { Attendance, LanguageCode, Project, Worker } from "@/src/demo/types";
 import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 import type { SpecialtyTree, ComplianceTree } from "./workerCertificateTree";
+import { verifiedAttendanceHours } from "./workerExperience";
 
 function esc(value: unknown) {
   return String(value ?? "")
@@ -33,13 +34,15 @@ function buildHtml(
   assessment: WorkerCompetencyAssessment | null,
   specialties: SpecialtyTree | null,
   compliance: ComplianceTree | null,
+  projects: Project[],
+  attendance: Attendance[],
   language: LanguageCode,
 ) {
   const pt = language === "pt";
   const title = pt ? "Perfil Profissional WORKLY" : "WORKLY Professional Profile";
-  const workHistory = [...(worker.work_experience || [])].sort((a, b) =>
-    b.start_date.localeCompare(a.start_date),
-  );
+  const workHistory = projects
+    .filter((project) => project.worker_ids.includes(worker.id))
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
 
   const componentRows = assessment?.components
     .map(
@@ -64,21 +67,21 @@ function buildHtml(
 
   const experienceRows = workHistory.length
     ? workHistory
-        .map(
-          (entry) => `
+        .map((project) => {
+          const hours = verifiedAttendanceHours(worker.id, attendance, project.id);
+          return `
             <div class="experience">
               <div class="experience-head">
-                <strong>${esc(entry.role)}</strong>
-                <span class="badge">${esc(statusLabel(entry.status, language))}</span>
+                <strong>${esc(project.name)}</strong>
+                <span class="badge">${esc(project.status === "completed" ? (pt ? "Concluída" : "Completed") : (pt ? "Em curso" : "In progress"))}</span>
               </div>
-              <div class="muted">${esc(entry.company)} · ${esc(entry.start_date)} → ${esc(entry.current ? (pt ? "Atual" : "Present") : entry.end_date || "—")}</div>
-              <div class="muted">${esc([entry.location, entry.country].filter(Boolean).join(" · "))}</div>
-              ${entry.hours ? `<div class="muted">${entry.hours} h</div>` : ""}
-              ${entry.description ? `<p>${esc(entry.description)}</p>` : ""}
-            </div>`,
-        )
+              <div class="muted">${esc(project.client || "—")} · ${esc(project.location || "—")}</div>
+              <div class="muted">${esc(project.start_date)} → ${esc(project.end_date || "—")} · ${hours} h WORKLY</div>
+              ${project.description ? `<p>${esc(project.description)}</p>` : ""}
+            </div>`;
+        })
         .join("")
-    : `<p class="muted">${pt ? "Sem experiência registada." : "No work experience recorded."}</p>`;
+    : `<p class="muted">${pt ? "Sem Obras WORKLY registadas." : "No WORKLY projects recorded."}</p>`;
 
   const qualificationRows = worker.certificates
     .filter((item) => item.evidence_type === "qualification" || (!item.evidence_type && item.kind !== "skill"))
@@ -160,7 +163,7 @@ function buildHtml(
   <div class="grid">
     <div><div class="item-label">${pt ? "País" : "Country"}</div><div class="item-value">${esc(worker.country || "—")}</div></div>
     <div><div class="item-label">${pt ? "Localização" : "Location"}</div><div class="item-value">${esc(worker.location || "—")}</div></div>
-    <div><div class="item-label">${pt ? "Experiência calculada" : "Calculated experience"}</div><div class="item-value">${esc(worker.experience_years || 0)} ${pt ? "anos" : "years"}</div></div>
+    <div><div class="item-label">${pt ? "Experiência WORKLY" : "WORKLY experience"}</div><div class="item-value">${esc(assessment?.verifiedExperienceHours || 0)} h</div></div>
     <div><div class="item-label">${pt ? "Idiomas" : "Languages"}</div><div class="item-value">${esc(worker.languages.join(" · ") || "—")}</div></div>
     <div><div class="item-label">${pt ? "Telefone" : "Phone"}</div><div class="item-value">${esc(worker.phone || "—")}</div></div>
     <div><div class="item-label">Email</div><div class="item-value">${esc(worker.email || "—")}</div></div>
@@ -171,7 +174,7 @@ function buildHtml(
   <h2>WORKLY VALUE</h2>
   <table><tbody>${componentRows || `<tr><td class="muted">${pt ? "Sem avaliação disponível." : "No assessment available."}</td></tr>`}</tbody></table>
 
-  <h2>${pt ? "Experiência profissional" : "Professional experience"}</h2>
+  <h2>${pt ? "Histórico WORKLY em Obras" : "WORKLY project history"}</h2>
   ${experienceRows}
 
   <h2>${pt ? "Competências" : "Competences"}</h2>
@@ -209,9 +212,19 @@ export async function exportWorkerProfilePdf(
   assessment: WorkerCompetencyAssessment | null,
   specialties: SpecialtyTree | null,
   compliance: ComplianceTree | null,
+  projects: Project[],
+  attendance: Attendance[],
   language: LanguageCode,
 ) {
-  const html = buildHtml(worker, assessment, specialties, compliance, language);
+  const html = buildHtml(
+    worker,
+    assessment,
+    specialties,
+    compliance,
+    projects,
+    attendance,
+    language,
+  );
   const result = await Print.printToFileAsync({ html });
 
   if (Platform.OS !== "web" && result.uri && (await Sharing.isAvailableAsync())) {
