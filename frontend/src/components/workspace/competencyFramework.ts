@@ -248,11 +248,11 @@ export const competencyProfiles: CompetencyProfile[] = [
 ];
 
 export const worklyLevelGates = [
-  { id:"apprentice", label:"Aprendiz", labelEn:"Apprentice", minimum:0, coreCoverage:0, verifiedProjects:0, verifiedExperienceMonths:0, responsibilityEvidence:0 },
-  { id:"junior", label:"Júnior", labelEn:"Junior", minimum:20, coreCoverage:25, verifiedProjects:0, verifiedExperienceMonths:0, responsibilityEvidence:0 },
-  { id:"professional", label:"Profissional", labelEn:"Professional", minimum:45, coreCoverage:60, verifiedProjects:2, verifiedExperienceMonths:12, responsibilityEvidence:0 },
-  { id:"specialist", label:"Especialista", labelEn:"Specialist", minimum:70, coreCoverage:75, verifiedProjects:5, verifiedExperienceMonths:36, responsibilityEvidence:1 },
-  { id:"master", label:"Master", labelEn:"Master", minimum:85, coreCoverage:90, verifiedProjects:8, verifiedExperienceMonths:60, responsibilityEvidence:2 },
+  { id:"apprentice", label:"Aprendiz", labelEn:"Apprentice", minimum:0, coreCoverage:0, verifiedProjects:0, verifiedExperienceHours:0, responsibilityEvidence:0 },
+  { id:"junior", label:"Júnior", labelEn:"Junior", minimum:20, coreCoverage:25, verifiedProjects:0, verifiedExperienceHours:0, responsibilityEvidence:0 },
+  { id:"professional", label:"Profissional", labelEn:"Professional", minimum:45, coreCoverage:60, verifiedProjects:2, verifiedExperienceHours:1600, responsibilityEvidence:0 },
+  { id:"specialist", label:"Especialista", labelEn:"Specialist", minimum:70, coreCoverage:75, verifiedProjects:5, verifiedExperienceHours:4800, responsibilityEvidence:1 },
+  { id:"master", label:"Master", labelEn:"Master", minimum:85, coreCoverage:90, verifiedProjects:8, verifiedExperienceHours:8000, responsibilityEvidence:2 },
 ] as const;
 
 export function competencyProfileFor(professionId: string) {
