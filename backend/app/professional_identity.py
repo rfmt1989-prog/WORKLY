@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 
@@ -180,7 +180,7 @@ LEVELS = (
         "minimum": 0,
         "core_coverage": 0,
         "verified_projects": 0,
-        "verified_experience_months": 0,
+        "verified_experience_hours": 0,
         "responsibility_evidence": 0,
     },
     {
@@ -200,7 +200,7 @@ LEVELS = (
         "minimum": 45,
         "core_coverage": 60,
         "verified_projects": 2,
-        "verified_experience_months": 12,
+        "verified_experience_hours": 1600,
         "responsibility_evidence": 0,
     },
     {
@@ -210,7 +210,7 @@ LEVELS = (
         "minimum": 70,
         "core_coverage": 75,
         "verified_projects": 5,
-        "verified_experience_months": 36,
+        "verified_experience_hours": 4800,
         "responsibility_evidence": 1,
     },
     {
@@ -220,7 +220,7 @@ LEVELS = (
         "minimum": 85,
         "core_coverage": 90,
         "verified_projects": 8,
-        "verified_experience_months": 60,
+        "verified_experience_hours": 8000,
         "responsibility_evidence": 2,
     },
 )
@@ -317,69 +317,51 @@ def _certificate_matches_node(
     )
 
 
+def _approved_attendance_hours(
+    worker_id: str,
+    attendance: list[dict[str, Any]],
+    project_id: str | None = None,
+) -> float:
+    total = 0.0
+    for item in attendance:
+        if item.get("worker_id") != worker_id:
+            continue
+        if item.get("approval_status") != "approved":
+            continue
+        if project_id and item.get("project_id") != project_id:
+            continue
+        try:
+            check_in = datetime.fromisoformat(str(item.get("check_in", "")).replace("Z", "+00:00"))
+            check_out = datetime.fromisoformat(str(item.get("check_out", "")).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            continue
+        hours = (check_out - check_in).total_seconds() / 3600
+        if hours > 0:
+            total += min(hours, 16)
+    return round(total, 1)
+
+
 def _verified_projects(
     worker: dict[str, Any],
     projects: list[dict[str, Any]],
+    attendance: list[dict[str, Any]],
     area: str,
 ) -> int:
-    completed_ids = {
-        str(item["id"])
+    return sum(
+        1
         for item in projects
         if item.get("id")
         and item.get("status") == "completed"
         and worker["id"] in item.get("worker_ids", [])
-        and item.get("profession_id") == area
-    }
-    completed_ids.update(
-        str(item["id"])
-        for item in worker.get("best_projects", [])
-        if item.get("id")
-        and item.get("status") == "verified"
-        and item.get("verified_by")
         and (not item.get("profession_id") or item.get("profession_id") == area)
+        and _approved_attendance_hours(
+            worker["id"], attendance, str(item["id"])
+        ) > 0
     )
-    return len(completed_ids)
 
 
-def _verified_experience_months(worker: dict[str, Any], today: date) -> float:
-    ranges: list[tuple[date, date]] = []
-    for entry in worker.get("work_experience", []):
-        if entry.get("status") != "verified":
-            continue
-        try:
-            start = date.fromisoformat(str(entry.get("start_date", "")))
-            end = today if entry.get("current") else date.fromisoformat(str(entry.get("end_date", "")))
-        except (TypeError, ValueError):
-            continue
-        if end < start:
-            continue
-        ranges.append((start, end))
-    if not ranges:
-        return 0.0
-    ranges.sort(key=lambda item: item[0])
-    merged: list[list[date]] = []
-    for start, end in ranges:
-        if not merged or start > merged[-1][1]:
-            merged.append([start, end])
-        else:
-            merged[-1][1] = max(merged[-1][1], end)
-    days = sum((end - start).days for start, end in merged)
-    return round(days / 30.4375, 1)
-
-
-def _verified_experience_hours(worker: dict[str, Any]) -> int:
-    total = 0.0
-    for entry in worker.get("work_experience", []):
-        if entry.get("status") != "verified":
-            continue
-        hours = entry.get("hours")
-        if isinstance(hours, (int, float)) and not isinstance(hours, bool):
-            total += max(0.0, float(hours))
-    return round(total)
-
-
-def _experience_points(verified_months: float, projects: int) -> int:
-    duration_points = min(15, round(verified_months / 4))
+def _experience_points(verified_hours: float, projects: int) -> int:
+    duration_points = min(15, round(verified_hours / 160))
     project_points = min(10, projects * 2)
     return min(25, duration_points + project_points)
 
@@ -443,6 +425,7 @@ def _competency_proficiency(
 def professional_identity(
     worker: dict[str, Any],
     projects: list[dict[str, Any]],
+    attendance: list[dict[str, Any]] | None = None,
     *,
     today: date | None = None,
 ) -> dict[str, Any]:
@@ -455,9 +438,9 @@ def professional_identity(
 
     today = today or date.today()
     area = profession_id(str(worker.get("profession", "")))
-    verified_projects = _verified_projects(worker, projects, area)
-    verified_experience_months = _verified_experience_months(worker, today)
-    verified_experience_hours = _verified_experience_hours(worker)
+    attendance = attendance or []
+    verified_projects = _verified_projects(worker, projects, attendance, area)
+    verified_experience_hours = _approved_attendance_hours(worker["id"], attendance)
 
     certificates = list(worker.get("certificates", []))
     current_verified = [item for item in certificates if _verified_current(item, today)]
@@ -526,7 +509,7 @@ def professional_identity(
     )
 
     technical_points = round((essential_average / 4) * 45)
-    experience_points = _experience_points(verified_experience_months, verified_projects)
+    experience_points = _experience_points(verified_experience_hours, verified_projects)
     qualification_points = min(15, verified_qualifications * 5)
 
     verifiable = [
@@ -565,7 +548,7 @@ def professional_identity(
             score >= gate["minimum"]
             and core_coverage >= gate["core_coverage"]
             and verified_projects >= gate["verified_projects"]
-            and verified_experience_months >= gate["verified_experience_months"]
+            and verified_experience_hours >= gate["verified_experience_hours"]
             and responsibility_evidence >= gate["responsibility_evidence"]
         )
         if eligible:
@@ -661,7 +644,6 @@ def professional_identity(
         "components": components,
         "core_coverage": core_coverage,
         "verified_projects": verified_projects,
-        "verified_experience_months": verified_experience_months,
         "verified_experience_hours": verified_experience_hours,
         "verified_qualifications": verified_qualifications,
         "responsibility_evidence": responsibility_evidence,
