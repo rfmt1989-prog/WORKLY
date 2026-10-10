@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 DEMO_PASSWORD = "WorklyDemo!"
 WORKER_DEMO_EMAIL = "worker.demo@workly.app"
 COMPANY_DEMO_EMAIL = "company.demo@workly.app"
-DEMO_GENERATION = "blank-worker-profile-v1"
+DEMO_GENERATION = "project-based-experience-v2"
 
 
 def build_demo_state() -> dict:
