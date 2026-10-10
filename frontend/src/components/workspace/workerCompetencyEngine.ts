@@ -1,4 +1,4 @@
-import type { Project, Worker } from "@/src/demo/types";
+import type { Attendance, Project, Worker } from "@/src/demo/types";
 import { findProfessionDefinition } from "./professionCatalog";
 import {
   competencyProfileFor,
@@ -6,7 +6,7 @@ import {
   type CompetencySpec,
 } from "./competencyFramework";
 import { evidenceTypeDefinition, type EvidenceType } from "./competencyEvidenceModel";
-import { experienceMonths, verifiedExperienceHours } from "./workerExperience";
+import { verifiedAttendanceHours, verifiedProjectIds } from "./workerExperience";
 
 export type CompetencyEvidenceState =
   | "verified"
@@ -36,7 +36,6 @@ export type WorkerCompetencyAssessment = {
   nextLevelId: string | null;
   coreCoverage: number;
   verifiedProjects: number;
-  verifiedExperienceMonths: number;
   verifiedExperienceHours: number;
   verifiedQualifications: number;
   responsibilityEvidence: number;
@@ -122,36 +121,6 @@ function matchingDeclaredSkill(worker: Worker, spec: CompetencySpec) {
   });
 }
 
-function workerProjectEvidence(
-  worker: Worker,
-  projects: Project[],
-  professionId: string,
-) {
-  const projectIds = new Set(
-    projects
-      .filter((project) => {
-        const tagged = project as Project & { profession_id?: string };
-        return (
-          project.status === "completed" &&
-          project.worker_ids.includes(worker.id) &&
-          tagged.profession_id === professionId
-        );
-      })
-      .map((project) => project.id),
-  );
-
-  for (const project of worker.best_projects) {
-    if (
-      project.status === "verified" &&
-      project.verified_by &&
-      (!project.profession_id || project.profession_id === professionId)
-    ) {
-      projectIds.add(project.id);
-    }
-  }
-
-  return projectIds.size;
-}
 
 function proficiencyFromEvidence(
   evidence: Worker["certificates"],
@@ -211,10 +180,10 @@ function proficiencyLabels(level: number) {
 }
 
 function experiencePoints(
-  verifiedMonths: number,
+  verifiedHours: number,
   verifiedProjects: number,
 ) {
-  const durationPoints = Math.min(15, Math.round(verifiedMonths / 4));
+  const durationPoints = Math.min(15, Math.round(verifiedHours / 160));
   const projectPoints = Math.min(10, verifiedProjects * 2);
   return Math.min(25, durationPoints + projectPoints);
 }
@@ -222,15 +191,21 @@ function experiencePoints(
 export function assessWorkerCompetence(
   worker: Worker,
   projects: Project[],
+  attendance: Attendance[] = [],
 ): WorkerCompetencyAssessment | null {
   const profession = findProfessionDefinition(worker.profession);
   if (!profession) return null;
   const profile = competencyProfileFor(profession.id);
   if (!profile) return null;
 
-  const verifiedProjects = workerProjectEvidence(worker, projects, profession.id);
-  const verifiedWorkMonths = experienceMonths(worker.work_experience, true);
-  const verifiedWorkHours = verifiedExperienceHours(worker.work_experience);
+  const verifiedProjectSet = verifiedProjectIds(
+    worker.id,
+    projects,
+    attendance,
+    profession.id,
+  );
+  const verifiedProjects = verifiedProjectSet.size;
+  const verifiedWorkHours = verifiedAttendanceHours(worker.id, attendance);
 
   const competencies = profile.competencies.map((competency) => {
     const certificates = matchingCertificates(worker, competency);
@@ -328,7 +303,7 @@ export function assessWorkerCompetence(
     ? essential.reduce((sum, item) => sum + item.proficiency, 0) / essential.length
     : 0;
   const technicalPoints = Math.round((essentialProficiency / 4) * 45);
-  const experienceScore = experiencePoints(verifiedWorkMonths, verifiedProjects);
+  const experienceScore = experiencePoints(verifiedWorkHours, verifiedProjects);
   const qualificationPoints = Math.min(15, verifiedQualifications * 5);
 
   const verifiableEvidence = relevantCertificates.filter(
@@ -368,7 +343,7 @@ export function assessWorkerCompetence(
       score >= gate.minimum &&
       coreCoverage >= gate.coreCoverage &&
       verifiedProjects >= gate.verifiedProjects &&
-      verifiedWorkMonths >= gate.verifiedExperienceMonths &&
+      verifiedWorkHours >= gate.verifiedExperienceHours &&
       responsibilityEvidence >= gate.responsibilityEvidence;
     if (eligible) achieved = gate;
   }
@@ -396,12 +371,12 @@ export function assessWorkerCompetence(
         `Verified projects: ${verifiedProjects}/${next.verifiedProjects}`,
       );
     }
-    if (verifiedWorkMonths < next.verifiedExperienceMonths) {
+    if (verifiedWorkHours < next.verifiedExperienceHours) {
       missingGates.push(
-        `Experiência verificada: ${Math.round(verifiedWorkMonths)} meses/${next.verifiedExperienceMonths}`,
+        `Experiência WORKLY: ${Math.round(verifiedWorkHours)} h/${next.verifiedExperienceHours} h`,
       );
       missingGatesEn.push(
-        `Verified experience: ${Math.round(verifiedWorkMonths)} months/${next.verifiedExperienceMonths}`,
+        `WORKLY experience: ${Math.round(verifiedWorkHours)} h/${next.verifiedExperienceHours} h`,
       );
     }
     if (responsibilityEvidence < next.responsibilityEvidence) {
@@ -434,7 +409,6 @@ export function assessWorkerCompetence(
     nextLevelId: next?.id || null,
     coreCoverage,
     verifiedProjects,
-    verifiedExperienceMonths: verifiedWorkMonths,
     verifiedExperienceHours: verifiedWorkHours,
     verifiedQualifications,
     responsibilityEvidence,
@@ -458,8 +432,8 @@ export function assessWorkerCompetence(
         labelEn: "Verified experience",
         points: experienceScore,
         maximum: 25,
-        detail: `${Math.round(verifiedWorkMonths)} meses verificados · ${verifiedProjects} obra(s) confirmada(s)${verifiedWorkHours ? ` · ${verifiedWorkHours} h` : ""}`,
-        detailEn: `${Math.round(verifiedWorkMonths)} verified months · ${verifiedProjects} confirmed project(s)${verifiedWorkHours ? ` · ${verifiedWorkHours} h` : ""}`,
+        detail: `${verifiedWorkHours} h WORKLY · ${verifiedProjects} obra(s) concluída(s) verificadas`,
+        detailEn: `${verifiedWorkHours} WORKLY h · ${verifiedProjects} verified completed project(s)`,
       },
       {
         id: "qualifications",
