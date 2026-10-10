@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { uiText } from "@/src/demo/fullUi";
+import { levelText, professionalText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
 import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 
@@ -14,7 +14,7 @@ export function WorkerEvidenceScoreCard({
   language: LanguageCode;
   onDetails: () => void;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
 
   return (
     <View style={styles.card} testID="worker-evidence-score">
@@ -24,7 +24,7 @@ export function WorkerEvidenceScoreCard({
             {text("NÍVEL PROFISSIONAL WORKLY", "WORKLY PROFESSIONAL LEVEL")}
           </Text>
           <Text style={styles.level}>
-            {language === "pt" ? assessment.levelLabel : assessment.levelLabelEn}
+            {levelText(language, assessment.levelId, assessment.levelLabel, assessment.levelLabelEn)}
           </Text>
           <Text style={styles.note}>
             {text(
@@ -68,7 +68,7 @@ export function WorkerEvidenceScoreCard({
           <View key={item.id} style={styles.component}>
             <View style={styles.componentTop}>
               <Text style={styles.componentName}>
-                {language === "pt" ? item.label : item.labelEn}
+                {text(item.label, item.labelEn)}
               </Text>
               <Text style={styles.componentValue}>
                 {item.points}/{item.maximum}
@@ -96,9 +96,10 @@ export function WorkerEvidenceScoreCard({
         <View style={styles.gates}>
           <Ionicons name="lock-open-outline" size={14} color="#82BDF0" />
           <Text style={styles.gateText}>
+            {assessment.missingGates.length}{" "}
             {text(
-              `${assessment.missingGates.length} critério(s) em falta para o próximo nível`,
-              `${assessment.missingGatesEn.length} criterion/criteria remaining for the next level`,
+              "critério(s) em falta para o próximo nível",
+              "criterion/criteria remaining for the next level",
             )}
           </Text>
         </View>
