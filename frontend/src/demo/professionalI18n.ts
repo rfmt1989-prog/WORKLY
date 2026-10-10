@@ -62,6 +62,8 @@ const common: Record<Secondary, Record<string, string>> = {
     "WORKLY PROFESSIONAL LEVEL": "NIVEAU PROFESSIONNEL WORKLY",
     "Based on evidence + minimum gates. It is not an official EQF level.": "Basé sur des preuves et des critères minimaux. Ce n’est pas un niveau CEC officiel.",
     "Essential coverage": "Couverture essentielle",
+    "Verified projects": "Chantiers vérifiés",
+    "Autonomy evidence": "Preuve d’autonomie",
     "Qualifications": "Qualifications",
     "Technical competence": "Compétence technique",
     "Verified experience": "Expérience vérifiée",
@@ -180,6 +182,8 @@ const common: Record<Secondary, Record<string, string>> = {
     "WORKLY PROFESSIONAL LEVEL": "NIVEL PROFESIONAL WORKLY",
     "Based on evidence + minimum gates. It is not an official EQF level.": "Basado en evidencias y criterios mínimos. No es un nivel oficial del MEC.",
     "Essential coverage": "Cobertura esencial",
+    "Verified projects": "Obras verificadas",
+    "Autonomy evidence": "Evidencia de autonomía",
     "Qualifications": "Cualificaciones",
     "Technical competence": "Competencia técnica",
     "Verified experience": "Experiencia verificada",
@@ -298,6 +302,8 @@ const common: Record<Secondary, Record<string, string>> = {
     "WORKLY PROFESSIONAL LEVEL": "NIVEL PROFESIONAL WORKLY",
     "Based on evidence + minimum gates. It is not an official EQF level.": "Bazat pe dovezi și criterii minime. Nu este un nivel oficial CEC.",
     "Essential coverage": "Acoperire esențială",
+    "Verified projects": "Șantiere verificate",
+    "Autonomy evidence": "Dovadă de autonomie",
     "Qualifications": "Calificări",
     "Technical competence": "Competență tehnică",
     "Verified experience": "Experiență verificată",
@@ -416,6 +422,8 @@ const common: Record<Secondary, Record<string, string>> = {
     "WORKLY PROFESSIONAL LEVEL": "WORKLY-BERUFSNIVEAU",
     "Based on evidence + minimum gates. It is not an official EQF level.": "Basiert auf Nachweisen und Mindestkriterien. Es ist kein offizielles EQR-Niveau.",
     "Essential coverage": "Kernabdeckung",
+    "Verified projects": "Verifizierte Baustellen",
+    "Autonomy evidence": "Nachweis der Selbstständigkeit",
     "Qualifications": "Qualifikationen",
     "Technical competence": "Technische Kompetenz",
     "Verified experience": "Verifizierte Erfahrung",
@@ -534,6 +542,8 @@ const common: Record<Secondary, Record<string, string>> = {
     "WORKLY PROFESSIONAL LEVEL": "WORKLY PROFESSIONEEL NIVEAU",
     "Based on evidence + minimum gates. It is not an official EQF level.": "Gebaseerd op bewijs en minimumcriteria. Het is geen officieel EQF-niveau.",
     "Essential coverage": "Essentiële dekking",
+    "Verified projects": "Geverifieerde bouwplaatsen",
+    "Autonomy evidence": "Bewijs van zelfstandigheid",
     "Qualifications": "Kwalificaties",
     "Technical competence": "Technische competentie",
     "Verified experience": "Geverifieerde ervaring",
@@ -799,4 +809,27 @@ export function levelText(language: LanguageCode, id: string, portuguese: string
   if (language === "pt") return portuguese;
   if (language === "en") return english;
   return levels[language][id] ?? english;
+}
+
+
+export function assessmentGateText(
+  language: LanguageCode,
+  portuguese: string,
+  english: string,
+) {
+  if (language === "pt") return portuguese;
+  if (language === "en") return english;
+  const labels: [string, string, string][] = [
+    ["WORKLY VALUE:", "WORKLY VALUE", "WORKLY VALUE"],
+    ["Essential coverage:", "Cobertura essencial", "Essential coverage"],
+    ["Verified projects:", "Obras verificadas", "Verified projects"],
+    ["WORKLY experience:", "Experiência WORKLY", "WORKLY experience"],
+    ["Autonomy evidence:", "Evidência de autonomia", "Autonomy evidence"],
+  ];
+  for (const [prefix, pt, en] of labels) {
+    if (english.startsWith(prefix)) {
+      return `${professionalText(language, pt, en)}: ${english.slice(prefix.length).trim()}`;
+    }
+  }
+  return professionalText(language, portuguese, english);
 }
