@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Polygon } from "react-native-svg";
 import { uiText } from "@/src/demo/fullUi";
+import { professionalText } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
 import { workspaceColors } from "./primitives";
@@ -139,7 +140,7 @@ export function JourneyStatus({
   node: AchievementNode;
   language: LanguageCode;
 }) {
-  const label = uiText(
+  const label = professionalText(
     language,
     statusLabel(node.status),
     node.status === "verified"
