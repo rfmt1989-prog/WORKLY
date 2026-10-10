@@ -52,12 +52,8 @@ export function WorkerEvidenceScoreCard({
         />
         <Metric
           icon="briefcase-outline"
-          value={
-            assessment.verifiedExperienceMonths >= 12
-              ? `${(assessment.verifiedExperienceMonths / 12).toFixed(1)}a`
-              : `${Math.round(assessment.verifiedExperienceMonths)}m`
-          }
-          label={text("Experiência verificada", "Verified experience")}
+          value={`${Math.round(assessment.verifiedExperienceHours)} h`}
+          label={text("Experiência WORKLY", "WORKLY experience")}
         />
         <Metric
           icon="ribbon-outline"
