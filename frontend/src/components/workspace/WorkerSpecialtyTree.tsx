@@ -5,6 +5,7 @@ import { professionalText, specialtyCopy, specialtyRequirementText } from "@/src
 import type { LanguageCode } from "@/src/demo/types";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import type { AchievementNode, SpecialtyTree } from "./workerCertificateTree";
+import { specialtyCatalog } from "./professionCatalog";
 
 export function WorkerSpecialtyTree({
   tree,
@@ -39,11 +40,12 @@ export function WorkerSpecialtyTree({
       <View style={styles.timeline}>
         {tree.nodes.map((node, index) => {
           const locked = node.status === "locked";
+          const definition = specialtyCatalog.find((item) => item.id === node.id);
           return (
             <Pressable
               key={node.id}
               accessibilityRole="button"
-              accessibilityLabel={specialtyCopy(language, node.id, node.title, node.title)}
+              accessibilityLabel={specialtyCopy(language, node.id, node.title, definition?.titleEn || node.title)}
               onPress={() => onNode(node)}
               style={({ pressed }) => [
                 styles.row,
@@ -65,7 +67,7 @@ export function WorkerSpecialtyTree({
               <View style={styles.copy}>
                 <View style={styles.titleRow}>
                   <Text style={[styles.nodeTitle, locked && styles.nodeTitleLocked]}>
-                    {specialtyCopy(language, node.id, node.title, node.title)}
+                    {specialtyCopy(language, node.id, node.title, definition?.titleEn || node.title)}
                   </Text>
                   {!locked ? (
                     <View style={styles.unlockChip}>
@@ -78,7 +80,7 @@ export function WorkerSpecialtyTree({
                   ) : null}
                 </View>
                 <Text style={styles.nodeSubtitle} numberOfLines={2}>
-                  {specialtyCopy(language, node.id, node.subtitle, node.subtitle, true)}
+                  {specialtyCopy(language, node.id, node.subtitle, definition?.descriptionEn || node.subtitle, true)}
                 </Text>
                 <JourneyStatus node={node} language={language} />
                 {locked && node.meta?.length ? (
