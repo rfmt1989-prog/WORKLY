@@ -7,7 +7,7 @@ import {
   type StoredDocumentResponse,
 } from "@/src/api/documentFiles";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
-import { uiText } from "@/src/demo/fullUi";
+import { professionDescription, professionTitle, professionalText } from "@/src/demo/professionalI18n";
 import type { Certificate, Worker } from "@/src/demo/types";
 import {
   Avatar,
@@ -28,7 +28,7 @@ export function WorkerIdentityEditor({
   onClose: () => void;
 }) {
   const { language, updateWorker, notify } = useWorklyData();
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   const [form, setForm] = useState(() => ({
     name: worker.name,
     profession: findProfessionDefinition(worker.profession)?.title || worker.profession,
@@ -124,7 +124,7 @@ export function WorkerIdentityEditor({
       }
     >
       <View style={styles.form}>
-        <Text style={styles.hint}>{text("A identificação e a profissão ficam aqui. O tempo de experiência é calculado automaticamente no Histórico de trabalho.", "Identity and profession stay here. Experience duration is calculated automatically from Work history.")}</Text>
+        <Text style={styles.hint}>{text("A identificação e a profissão ficam aqui. A experiência WORKLY conta automaticamente nas Obras através de horas aprovadas.", "Identity and profession stay here. WORKLY experience is counted automatically in Projects through approved hours.")}</Text>
         <View style={styles.photoRow}>
           <Avatar name={form.name} source={form.avatar} size={72} />
           <Button
@@ -164,10 +164,10 @@ export function WorkerIdentityEditor({
                   </View>
                   <View style={styles.professionCopy}>
                     <Text style={[styles.professionTitle, selected && styles.professionTitleSelected]}>
-                      {text(profession.title, profession.titleEn)}
+                      {professionTitle(language, profession.id, profession.title, profession.titleEn)}
                     </Text>
                     <Text style={styles.professionDescription} numberOfLines={2}>
-                      {text(profession.description, profession.descriptionEn)}
+                      {professionDescription(language, profession.id, profession.description, profession.descriptionEn)}
                     </Text>
                   </View>
                 </Pressable>
@@ -205,7 +205,7 @@ export function WorkerCertificateEditor({
   onClose: () => void;
 }) {
   const { language, updateWorker, notify } = useWorklyData();
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   const certificate = node?.certificate;
   const profession = professionId;
   const [evidenceType, setEvidenceType] = useState<EvidenceType>(certificate?.evidence_type || (node?.family === "compliance" ? "authorisation" : node?.kind === "skill" ? "work_record" : "qualification"));
@@ -352,7 +352,14 @@ export function WorkerCertificateEditor({
       }
     >
       <View style={styles.form}>
-        <Text style={styles.label}>{text("Profissão principal", "Main profession")}: {worker.profession}</Text>
+        <Text style={styles.label}>
+          {text("Profissão principal", "Main profession")}: {(() => {
+            const definition = findProfessionDefinition(worker.profession);
+            return definition
+              ? professionTitle(language, definition.id, definition.title, definition.titleEn)
+              : worker.profession;
+          })()}
+        </Text>
         {node ? <Text style={styles.competencyTarget}>{text("Competência", "Competence")}: {node.title}</Text> : null}
         <View style={styles.evidenceSection}>
           <Text style={styles.sectionLabel}>{text("Tipo de evidência", "Evidence type")}</Text>
