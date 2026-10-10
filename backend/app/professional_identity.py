@@ -190,7 +190,7 @@ LEVELS = (
         "minimum": 20,
         "core_coverage": 25,
         "verified_projects": 0,
-        "verified_experience_months": 0,
+        "verified_experience_hours": 0,
         "responsibility_evidence": 0,
     },
     {
