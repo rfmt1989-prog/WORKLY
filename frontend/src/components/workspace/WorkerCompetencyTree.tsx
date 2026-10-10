@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { uiText } from "@/src/demo/fullUi";
+import { competencyTitle, professionTitle, professionalText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import type { AchievementNode } from "./workerCertificateTree";
@@ -12,7 +12,8 @@ import type {
 import { competencyProfileFor } from "./competencyFramework";
 import { evidenceTypes, proficiencyCriterion } from "./competencyEvidenceModel";
 
-function toAchievement(item: CompetencyAssessment): AchievementNode {
+function toAchievement(item: CompetencyAssessment, language: LanguageCode): AchievementNode {
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   const stage =
     item.competency.dimension === "knowledge"
       ? "foundation"
@@ -33,32 +34,51 @@ function toAchievement(item: CompetencyAssessment): AchievementNode {
 
   return {
     id: item.competency.id,
-    title: item.competency.title,
-    subtitle: item.competency.description,
+    title: competencyTitle(language, item.competency.id, item.competency.title, item.competency.titleEn),
+    subtitle: text(
+      item.competency.relation === "essential" ? "Competência profissional essencial" : "Competência profissional opcional/contextual",
+      item.competency.relation === "essential" ? "Essential professional competence" : "Optional/contextual professional competence",
+    ),
     icon: item.competency.icon,
     status,
     stage,
     family: item.competency.relation,
-    scope:
+    scope: text(
       item.competency.relation === "essential"
-        ? "Competência essencial da profissão"
-        : "Competência opcional / contextual",
+        ? "Competência profissional essencial"
+        : "Competência profissional opcional/contextual",
+      item.competency.relation === "essential"
+        ? "Essential professional competence"
+        : "Optional/contextual professional competence",
+    ),
     kind: "skill",
     certificate: item.certificate,
     meta: [
-      `Proficiência WORKLY · ${item.proficiency}/4 · ${item.proficiencyLabel}`,
+      `${text("Proficiência WORKLY", "WORKLY proficiency")} · ${item.proficiency}/4 · ${text(item.proficiencyLabel, item.proficiencyLabelEn)}`,
       ...evidenceTypes
         .filter((type) => (item.evidenceByType[type.id] || 0) > 0)
-        .map((type) => `${type.label}: ${item.evidenceByType[type.id] || 0}`),
+        .map(
+          (type) =>
+            `${text(type.label, type.labelEn)}: ${item.evidenceByType[type.id] || 0}`,
+        ),
       item.proficiency < 4
-        ? `Próximo nível: ${proficiencyCriterion(item.proficiency + 1).headline}`
-        : "Nível máximo de proficiência interna atingido.",
-      ...(item.proficiency < 4
-        ? proficiencyCriterion(item.proficiency + 1).requirements
-        : proficiencyCriterion(4).requirements),
+        ? `${text("Próximo nível", "Next level")}: ${text(
+            proficiencyCriterion(item.proficiency + 1).headline,
+            proficiencyCriterion(item.proficiency + 1).headlineEn,
+          )}`
+        : text(
+            "Nível máximo de proficiência interna atingido.",
+            "Maximum internal proficiency level reached.",
+          ),
       item.competency.critical
-        ? "Competência crítica para a cobertura nuclear da profissão."
-        : "Competência opcional/contextual: melhora o perfil, mas não substitui o núcleo essencial.",
+        ? text(
+            "Competência crítica para a cobertura nuclear da profissão.",
+            "Critical competence for the occupation core coverage.",
+          )
+        : text(
+            "Competência opcional/contextual: melhora o perfil, mas não substitui o núcleo essencial.",
+            "Optional/contextual competence: improves the profile but does not replace the essential core.",
+          ),
     ],
   };
 }
@@ -72,7 +92,7 @@ export function WorkerCompetencyTree({
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   const profile = competencyProfileFor(assessment.professionId);
   if (!profile) return null;
 
@@ -93,9 +113,9 @@ export function WorkerCompetencyTree({
           <Text style={styles.eyebrow}>
             {text("MAPA DE COMPETÊNCIAS", "COMPETENCY MAP")}
           </Text>
-          <Text style={styles.title}>{text(profile.title, profile.titleEn)}</Text>
+          <Text style={styles.title}>{professionTitle(language, profile.professionId, profile.title, profile.titleEn)}</Text>
           <Text style={styles.subtitle}>
-            {text(profile.frameworkNote, profile.frameworkNoteEn)}
+            {text("Competências essenciais e opcionais são avaliadas separadamente de qualificações e autorizações.", "Essential and optional competences are assessed separately from qualifications and authorisations.")}
           </Text>
         </View>
         <View style={styles.coverage}>
@@ -173,7 +193,7 @@ function CompetencySection({
       </View>
       <View style={styles.timeline}>
         {items.map((item, index) => {
-          const node = toAchievement(item);
+          const node = toAchievement(item, language);
           return (
             <Pressable
               key={item.competency.id}
@@ -198,9 +218,12 @@ function CompetencySection({
               <View style={styles.rowCopy}>
                 <View style={styles.nameRow}>
                   <Text style={styles.nodeTitle}>
-                    {language === "pt"
-                      ? item.competency.title
-                      : item.competency.titleEn}
+                    {competencyTitle(
+                      language,
+                      item.competency.id,
+                      item.competency.title,
+                      item.competency.titleEn,
+                    )}
                   </Text>
                   {item.competency.critical ? (
                     <View style={styles.criticalChip}>
@@ -213,9 +236,7 @@ function CompetencySection({
                 <View style={styles.summaryLine}>
                   <Text style={styles.levelValue}>{item.proficiency}/4</Text>
                   <Text style={styles.levelLabel}>
-                    {language === "pt"
-                      ? item.proficiencyLabel
-                      : item.proficiencyLabelEn}
+                    {text(item.proficiencyLabel, item.proficiencyLabelEn)}
                   </Text>
                   <Text style={styles.summaryDot}>·</Text>
                   <Text style={styles.evidenceCount}>{item.evidenceCount}</Text>
