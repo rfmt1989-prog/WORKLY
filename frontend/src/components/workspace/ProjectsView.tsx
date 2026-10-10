@@ -14,6 +14,7 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiText } from "@/src/demo/localizedUi";
+import { professionalFormat } from "@/src/demo/professionalI18n";
 import type { Project, ProjectStatus } from "@/src/demo/types";
 
 import { ProjectOperationsPanel } from "./ProjectOperationsPanel";
@@ -191,10 +192,14 @@ export function ProjectsView() {
           <Text style={sharedStyles.subtitle}>
             {role === "company"
               ? uiText(language, "Planeamento, progresso e recursos por obra.", "Planning, progress and resources by project.")
-              : uiText(
+              : professionalFormat(
                   language,
-                  `Histórico WORKLY · ${verifiedCompletedProjects} obra(s) verificada(s) · ${Math.round(worklyHours)} h aprovadas.`,
-                  `WORKLY history · ${verifiedCompletedProjects} verified project(s) · ${Math.round(worklyHours)} approved h.`,
+                  "Histórico WORKLY · {projects} obra(s) verificada(s) · {hours} h aprovadas.",
+                  "WORKLY history · {projects} verified project(s) · {hours} approved h.",
+                  {
+                    projects: verifiedCompletedProjects,
+                    hours: Math.round(worklyHours),
+                  },
                 )}
           </Text>
         </View>
