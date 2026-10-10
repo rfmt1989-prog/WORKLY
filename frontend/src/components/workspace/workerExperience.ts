@@ -51,7 +51,7 @@ export function verifiedProjectIds(
           project.status === "completed" &&
           project.worker_ids.includes(workerId) &&
           projectIdsWithApprovedWork.has(project.id) &&
-          (!professionId || tagged.profession_id === professionId)
+          (!professionId || !tagged.profession_id || tagged.profession_id === professionId)
         );
       })
       .map((project) => project.id),
