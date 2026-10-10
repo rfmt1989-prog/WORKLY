@@ -29,6 +29,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .demo_data import (
     COMPANY_DEMO_EMAIL,
+    DEMO_GENERATION,
     DEMO_PASSWORD,
     WORKER_DEMO_EMAIL,
     fresh_demo_state,
@@ -42,6 +43,7 @@ from .access_control import (
 )
 from .compliance import evaluate_worker_compliance
 from .persistence import PersistenceStore
+from .professional_identity import professional_identity, profession_id
 
 
 API_PREFIX = "/api"
@@ -93,6 +95,10 @@ app.add_middleware(
 _state_lock = threading.RLock()
 _persistence = PersistenceStore()
 _state, _registered_users = _persistence.load(fresh_demo_state())
+if _state.get("demo_generation") != DEMO_GENERATION:
+    _state = fresh_demo_state()
+    _registered_users = {}
+    _persistence.save(_state, _registered_users)
 for _project in _state.get("projects", []):
     _project.setdefault("tasks", [])
     _project.setdefault("safety_items", [])
@@ -316,6 +322,12 @@ def _public_auth_user(user: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _worker_payload(worker: dict[str, Any]) -> dict[str, Any]:
+    payload = deepcopy(worker)
+    payload["professional_identity"] = professional_identity(worker, _state["projects"], _state["attendance"])
+    return payload
+
+
 def _login_response(user: dict[str, Any]) -> dict[str, Any]:
     public_user = _enrich_auth_user(user)
     return {
@@ -413,6 +425,10 @@ def _enrich_auth_user(user: dict[str, Any]) -> dict[str, Any]:
         public["company_role"] = membership["access_role"]
         public["permissions"] = permissions_for_role(membership["access_role"])
     else:
+        with _state_lock:
+            worker = next((item for item in _state["workers"] if item["id"] == public.get("id")), None)
+            if worker:
+                public.update(_worker_payload(worker))
         public["permissions"] = []
     return public
 
@@ -673,9 +689,6 @@ def register(data: RegisterInput) -> dict[str, Any]:
         role = _role_from_input(data.user_type, data.role)
         if invite_token:
             raise HTTPException(status_code=404, detail="Código de convite inválido.")
-    if email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL} or email in _registered_users:
-        raise HTTPException(status_code=409, detail="Este email já está registado.")
-
     if invitation:
         user_id = f"company-user-{uuid.uuid4().hex[:10]}"
         company_id = str(invitation["company_id"])
@@ -695,36 +708,43 @@ def register(data: RegisterInput) -> dict[str, Any]:
         "company_id": company_id,
         "company_role": company_role,
         "avatar": "",
-        "title": "Novo trabalhador" if role == "worker" else "Utilizador da empresa",
-        "trust_score": 5.0,
-        "productivity_score": 5.0,
+        "title": "" if role == "worker" else "Utilizador da empresa",
+        "trust_score": 0.0 if role == "worker" else 5.0,
+        "productivity_score": 0.0 if role == "worker" else 5.0,
         "password_record": _password_record(data.password),
     }
-    _registered_users[email] = user
     with _state_lock:
+        if (
+            email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL}
+            or email in _registered_users
+            or any(str(item.get("email", "")).strip().lower() == email for item in _state["workers"])
+        ):
+            raise HTTPException(status_code=409, detail="Este email já tem uma conta. Entre para editar a mesma identidade profissional.")
+        _registered_users[email] = user
         if role == "worker":
             _state["workers"].append(
                 {
                     **_public_auth_user(user),
                     "avatar_color": "#1B6CFF",
-                    "age": 18,
-                    "country": "Portugal",
-                    "flag": "🇵🇹",
-                    "profession": "Novo trabalhador",
+                    "age": 0,
+                    "country": "",
+                    "flag": "",
+                    "profession": "",
                     "experience_years": 0,
-                    "location": "Portugal",
+                    "location": "",
                     "phone": "",
-                    "bio": "Perfil criado na demonstração WORKLY.",
+                    "bio": "",
                     "skills": [],
+                    "specialties": [],
                     "certificates": [],
-                    "availability": True,
+                    "availability": False,
                     "status": "available",
-                    "rating": 5.0,
+                    "rating": 0.0,
                     "best_projects": [],
                     "documents": [],
-                    "languages": ["Português"],
+                    "languages": [],
                     "current_project_id": None,
-                    "schedule": "08:00–17:00",
+                    "schedule": "",
                 }
             )
         elif not invitation:
@@ -859,6 +879,7 @@ def bootstrap(
 ) -> dict[str, Any]:
     with _state_lock:
         payload = deepcopy(_state)
+        payload["workers"] = [_worker_payload(item) for item in _state["workers"]]
     current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user
     payload["current_user"] = _enrich_auth_user(current)
     payload["demo"] = {
@@ -890,7 +911,7 @@ def list_workers(
 ) -> list[dict[str, Any]]:
     query = q.strip().lower()
     with _state_lock:
-        workers = deepcopy(_state["workers"])
+        workers = [_worker_payload(item) for item in _state["workers"]]
         if user["role"] == "company":
             visible = _company_worker_ids(str(user.get("company_id") or ""))
             workers = [item for item in workers if item["id"] in visible]
@@ -918,7 +939,7 @@ def get_worker(
 ) -> dict[str, Any]:
     with _state_lock:
         _assert_worker_visible(user, worker_id)
-        return deepcopy(_find("workers", worker_id))
+        return _worker_payload(_find("workers", worker_id))
 
 @app.patch(f"{API_PREFIX}/workers/{{worker_id}}", tags=["Workers"])
 def update_worker(
@@ -931,6 +952,10 @@ def update_worker(
             raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")
     else:
         _assert_worker_visible(user, worker_id)
+    if {"professional_identity", "professional_score", "level", "level_progress"} & patch.data.keys():
+        raise HTTPException(status_code=422, detail="O nível e a pontuação são calculados pela Workly.")
+    if user["role"] == "worker" and {"trust_score", "productivity_score", "rating"} & patch.data.keys():
+        raise HTTPException(status_code=403, detail="As avaliações profissionais não podem ser atribuídas pelo próprio worker.")
     allowed = {
         "name",
         "age",
@@ -942,6 +967,7 @@ def update_worker(
         "phone",
         "bio",
         "skills",
+        "specialties",
         "availability",
         "status",
         "trust_score",
@@ -952,10 +978,142 @@ def update_worker(
         "avatar",
     }
     clean_patch = {key: value for key, value in patch.data.items() if key in allowed}
+    if "profession" in clean_patch:
+        profession = clean_patch["profession"]
+        if not isinstance(profession, str) or not profession.strip() or len(profession.strip()) > 100:
+            raise HTTPException(status_code=422, detail="Indique uma profissão principal, até 100 caracteres.")
+        clean_patch["profession"] = profession.strip()
+    if "specialties" in clean_patch:
+        specialties = clean_patch["specialties"]
+        if (
+            not isinstance(specialties, list)
+            or len(specialties) > 30
+            or any(not isinstance(item, str) or not item.strip() or len(item.strip()) > 80 for item in specialties)
+        ):
+            raise HTTPException(status_code=422, detail="Especialidades inválidas.")
+        clean_patch["specialties"] = list(dict.fromkeys(item.strip() for item in specialties))
+    if "experience_years" in clean_patch:
+        value = clean_patch["experience_years"]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 80:
+            raise HTTPException(status_code=422, detail="Indique entre 0 e 80 anos de experiência.")
+    if "work_experience" in clean_patch:
+        entries = clean_patch["work_experience"]
+        if not isinstance(entries, list) or len(entries) > 80:
+            raise HTTPException(status_code=422, detail="Histórico de experiência inválido.")
+        seen_experience_ids: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise HTTPException(status_code=422, detail="Experiência inválida.")
+            entry_id = str(entry.get("id", "")).strip()
+            company = str(entry.get("company", "")).strip()
+            role_name = str(entry.get("role", "")).strip()
+            start_date = str(entry.get("start_date", "")).strip()
+            end_date = str(entry.get("end_date", "")).strip()
+            if not entry_id or entry_id in seen_experience_ids or not company or not role_name:
+                raise HTTPException(status_code=422, detail="Experiência incompleta.")
+            seen_experience_ids.add(entry_id)
+            try:
+                start = datetime.fromisoformat(start_date)
+                end = datetime.now(timezone.utc) if entry.get("current") else datetime.fromisoformat(end_date)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Datas da experiência inválidas.")
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            if end < start:
+                raise HTTPException(status_code=422, detail="A data final não pode ser anterior ao início.")
+            hours = entry.get("hours")
+            if hours is not None and (
+                isinstance(hours, bool)
+                or not isinstance(hours, (int, float))
+                or not math.isfinite(hours)
+                or hours < 0
+                or hours > 200000
+            ):
+                raise HTTPException(status_code=422, detail="Horas da experiência inválidas.")
+            if entry.get("status") not in {"recorded", "pending", "verified"}:
+                entry["status"] = "recorded"
+        clean_patch["work_experience"] = deepcopy(entries)
     with _state_lock:
         worker = _find("workers", worker_id)
+        if "certificates" in clean_patch:
+            incoming = clean_patch["certificates"]
+            if not isinstance(incoming, list) or any(not isinstance(item, dict) or not item.get("id") or not str(item.get("name", "")).strip() for item in incoming):
+                raise HTTPException(status_code=422, detail="Certificados inválidos.")
+            if len({str(item["id"]) for item in incoming}) != len(incoming):
+                raise HTTPException(status_code=422, detail="Cada certificado deve ter um identificador único.")
+            allowed_evidence_types = {
+                "qualification",
+                "work_record",
+                "employer_validation",
+                "technical_assessment",
+                "authorisation",
+            }
+            for certificate in incoming:
+                evidence_type = certificate.get("evidence_type")
+                if evidence_type is not None and evidence_type not in allowed_evidence_types:
+                    raise HTTPException(status_code=422, detail="Tipo de evidência inválido.")
+                competency_id = certificate.get("competency_id")
+                if competency_id is not None and (
+                    not isinstance(competency_id, str) or len(competency_id.strip()) > 120
+                ):
+                    raise HTTPException(status_code=422, detail="Competência associada inválida.")
+                hours = certificate.get("hours")
+                if hours is not None and (
+                    isinstance(hours, bool)
+                    or not isinstance(hours, (int, float))
+                    or not math.isfinite(hours)
+                    or hours < 0
+                    or hours > 100000
+                ):
+                    raise HTTPException(status_code=422, detail="Horas de evidência inválidas.")
+            existing = {item["id"]: item for item in worker.get("certificates", [])}
+            incoming = deepcopy(incoming)
+            if user["role"] == "worker":
+                for certificate in incoming:
+                    previous = existing.get(certificate["id"])
+                    if previous == certificate:
+                        continue
+                    if previous is None and certificate.get("status") not in {"recorded", "pending"}:
+                        raise HTTPException(status_code=403, detail="Novos certificados ficam registados ou a validar; a verificação requer confirmação da empresa.")
+                    # Editing any verified qualification invalidates its old confirmation.
+                    certificate["status"] = "pending" if certificate.get("file_id") or previous and previous.get("status") == "verified" else "recorded"
+                    certificate.pop("verified_by", None)
+            else:
+                for certificate in incoming:
+                    if certificate.get("status") == "verified":
+                        if existing.get(certificate["id"]) != certificate:
+                            file_id = certificate.get("file_id")
+                            evidence = _persistence.get_file(str(file_id)) if file_id else None
+                            if not evidence or evidence.get("owner_type") != "worker" or evidence.get("owner_id") != worker_id:
+                                raise HTTPException(status_code=422, detail="Associe um comprovativo do worker antes de verificar o certificado.")
+                            certificate["verified_by"] = user["sub"]
+            clean_patch["certificates"] = incoming
+        if "best_projects" in clean_patch:
+            incoming = clean_patch["best_projects"]
+            if not isinstance(incoming, list) or any(not isinstance(item, dict) or not item.get("id") or not str(item.get("title", "")).strip() for item in incoming):
+                raise HTTPException(status_code=422, detail="Portefólio inválido.")
+            if len({str(item["id"]) for item in incoming}) != len(incoming):
+                raise HTTPException(status_code=422, detail="Cada obra deve ter um identificador único.")
+            existing_projects = {item["id"]: item for item in worker.get("best_projects", [])}
+            incoming = deepcopy(incoming)
+            for project in incoming:
+                previous = existing_projects.get(project["id"])
+                if previous == project:
+                    continue
+                if user["role"] == "worker":
+                    if project.get("status") == "verified" and previous is None:
+                        raise HTTPException(status_code=403, detail="A realização da obra deve ser confirmada pela empresa.")
+                    project["status"] = "recorded"
+                    project.pop("verified_by", None)
+                    project.pop("profession_id", None)
+                elif project.get("status") == "verified":
+                    project["verified_by"] = user["sub"]
+                    project["profession_id"] = profession_id(str(clean_patch.get("profession", worker["profession"])))
+            clean_patch["best_projects"] = incoming
         worker.update(clean_patch)
-        return deepcopy(worker)
+        return _worker_payload(worker)
 
 
 @app.get(f"{API_PREFIX}/companies", tags=["Companies"])
@@ -1836,7 +1994,7 @@ def dashboard(
 ) -> dict[str, Any]:
     with _state_lock:
         if user["role"] == "worker":
-            worker = deepcopy(_find("workers", user["sub"]))
+            worker = _worker_payload(_find("workers", user["sub"]))
             projects = [
                 deepcopy(item)
                 for item in _state["projects"]

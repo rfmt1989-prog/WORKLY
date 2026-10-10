@@ -23,6 +23,21 @@ export type Skill = {
   level: number;
 };
 
+export type WorkExperience = {
+  id: string;
+  company: string;
+  role: string;
+  country: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  current: boolean;
+  description: string;
+  hours?: number;
+  status: "recorded" | "pending" | "verified";
+  verified_by?: string;
+};
+
 export type Certificate = {
   id: string;
   name: string;
@@ -34,6 +49,13 @@ export type Certificate = {
   profession_id?: string;
   node_id?: string;
   file_id?: string;
+  kind?: "certification" | "skill";
+  evidence_type?: "qualification" | "work_record" | "employer_validation" | "technical_assessment" | "authorisation";
+  competency_id?: string;
+  project_id?: string;
+  hours?: number;
+  context?: string;
+  verified_by?: string;
 };
 
 export type DemoDocument = {
@@ -58,6 +80,40 @@ export type BestProject = {
   location: string;
   year: number;
   summary: string;
+  status?: "recorded" | "pending" | "verified";
+  profession_id?: string;
+  verified_by?: string;
+};
+
+export type ProfessionalLevel = {
+  id: string;
+  label: string;
+  label_en: string;
+  minimum: number;
+};
+
+export type ProfessionalIdentity = {
+  id: string;
+  profession_id: string;
+  score: number;
+  maximum: number;
+  level: ProfessionalLevel;
+  level_index: number;
+  levels: ProfessionalLevel[];
+  next_level: ProfessionalLevel | null;
+  points_to_next: number;
+  progress: number;
+  components: { id: string; label: string; label_en: string; points: number; maximum: number; count: number; points_each: number }[];
+  core_coverage?: number;
+  verified_projects?: number;
+  verified_experience_months?: number;
+  verified_experience_hours?: number;
+  verified_qualifications?: number;
+  responsibility_evidence?: number;
+  verified_regulatory?: number;
+  regulatory_context?: string;
+  level_gate_note?: string;
+  framework_note?: string;
 };
 
 export type Worker = {
@@ -73,10 +129,12 @@ export type Worker = {
   profession: string;
   title: string;
   experience_years: number;
+  work_experience?: WorkExperience[];
   location: string;
   phone: string;
   bio: string;
   skills: Skill[];
+  specialties?: string[];
   certificates: Certificate[];
   availability: boolean;
   status: WorkerStatus;
@@ -89,6 +147,7 @@ export type Worker = {
   company_id: string | null;
   current_project_id: string | null;
   schedule: string;
+  professional_identity?: ProfessionalIdentity;
 };
 
 export type Company = {

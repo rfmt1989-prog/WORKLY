@@ -2,6 +2,8 @@ import type Ionicons from "@expo/vector-icons/Ionicons";
 import type React from "react";
 import type { Certificate, DemoDocument, Worker } from "@/src/demo/types";
 import { workspaceColors } from "./primitives";
+import { complianceCatalog, findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
+import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 
 export type AchievementStatus =
   | "verified"
@@ -32,6 +34,7 @@ export type AchievementNode = {
   evidence?: DemoDocument;
   meta?: string[];
   verificationNote?: string;
+  kind?: "profession" | "certification" | "skill";
 };
 
 type NodeSpec = Omit<AchievementNode, "status"> & {
@@ -81,16 +84,19 @@ export type ProfessionTree = {
   descriptionEn: string;
   icon: AchievementNode["icon"];
   root: AchievementNode;
+  certifications: AchievementNode[];
+  additionalSkills: AchievementNode[];
   nodes: AchievementNode[];
   preview: AchievementNode[];
 };
 
 type ProfessionDefinition = Omit<
   ProfessionTree,
-  "root" | "nodes" | "preview"
+  "root" | "certifications" | "additionalSkills" | "nodes" | "preview"
 > & {
   matches: string[];
-  nodeIds: string[];
+  certificationNodeIds: string[];
+  skillNodeIds: string[];
   previewIds: string[];
 };
 
@@ -103,8 +109,9 @@ export const professionDefinitions: ProfessionDefinition[] = [
     descriptionEn: "Installation, maintenance and electrical systems",
     icon: "flash-outline",
     matches: ["eletric", "electri"],
-    nodeIds: ["h0b0", "electrical-b1", "electrical-b2", "loto"],
-    previewIds: ["h0b0", "loto"],
+    certificationNodeIds: ["course", "h0b0", "electrical-b1", "electrical-b2"],
+    skillNodeIds: ["loto", "work-height", "first-aid"],
+    previewIds: ["h0b0", "electrical-b1"],
   },
   {
     id: "hvac",
@@ -113,9 +120,10 @@ export const professionDefinitions: ProfessionDefinition[] = [
     description: "Refrigeração, ar condicionado e eficiência",
     descriptionEn: "Refrigeration, air conditioning and efficiency",
     icon: "snow-outline",
-    matches: ["hvac", "climat", "refrig", "eletromec"],
-    nodeIds: ["fgas-a2", "fgas-a1", "fgas-b", "fgas-c"],
-    previewIds: ["fgas-a2", "fgas-b"],
+    matches: ["hvac", "avac", "climat", "refrig", "eletromec"],
+    certificationNodeIds: ["course", "fgas-a2", "fgas-a1", "fgas-b", "fgas-c"],
+    skillNodeIds: ["loto", "work-height", "confined-space", "first-aid"],
+    previewIds: ["course", "fgas-a2"],
   },
   {
     id: "plumbing",
@@ -125,7 +133,8 @@ export const professionDefinitions: ProfessionDefinition[] = [
     descriptionEn: "Water networks and plumbing installations",
     icon: "water-outline",
     matches: ["canal", "plumb", "hidraul"],
-    nodeIds: ["water-networks", "sanitation", "pipe-testing"],
+    certificationNodeIds: ["water-networks", "sanitation", "pipe-testing"],
+    skillNodeIds: ["confined-space", "work-height", "first-aid"],
     previewIds: ["water-networks", "sanitation"],
   },
   {
@@ -136,7 +145,8 @@ export const professionDefinitions: ProfessionDefinition[] = [
     descriptionEn: "Photovoltaic and solar thermal systems",
     icon: "sunny-outline",
     matches: ["solar", "fotovolt", "photovolta"],
-    nodeIds: ["photovoltaic", "solar-thermal", "solar-maintenance"],
+    certificationNodeIds: ["photovoltaic", "solar-thermal", "solar-maintenance"],
+    skillNodeIds: ["work-height", "loto", "first-aid"],
     previewIds: ["photovoltaic", "solar-thermal"],
   },
   {
@@ -156,7 +166,7 @@ export const professionDefinitions: ProfessionDefinition[] = [
       "equipament",
       "metal",
     ],
-    nodeIds: [
+    certificationNodeIds: [
       "ipaf-3ab",
       "ipaf-mm",
       "risk-chem-n1",
@@ -170,6 +180,8 @@ export const professionDefinitions: ProfessionDefinition[] = [
       "scc-018",
       "scc-017",
       "site-induction",
+    ],
+    skillNodeIds: [
       "work-height",
       "scaffolding",
       "rigging",
@@ -227,106 +239,285 @@ const suggestedNodes = [
   ],
 ] as const;
 
+export type SpecialtyTree = {
+  id: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  nodes: AchievementNode[];
+  unlockedCount: number;
+};
+
+export type ComplianceTree = {
+  id: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  nodes: AchievementNode[];
+  validCount: number;
+};
+
+function normalizeValue(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function certificateStatus(certificate?: Certificate): AchievementStatus | null {
+  if (!certificate) return null;
+  if (certificate.status === "verified") return "verified";
+  if (certificate.status === "pending") return "pending";
+  return "recorded";
+}
+
 export function buildProfessionTrees(
   worker: Worker,
   achievements: AchievementNode[],
 ): ProfessionTree[] {
-  const nodes = new Map(achievements.map((node) => [node.id, node]));
-  for (const [id, title, subtitle, icon, family] of suggestedNodes) {
-    if (!nodes.has(id))
-      nodes.set(id, {
-        id,
-        title,
-        subtitle,
-        icon,
-        family,
-        status: "available",
-        stage: "technical",
-        scope: "Formação profissional",
-      });
-  }
-  const normalize = (value: string) =>
-    value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  const areas = normalize(
-    [worker.profession, ...worker.skills.map((item) => item.name)].join(" "),
-  );
-  const isRodolfo = normalize(worker.name).includes("rodolfo maia");
-  const definitions = professionDefinitions.filter(
-    (definition) =>
-      isRodolfo ||
-      definition.matches.some((needle) => areas.includes(needle)) ||
-      worker.certificates.some((item) => item.profession_id === definition.id),
-  );
-  const assigned = new Set<string>();
-  const trees: ProfessionTree[] = definitions.map((definition) => {
-    const specific = achievements.filter(
-      (node) => node.certificate?.profession_id === definition.id,
-    );
-    const ids = [
-      ...new Set([...definition.nodeIds, ...specific.map((node) => node.id)]),
-    ];
-    const treeNodes = ids
-      .map((id) => nodes.get(id))
-      .filter((node): node is AchievementNode => Boolean(node))
-      .filter(
-        (node) =>
-          !node.certificate?.profession_id ||
-          node.certificate.profession_id === definition.id,
+  const definition = findProfessionDefinition(worker.profession);
+  if (!definition) return [];
+
+  const achievementById = new Map(achievements.map((node) => [node.id, node]));
+  const resolved = new Map<string, AchievementNode>();
+
+  const certifications = definition.nodes.map((spec) => {
+    const directCertificate = worker.certificates.find((certificate) => {
+      if (certificate.node_id === spec.id) return true;
+      const name = normalizeValue(certificate.name);
+      return (
+        name.includes(normalizeValue(spec.title)) ||
+        normalizeValue(spec.title).includes(name)
       );
-    treeNodes.forEach((node) => assigned.add(node.id));
-    const course = nodes.get("course")!;
-    const savedRoot = nodes.get(`${definition.id}-foundation`);
-    const root: AchievementNode =
-      savedRoot ||
-      (isRodolfo && ["electrical", "hvac", "industrial"].includes(definition.id)
-        ? course
-        : {
-            id: `${definition.id}-foundation`,
-            title: "Formação de base",
-            subtitle: definition.title,
-            icon: "school-outline",
-            status: "available",
-            stage: "foundation",
-            family: definition.id,
-            scope: "Formação profissional",
-          });
-    // A foundation belongs at the root, not a second time in its own branches.
-    const branches = treeNodes.filter((node) => node.id !== root.id);
-    assigned.add(root.id);
-    const preview = definition.previewIds
-      .map((id) => branches.find((node) => node.id === id))
-      .filter((node): node is AchievementNode => Boolean(node));
+    });
+
+    const legacyNode = achievementById.get(spec.id);
+    const legacyFoundation = spec.stage === "foundation" ? achievementById.get("course") : undefined;
+    const evidence = findEvidence(worker.documents, directCertificate || legacyFoundation?.certificate);
+    const directStatus =
+      certificateStatus(directCertificate) ||
+      (legacyNode && isCompleted(legacyNode.status) ? legacyNode.status : null) ||
+      (legacyFoundation && isCompleted(legacyFoundation.status) ? legacyFoundation.status : null);
+
+    const prerequisitesMet = (spec.dependsOn || []).every((id) => {
+      const dependency = resolved.get(id);
+      return dependency ? isCompleted(dependency.status) : false;
+    });
+
+    const status: AchievementStatus = directStatus
+      ? directStatus
+      : !spec.dependsOn?.length || prerequisitesMet
+        ? "available"
+        : "locked";
+
+    const node: AchievementNode = {
+      id: spec.id,
+      title: spec.title,
+      subtitle: spec.subtitle,
+      icon: spec.icon,
+      status,
+      stage: spec.stage,
+      family: spec.family,
+      scope: spec.scope,
+      dependsOn: spec.dependsOn,
+      certificate: directCertificate,
+      evidence,
+      kind: "certification",
+      meta: ["Etapa da profissão principal"],
+    };
+    resolved.set(spec.id, node);
+    return node;
+  });
+
+  const root: AchievementNode = {
+    id: `${definition.id}-profession`,
+    title: definition.title,
+    subtitle: "Profissão principal",
+    icon: definition.icon,
+    status: "recorded",
+    stage: "foundation",
+    family: definition.id,
+    scope: "Identidade profissional",
+    kind: "profession",
+  };
+
+  const tree: ProfessionTree = {
+    id: definition.id,
+    title: definition.title,
+    titleEn: definition.titleEn,
+    description: definition.description,
+    descriptionEn: definition.descriptionEn,
+    icon: definition.icon,
+    root,
+    certifications,
+    additionalSkills: [],
+    nodes: certifications,
+    preview: certifications.slice(0, 2),
+  };
+
+  return [tree];
+}
+
+export function buildSpecialtyTree(
+  worker: Worker,
+  assessment?: WorkerCompetencyAssessment | null,
+): SpecialtyTree {
+  const definition = findProfessionDefinition(worker.profession);
+  const score = assessment?.score ?? 0;
+  const selected = new Set(worker.specialties || []);
+  const proficiency = new Map(
+    (assessment?.competencies || []).map((item) => [
+      item.competency.id,
+      item.proficiency,
+    ]),
+  );
+
+  const relevant = specialtyCatalog.filter(
+    (specialty) =>
+      !definition ||
+      specialty.recommendedProfessions.includes(definition.id),
+  );
+
+  const nodes = relevant.map((specialty) => {
+    const requirements =
+      (definition &&
+        specialty.requirementsByProfession?.[definition.id]) ||
+      [];
+    const completedRequirements = requirements.filter(
+      (id) => (proficiency.get(id) || 0) >= specialty.minProficiency,
+    );
+    const technicalGate =
+      !requirements.length || completedRequirements.length === requirements.length;
+    const scoreGate = score >= specialty.minScore;
+    const active = selected.has(specialty.id);
+
+    const evidence = worker.certificates.find((item) => {
+      const name = normalizeValue(item.name);
+      return (
+        item.competency_id === specialty.id ||
+        item.node_id === specialty.id ||
+        specialty.evidenceAliases.some((alias) =>
+          name.includes(normalizeValue(alias)),
+        )
+      );
+    });
+    const proofStatus = certificateStatus(evidence);
+
+    const status: AchievementStatus = proofStatus
+      ? proofStatus
+      : active
+        ? "recorded"
+        : technicalGate && scoreGate
+          ? "available"
+          : "locked";
+
+    const missing = requirements.filter(
+      (id) => (proficiency.get(id) || 0) < specialty.minProficiency,
+    );
+    const criteria = [
+      `Score mínimo: ${specialty.minScore}/100`,
+      `Proficiência mínima nos pré-requisitos: ${specialty.minProficiency}/4`,
+      requirements.length
+        ? `Pré-requisitos técnicos: ${completedRequirements.length}/${requirements.length}`
+        : "Sem pré-requisitos técnicos adicionais",
+      ...(missing.length
+        ? [`Ainda por demonstrar: ${missing.join(", ")}`]
+        : []),
+      "Desbloquear permite desenvolver a especialização; não substitui formação, licença ou autorização legal aplicável.",
+    ];
+
     return {
-      ...definition,
-      root,
-      nodes: branches,
-      preview: preview.length ? preview : branches.slice(0, 2),
+      id: specialty.id,
+      title: specialty.title,
+      subtitle: specialty.description,
+      icon: specialty.icon,
+      status,
+      stage: specialty.minScore >= 60 ? "master" : "responsibility",
+      family: "extra-specialty",
+      scope: "Especialização técnica adicional",
+      certificate: evidence,
+      evidence: findEvidence(worker.documents, evidence),
+      meta: criteria,
+      kind: "skill" as const,
     };
   });
-  const unassigned = achievements.filter(
-    (node) => node.certificate && !assigned.has(node.id),
+
+  return {
+    id: "extra-specialties",
+    title: "Especializações",
+    titleEn: "Specialisations",
+    description:
+      "Novas áreas técnicas desbloqueadas apenas quando existem bases profissionais demonstradas.",
+    descriptionEn:
+      "New technical areas unlocked only when the required professional foundations are demonstrated.",
+    nodes,
+    unlockedCount: nodes.filter((node) => node.status !== "locked").length,
+  };
+}
+
+export function buildComplianceTree(worker: Worker): ComplianceTree {
+  const definition = findProfessionDefinition(worker.profession);
+  const items = complianceCatalog.filter(
+    (item) =>
+      !item.relevantProfessions?.length ||
+      !definition ||
+      item.relevantProfessions.includes(definition.id),
   );
-  if (!trees.length || unassigned.length) {
-    const root = {
-      ...nodes.get("course")!,
-      title: isRodolfo ? nodes.get("course")!.title : "Formação de base",
-    };
-    trees.push({
-      id: "professional",
-      title: worker.profession,
-      titleEn: worker.profession,
-      description: "Certificados da profissão",
-      descriptionEn: "Professional certificates",
-      icon: "ribbon-outline",
-      root,
-      nodes: unassigned,
-      preview: unassigned.slice(0, 2),
+
+  const nodes = items.map((item) => {
+    const evidence = worker.certificates.find((certificate) => {
+      const name = normalizeValue(certificate.name);
+      return item.evidenceAliases.some((alias) =>
+        name.includes(normalizeValue(alias)),
+      );
     });
-  }
-  return trees;
+
+    const status = evidence
+      ? certificateStatus(evidence) || "recorded"
+      : ("available" as AchievementStatus);
+
+    return {
+      id: item.id,
+      title: item.title,
+      subtitle: item.description,
+      icon: item.icon,
+      status,
+      stage: "industrial-access" as const,
+      family: "compliance",
+      scope:
+        item.scope === "eu"
+          ? "Conformidade UE"
+          : item.scope === "national"
+            ? "Conformidade nacional"
+            : item.scope === "employer"
+              ? "Requisito de empresa"
+              : item.scope === "site"
+                ? "Requisito de site"
+                : "Reconhecimento internacional",
+      certificate: evidence,
+      evidence: findEvidence(worker.documents, evidence),
+      meta: [
+        "Não altera diretamente o nível profissional WORKLY.",
+        "Serve para indicar se o Worker possui um requisito contextual válido para determinada tarefa, empresa, país ou site.",
+      ],
+      kind: "certification" as const,
+    };
+  });
+
+  return {
+    id: "compliance",
+    title: "Conformidade & Autorizações",
+    titleEn: "Compliance & Authorisations",
+    description:
+      "Cartões, habilitações e autorizações necessárias para trabalhar em contextos específicos.",
+    descriptionEn:
+      "Cards, qualifications and authorisations required for specific work contexts.",
+    nodes,
+    validCount: nodes.filter((node) => node.status === "verified").length,
+  };
 }
 
 export function isCompleted(status: AchievementStatus) {
@@ -450,8 +641,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: ipaf,
       evidence: findEvidence(worker.documents, ipaf),
-      baseStatus:
-        isRodolfo && ipaf ? "verified" : ipaf ? "recorded" : "available",
+      baseStatus: ipaf ? "recorded" : "available",
       meta: isRodolfo
         ? [
             "PAL · 3A / 3B",
@@ -462,7 +652,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
           ]
         : ["3A · móvel vertical", "3B · móvel multidirecional"],
       verificationNote: isRodolfo
-        ? "PAL e certificado de formação apresentados e conferidos. O ficheiro pessoal não é publicado no demo público."
+        ? "Dados de formação registados no perfil. O ficheiro pessoal não é publicado no demo público."
         : undefined,
     },
     nodeFromCertificate(
@@ -563,17 +753,12 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: riskChemical,
       evidence: findEvidence(worker.documents, riskChemical),
-      baseStatus:
-        isRodolfo && riskChemical
-          ? "verified"
-          : riskChemical
-            ? "recorded"
-            : "available",
+      baseStatus: riskChemical ? "recorded" : "available",
       meta: isRodolfo
         ? ["SGP Formation", "28–29/08/2026", "7 h", "Validação · Succès"]
         : [],
       verificationNote: isRodolfo
-        ? "Atestado de fim de formação apresentado e conferido. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
+        ? "Registo de formação industrial. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
         : undefined,
     },
     {
@@ -803,8 +988,11 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
   const resolvedSpecs = specs.map((spec) => {
     const certificate = worker.certificates.find(
       (item) => item.node_id === spec.id,
-    );
-    if (!certificate) return spec;
+    ) || spec.certificate;
+    if (!certificate) return {
+      ...spec,
+      baseStatus: spec.baseStatus === "verified" ? ("recorded" as const) : spec.baseStatus,
+    };
     return {
       ...spec,
       certificate,

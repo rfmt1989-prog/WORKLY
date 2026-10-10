@@ -14,9 +14,11 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import { uiText } from "@/src/demo/localizedUi";
+import { professionalFormat } from "@/src/demo/professionalI18n";
 import type { Project, ProjectStatus } from "@/src/demo/types";
 
 import { ProjectOperationsPanel } from "./ProjectOperationsPanel";
+import { verifiedAttendanceHours } from "./workerExperience";
 
 import {
   Avatar,
@@ -93,6 +95,16 @@ export function ProjectsView() {
     return state.projects.filter((project) => project.worker_ids.includes(user.id));
   }, [state, user]);
   const selectedProject = projects.find((project) => project.id === selectedId);
+  const worklyHours = user?.role === "worker"
+    ? verifiedAttendanceHours(user.id, state?.attendance || [])
+    : 0;
+  const verifiedCompletedProjects = user?.role === "worker"
+    ? projects.filter(
+        (project) =>
+          project.status === "completed" &&
+          verifiedAttendanceHours(user.id, state?.attendance || [], project.id) > 0,
+      ).length
+    : 0;
 
   if (!state || !user) return null;
 
@@ -180,7 +192,15 @@ export function ProjectsView() {
           <Text style={sharedStyles.subtitle}>
             {role === "company"
               ? uiText(language, "Planeamento, progresso e recursos por obra.", "Planning, progress and resources by project.")
-              : uiText(language, "Obras atribuídas, local e horário.", "Assigned projects, locations and schedules.")}
+              : professionalFormat(
+                  language,
+                  "Histórico WORKLY · {projects} obra(s) verificada(s) · {hours} h aprovadas.",
+                  "WORKLY history · {projects} verified project(s) · {hours} approved h.",
+                  {
+                    projects: verifiedCompletedProjects,
+                    hours: Math.round(worklyHours),
+                  },
+                )}
           </Text>
         </View>
         {role === "company" ? (
@@ -215,6 +235,11 @@ export function ProjectsView() {
               workersCount={project.worker_ids.length}
               language={language}
               accent={accent}
+              verifiedHours={
+                user.role === "worker"
+                  ? verifiedAttendanceHours(user.id, state.attendance, project.id)
+                  : undefined
+              }
               onPress={() => openDetail(project)}
             />
           ))
@@ -382,6 +407,7 @@ function ProjectCard({
   workersCount,
   language,
   accent,
+  verifiedHours,
   onPress,
 }: {
   project: Project;
@@ -389,6 +415,7 @@ function ProjectCard({
   workersCount: number;
   language: import("@/src/demo/types").LanguageCode;
   accent: string;
+  verifiedHours?: number;
   onPress: () => void;
 }) {
   const t = copy[language];
@@ -456,6 +483,12 @@ function ProjectCard({
             {workersCount} {uiText(language, "pessoas", "people")}
           </Text>
         </View>
+        {verifiedHours !== undefined ? (
+          <View style={styles.footerStat}>
+            <Ionicons name="time-outline" size={15} color={workspaceColors.blueSoft} />
+            <Text style={styles.footerText}>{Math.round(verifiedHours)} h WORKLY</Text>
+          </View>
+        ) : null}
         <Text style={styles.dateText}>{project.end_date}</Text>
       </View>
     </Pressable>
