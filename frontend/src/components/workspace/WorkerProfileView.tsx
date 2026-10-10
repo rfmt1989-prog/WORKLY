@@ -5,7 +5,7 @@ import { openWorklyFile } from "@/src/api/documentFiles";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
-import { assessmentGateText, professionTitle, professionalText } from "@/src/demo/professionalI18n";
+import { assessmentGateText, complianceTitle, professionTitle, professionalMetaText, professionalText, scopeText, specialtyCopy } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
 import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
@@ -20,7 +20,7 @@ import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
 import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
-import { findProfessionDefinition } from "./professionCatalog";
+import { complianceCatalog, findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
 
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
@@ -291,7 +291,38 @@ function CertificateDetails({
 }) {
   const { notify } = useWorklyData();
   const fileId = node.certificate?.file_id || node.evidence?.file_id;
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const specialtyDefinition = specialtyCatalog.find((item) => item.id === node.id);
+  const complianceDefinition = complianceCatalog.find((item) => item.id === node.id);
+  const displayTitle = specialtyDefinition
+    ? specialtyCopy(
+        language,
+        node.id,
+        specialtyDefinition.title,
+        specialtyDefinition.titleEn,
+      )
+    : complianceDefinition
+      ? complianceTitle(
+          language,
+          node.id,
+          complianceDefinition.title,
+          complianceDefinition.titleEn,
+        )
+      : localizeDemoText(language, node.title);
+  const displaySubtitle = specialtyDefinition
+    ? specialtyCopy(
+        language,
+        node.id,
+        specialtyDefinition.description,
+        specialtyDefinition.descriptionEn,
+        true,
+      )
+    : complianceDefinition
+      ? text(
+          "Requisito de conformidade contextual",
+          "Contextual compliance requirement",
+        )
+      : localizeDemoText(language, node.subtitle);
   const openFile = async () => {
     try {
       await openWorklyFile(fileId!);
@@ -312,8 +343,8 @@ function CertificateDetails({
     <ModalPanel
       visible
       onClose={onClose}
-      title={localizeDemoText(language, node.title)}
-      subtitle={localizeDemoText(language, node.subtitle)}
+      title={displayTitle}
+      subtitle={displaySubtitle}
       footer={
         <>
           {fileId ? (
@@ -339,7 +370,7 @@ function CertificateDetails({
         </View>
         <Text style={styles.sectionLabel}>{text("Âmbito", "Scope")}</Text>
         <Text style={styles.detailText}>
-          {localizeDemoText(language, node.scope)}
+          {scopeText(language, localizeDemoText(language, node.scope))}
         </Text>
         {node.certificate ? (
           <View style={styles.detailsGrid}>
@@ -385,7 +416,10 @@ function CertificateDetails({
             <Text style={styles.sectionLabel}>{text("Critérios de progressão", "Progression criteria")}</Text>
             {node.meta.map((item) => (
               <Text key={item} style={styles.detailText}>
-                {localizeDemoText(language, item)}
+                {professionalMetaText(
+                  language,
+                  localizeDemoText(language, item),
+                )}
               </Text>
             ))}
           </View>
