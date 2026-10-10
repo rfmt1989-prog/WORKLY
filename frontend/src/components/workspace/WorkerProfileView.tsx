@@ -7,7 +7,7 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import type { LanguageCode, WorkExperience } from "@/src/demo/types";
+import type { LanguageCode } from "@/src/demo/types";
 import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
@@ -16,8 +16,6 @@ import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
 import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
-import { WorkerExperienceTimeline } from "./WorkerExperienceTimeline";
-import { WorkerExperienceEditor } from "./WorkerExperienceEditor";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
@@ -45,12 +43,11 @@ export function WorkerProfileView({
   const [about, setAbout] = useState(false);
   const [rules, setRules] = useState(false);
   const [certificateTarget, setCertificateTarget] = useState<{ professionId: string; node?: AchievementNode } | null>(null);
-  const [experienceTarget, setExperienceTarget] = useState<WorkExperience | null | undefined>(undefined);
   const [exportingPdf, setExportingPdf] = useState(false);
   const worker = state?.workers.find(item => item.id === user?.id);
   const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
   const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
-  const competencyAssessment = useMemo(() => worker ? assessWorkerCompetence(worker, state?.projects || []) : null, [worker, state?.projects]);
+  const competencyAssessment = useMemo(() => worker ? assessWorkerCompetence(worker, state?.projects || [], state?.attendance || []) : null, [worker, state?.projects, state?.attendance]);
   const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment) : null, [worker, competencyAssessment]);
   const complianceTree = useMemo(() => worker ? buildComplianceTree(worker) : null, [worker]);
   const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || []), ...(complianceTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree, complianceTree]);
@@ -63,7 +60,7 @@ export function WorkerProfileView({
     if (exportingPdf) return;
     setExportingPdf(true);
     try {
-      await exportWorkerProfilePdf(worker, competencyAssessment, specialtyTree, complianceTree, language);
+      await exportWorkerProfilePdf(worker, competencyAssessment, specialtyTree, complianceTree, state?.projects || [], state?.attendance || [], language);
       notify(
         text(
           Platform.OS === "web" ? "Abriu a exportação PDF do perfil." : "Perfil PDF preparado para partilhar.",
@@ -95,7 +92,7 @@ export function WorkerProfileView({
             </View>
             <View style={styles.divider}><View style={styles.dividerLine} /><View style={styles.dividerDiamond} /><View style={styles.dividerLine} /></View>
             <View style={[styles.identityRows, compact && styles.identityRowsCompact]}>
-              <IdentityRow icon="construct-outline" label={text("Experiência", "Experience")} value={`${worker.experience_years} ${text("anos", "years")}`} />
+              <IdentityRow icon="construct-outline" label={text("Experiência WORKLY", "WORKLY experience")} value={competencyAssessment ? `${competencyAssessment.verifiedExperienceHours} h` : "0 h"} />
               <IdentityRow icon="location-outline" label={text("Localização", "Location")} value={worker.location ? `${worker.flag} ${worker.location}`.trim() : "—"} />
               <IdentityRow icon="language-outline" label={text("Idiomas", "Languages")} value={worker.languages.map(item => localizeDemoText(language, item)).join(" · ") || "—"} />
               <IdentityRow icon="calendar-outline" label={text("Novas obras", "New projects")} value={worker.availability ? text("Disponível", "Available") : text("Indisponível", "Unavailable")} />
@@ -121,12 +118,6 @@ export function WorkerProfileView({
               ) : (
                 <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
               )}
-              <WorkerExperienceTimeline
-                entries={worker.work_experience || []}
-                language={language}
-                onAdd={() => setExperienceTarget(null)}
-                onEdit={(entry) => setExperienceTarget(entry)}
-              />
               <View style={styles.profileActions}>
                 <Button
                   label={text("Abrir percurso", "Open journey")}
@@ -224,7 +215,6 @@ export function WorkerProfileView({
       </View></ModalPanel> : null}
       {selected ? <CertificateDetails node={selected} byId={byId} language={language} onClose={() => setSelected(null)} onAssociate={() => { setCertificateTarget({ professionId: primaryTree?.id || "professional", node: selected }); setSelected(null); }} /> : null}
       {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
-      {experienceTarget !== undefined ? <WorkerExperienceEditor worker={worker} experience={experienceTarget || undefined} onClose={() => setExperienceTarget(undefined)} /> : null}
       {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
     </View>
   );
@@ -241,7 +231,7 @@ function EmptyProfessionalProfile({
   const steps = [
     ["person-outline", text("Identificação", "Identity"), text("Completa os dados profissionais essenciais.", "Complete the essential professional details.")],
     ["briefcase-outline", text("Profissão principal", "Main profession"), text("Escolhe uma profissão. Esta será a tua única árvore principal.", "Choose one profession. This becomes your only main tree.")],
-    ["briefcase-outline", text("Experiência", "Experience"), text("Regista empresas, funções e datas. Os anos são calculados automaticamente.", "Record companies, roles and dates. Years are calculated automatically.")],
+    ["briefcase-outline", text("Experiência WORKLY", "WORKLY experience"), text("Começa a contar nas Obras após o registo através de horas e atividade verificadas.", "Starts counting in Projects after registration through verified hours and activity.")],
     ["ribbon-outline", text("Evidências e especialidades", "Evidence & specialties"), text("Liga qualificações e provas às competências para desbloquear progressão.", "Link qualifications and evidence to competences to unlock progression.")],
   ] as const;
   return (
