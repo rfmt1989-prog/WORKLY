@@ -324,7 +324,7 @@ def _public_auth_user(user: dict[str, Any]) -> dict[str, Any]:
 
 def _worker_payload(worker: dict[str, Any]) -> dict[str, Any]:
     payload = deepcopy(worker)
-    payload["professional_identity"] = professional_identity(worker, _state["projects"])
+    payload["professional_identity"] = professional_identity(worker, _state["projects"], _state["attendance"])
     return payload
 
 
@@ -731,7 +731,6 @@ def register(data: RegisterInput) -> dict[str, Any]:
                     "flag": "",
                     "profession": "",
                     "experience_years": 0,
-                    "work_experience": [],
                     "location": "",
                     "phone": "",
                     "bio": "",
@@ -964,7 +963,6 @@ def update_worker(
         "profession",
         "title",
         "experience_years",
-        "work_experience",
         "location",
         "phone",
         "bio",
@@ -1039,24 +1037,6 @@ def update_worker(
         clean_patch["work_experience"] = deepcopy(entries)
     with _state_lock:
         worker = _find("workers", worker_id)
-        if "work_experience" in clean_patch:
-            existing_experience = {
-                item.get("id"): item for item in worker.get("work_experience", [])
-            }
-            incoming_experience = deepcopy(clean_patch["work_experience"])
-            if user["role"] == "worker":
-                for entry in incoming_experience:
-                    previous = existing_experience.get(entry.get("id"))
-                    if previous == entry:
-                        continue
-                    entry["status"] = "pending" if previous and previous.get("status") == "verified" else "recorded"
-                    entry.pop("verified_by", None)
-            else:
-                for entry in incoming_experience:
-                    previous = existing_experience.get(entry.get("id"))
-                    if entry.get("status") == "verified" and previous != entry:
-                        entry["verified_by"] = user["sub"]
-            clean_patch["work_experience"] = incoming_experience
         if "certificates" in clean_patch:
             incoming = clean_patch["certificates"]
             if not isinstance(incoming, list) or any(not isinstance(item, dict) or not item.get("id") or not str(item.get("name", "")).strip() for item in incoming):
