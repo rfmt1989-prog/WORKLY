@@ -1,57 +1,59 @@
-import type { WorkExperience } from "@/src/demo/types";
+import type { Attendance, Project } from "@/src/demo/types";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const AVG_MONTH_DAYS = 30.4375;
-
-function parseDate(value: string, fallback?: Date) {
-  if (!value) return fallback || null;
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? new Date(timestamp) : null;
+function durationHours(checkIn: string, checkOut: string | null) {
+  if (!checkOut) return 0;
+  const start = Date.parse(checkIn);
+  const end = Date.parse(checkOut);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  return Math.max(0, (end - start) / 3600000);
 }
 
-export function experienceMonths(
-  entries: WorkExperience[] | undefined,
-  verifiedOnly = false,
+export function verifiedAttendanceHours(
+  workerId: string,
+  attendance: Attendance[],
+  projectId?: string,
 ) {
-  const now = new Date();
-  const ranges = (entries || [])
-    .filter((entry) => !verifiedOnly || entry.status === "verified")
-    .map((entry) => {
-      const start = parseDate(entry.start_date);
-      const end = entry.current ? now : parseDate(entry.end_date, now);
-      if (!start || !end || end < start) return null;
-      return [start.getTime(), end.getTime()] as const;
-    })
-    .filter((range): range is readonly [number, number] => Boolean(range))
-    .sort((a, b) => a[0] - b[0]);
-
-  if (!ranges.length) return 0;
-
-  const merged: [number, number][] = [];
-  for (const [start, end] of ranges) {
-    const last = merged[merged.length - 1];
-    if (!last || start > last[1]) {
-      merged.push([start, end]);
-    } else {
-      last[1] = Math.max(last[1], end);
-    }
-  }
-
-  const days = merged.reduce(
-    (sum, [start, end]) => sum + Math.max(0, (end - start) / DAY_MS),
-    0,
-  );
-  return Math.round((days / AVG_MONTH_DAYS) * 10) / 10;
-}
-
-export function experienceYears(entries: WorkExperience[] | undefined) {
-  return Math.round((experienceMonths(entries) / 12) * 10) / 10;
-}
-
-export function verifiedExperienceHours(entries: WorkExperience[] | undefined) {
   return Math.round(
-    (entries || [])
-      .filter((entry) => entry.status === "verified")
-      .reduce((sum, entry) => sum + (entry.hours || 0), 0),
+    attendance
+      .filter(
+        (item) =>
+          item.worker_id === workerId &&
+          item.approval_status === "approved" &&
+          (!projectId || item.project_id === projectId),
+      )
+      .reduce((sum, item) => sum + durationHours(item.check_in, item.check_out), 0) *
+      10,
+  ) / 10;
+}
+
+export function verifiedProjectIds(
+  workerId: string,
+  projects: Project[],
+  attendance: Attendance[],
+  professionId?: string,
+) {
+  const projectIdsWithApprovedWork = new Set(
+    attendance
+      .filter(
+        (item) =>
+          item.worker_id === workerId &&
+          item.approval_status === "approved" &&
+          Boolean(item.check_out),
+      )
+      .map((item) => item.project_id),
+  );
+
+  return new Set(
+    projects
+      .filter((project) => {
+        const tagged = project as Project & { profession_id?: string };
+        return (
+          project.status === "completed" &&
+          project.worker_ids.includes(workerId) &&
+          projectIdsWithApprovedWork.has(project.id) &&
+          (!professionId || tagged.profession_id === professionId)
+        );
+      })
+      .map((project) => project.id),
   );
 }
