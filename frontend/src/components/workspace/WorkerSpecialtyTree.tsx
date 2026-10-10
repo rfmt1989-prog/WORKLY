@@ -1,8 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { uiText } from "@/src/demo/fullUi";
-import { localizeDemoText } from "@/src/demo/localizedData";
+import { professionalText, specialtyCopy, specialtyRequirementText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import type { AchievementNode, SpecialtyTree } from "./workerCertificateTree";
@@ -16,7 +15,7 @@ export function WorkerSpecialtyTree({
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
 
   return (
     <View style={styles.panel} testID="worker-specialty-tree">
@@ -44,7 +43,7 @@ export function WorkerSpecialtyTree({
             <Pressable
               key={node.id}
               accessibilityRole="button"
-              accessibilityLabel={localizeDemoText(language, node.title)}
+              accessibilityLabel={specialtyCopy(language, node.id, node.title, node.title)}
               onPress={() => onNode(node)}
               style={({ pressed }) => [
                 styles.row,
@@ -66,7 +65,7 @@ export function WorkerSpecialtyTree({
               <View style={styles.copy}>
                 <View style={styles.titleRow}>
                   <Text style={[styles.nodeTitle, locked && styles.nodeTitleLocked]}>
-                    {localizeDemoText(language, node.title)}
+                    {specialtyCopy(language, node.id, node.title, node.title)}
                   </Text>
                   {!locked ? (
                     <View style={styles.unlockChip}>
@@ -79,13 +78,13 @@ export function WorkerSpecialtyTree({
                   ) : null}
                 </View>
                 <Text style={styles.nodeSubtitle} numberOfLines={2}>
-                  {localizeDemoText(language, node.subtitle)}
+                  {specialtyCopy(language, node.id, node.subtitle, node.subtitle, true)}
                 </Text>
                 <JourneyStatus node={node} language={language} />
                 {locked && node.meta?.length ? (
                   <View style={styles.requirements}>
                     {node.meta.slice(0, 3).map((item) => (
-                      <Text key={item} style={styles.requirement}>· {item}</Text>
+                      <Text key={item} style={styles.requirement}>· {specialtyRequirementText(language, item)}</Text>
                     ))}
                   </View>
                 ) : null}
