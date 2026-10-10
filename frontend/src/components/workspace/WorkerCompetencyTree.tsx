@@ -177,7 +177,7 @@ function CompetencySection({
   onNode: (node: AchievementNode) => void;
   optional?: boolean;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
 
   return (
     <View style={[styles.section, optional && styles.sectionOptional]}>
