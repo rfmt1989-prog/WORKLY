@@ -5,7 +5,7 @@ import { openWorklyFile } from "@/src/api/documentFiles";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
-import { uiText } from "@/src/demo/fullUi";
+import { assessmentGateText, professionTitle, professionalText } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
 import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
@@ -20,6 +20,7 @@ import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
 import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
+import { findProfessionDefinition } from "./professionCatalog";
 
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
@@ -51,9 +52,10 @@ export function WorkerProfileView({
   const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment) : null, [worker, competencyAssessment]);
   const complianceTree = useMemo(() => worker ? buildComplianceTree(worker) : null, [worker]);
   const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || []), ...(complianceTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree, complianceTree]);
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
+  const professionDefinition = findProfessionDefinition(worker.profession);
   const education = achievements.find(node => node.id === "course" && isCompleted(node.status) && !primaryTree?.certifications.some(item => item.id === node.id));
 
   const exportPdf = async () => {
@@ -86,7 +88,7 @@ export function WorkerProfileView({
               <View style={[styles.identityHeading, compact && styles.headingCompact]}>
                 <Text style={styles.eyebrow}>{text("Identidade profissional", "Professional identity")}</Text>
                 <Text style={[styles.name, compact && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
-                <Text style={[styles.profession, compact && styles.professionCompact]}>{worker.profession ? localizeDemoText(language, worker.profession) : text("Profissão por definir", "Profession not set")}</Text>
+                <Text style={[styles.profession, compact && styles.professionCompact]}>{worker.profession && professionDefinition ? professionTitle(language, professionDefinition.id, professionDefinition.title, professionDefinition.titleEn) : worker.profession || text("Profissão por definir", "Profession not set")}</Text>
                 {worker.profession ? <StatusPill status={worker.status} label={worker.status === "on_site" ? copy[language].onSite : worker.status === "contracted" ? copy[language].contracted : worker.availability ? copy[language].available : text("Indisponível", "Unavailable")} /> : null}
               </View>
             </View>
@@ -198,11 +200,15 @@ export function WorkerProfileView({
       </ScrollView>
       {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como é calculado o WORKLY VALUE", "How WORKLY VALUE is calculated")} subtitle={text("Quatro dimensões simples formam o valor 0–100. O nível profissional exige também critérios mínimos.", "Four simple dimensions create the 0–100 value. Professional level also requires minimum gates.")}>
         <View style={styles.ruleList}>
-          {competencyAssessment.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{language === "pt" ? part.label : part.labelEn}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text><Text style={styles.detailNote}>{language === "pt" ? part.detail : part.detailEn}</Text></View>)}
+          {competencyAssessment.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{text(part.label, part.labelEn)}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text></View>)}
           {competencyAssessment.missingGates.length ? (
             <View style={styles.ruleItem}>
               <Text style={styles.ruleTitle}>{text("Para o próximo nível", "For the next level")}</Text>
-              {(language === "pt" ? competencyAssessment.missingGates : competencyAssessment.missingGatesEn).map(item => <Text key={item} style={styles.detailNote}>· {item}</Text>)}
+              {competencyAssessment.missingGates.map((item, index) => (
+                <Text key={item} style={styles.detailNote}>
+                  · {assessmentGateText(language, item, competencyAssessment.missingGatesEn[index] || item)}
+                </Text>
+              ))}
             </View>
           ) : null}
           <Text style={styles.detailNote}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
@@ -227,7 +233,7 @@ function EmptyProfessionalProfile({
   language: LanguageCode;
   onStart: () => void;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
   const steps = [
     ["person-outline", text("Identificação", "Identity"), text("Completa os dados profissionais essenciais.", "Complete the essential professional details.")],
     ["briefcase-outline", text("Profissão principal", "Main profession"), text("Escolhe uma profissão. Esta será a tua única árvore principal.", "Choose one profession. This becomes your only main tree.")],
