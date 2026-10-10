@@ -25,7 +25,6 @@ def build_demo_state() -> dict:
         "profession": "",
         "title": "",
         "experience_years": 0,
-        "work_experience": [],
         "location": "",
         "phone": "",
         "bio": "",
