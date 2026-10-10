@@ -1,7 +1,22 @@
 import { Platform } from "react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import {
+  complianceTitle,
+  competencyTitle,
+  levelText,
+  professionTitle,
+  professionalText,
+  scopeText,
+  specialtyCopy,
+} from "@/src/demo/professionalI18n";
+import { localizeDemoText } from "@/src/demo/localizedData";
 import type { Attendance, LanguageCode, Project, Worker } from "@/src/demo/types";
+import {
+  complianceCatalog,
+  findProfessionDefinition,
+  specialtyCatalog,
+} from "./professionCatalog";
 import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 import type { SpecialtyTree, ComplianceTree } from "./workerCertificateTree";
 import { verifiedAttendanceHours } from "./workerExperience";
@@ -15,18 +30,12 @@ function esc(value: unknown) {
 }
 
 function statusLabel(status: string, language: LanguageCode) {
-  if (language === "pt") {
-    if (status === "verified") return "Verificado";
-    if (status === "pending") return "A validar";
-    if (status === "recorded") return "Registado";
-    if (status === "locked") return "Bloqueado";
-    return "Disponível";
-  }
-  if (status === "verified") return "Verified";
-  if (status === "pending") return "Pending";
-  if (status === "recorded") return "Recorded";
-  if (status === "locked") return "Locked";
-  return "Available";
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  if (status === "verified") return text("Verificado", "Verified");
+  if (status === "pending") return text("A validar", "Pending");
+  if (status === "recorded") return text("Registado", "Recorded");
+  if (status === "locked") return text("Bloqueado", "Next step");
+  return text("Disponível", "Available");
 }
 
 function buildHtml(
@@ -38,53 +47,101 @@ function buildHtml(
   attendance: Attendance[],
   language: LanguageCode,
 ) {
-  const pt = language === "pt";
-  const title = pt ? "Perfil Profissional WORKLY" : "WORKLY Professional Profile";
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const title = text("Perfil Profissional WORKLY", "WORKLY Professional Profile");
+  const professionDefinition = findProfessionDefinition(worker.profession);
+  const professionLabel = professionDefinition
+    ? professionTitle(
+        language,
+        professionDefinition.id,
+        professionDefinition.title,
+        professionDefinition.titleEn,
+      )
+    : worker.profession || text("Profissão por definir", "Profession not set");
+
+  const levelLabel = assessment
+    ? levelText(
+        language,
+        assessment.levelId,
+        assessment.levelLabel,
+        assessment.levelLabelEn,
+      )
+    : text("Não avaliada", "Not assessed");
+
   const workHistory = projects
     .filter((project) => project.worker_ids.includes(worker.id))
     .sort((a, b) => b.start_date.localeCompare(a.start_date));
 
-  const componentRows = assessment?.components
-    .map(
-      (item) => `
+  const componentRows =
+    assessment?.components
+      .map(
+        (item) => `
         <tr>
-          <td>${esc(pt ? item.label : item.labelEn)}</td>
+          <td>${esc(text(item.label, item.labelEn))}</td>
           <td style="text-align:right;font-weight:700">${item.points}/${item.maximum}</td>
         </tr>`,
-    )
-    .join("") || "";
+      )
+      .join("") || "";
 
-  const competenceRows = assessment?.competencies
-    .map(
-      (item) => `
+  const competenceRows =
+    assessment?.competencies
+      .map(
+        (item) => `
         <tr>
-          <td>${esc(pt ? item.competency.title : item.competency.titleEn)}</td>
-          <td>${item.proficiency}/4 · ${esc(pt ? item.proficiencyLabel : item.proficiencyLabelEn)}</td>
+          <td>${esc(
+            competencyTitle(
+              language,
+              item.competency.id,
+              item.competency.title,
+              item.competency.titleEn,
+            ),
+          )}</td>
+          <td>${item.proficiency}/4 · ${esc(
+            text(item.proficiencyLabel, item.proficiencyLabelEn),
+          )}</td>
           <td>${item.evidenceCount}</td>
         </tr>`,
-    )
-    .join("") || "";
+      )
+      .join("") || "";
 
   const experienceRows = workHistory.length
     ? workHistory
         .map((project) => {
-          const hours = verifiedAttendanceHours(worker.id, attendance, project.id);
+          const hours = verifiedAttendanceHours(
+            worker.id,
+            attendance,
+            project.id,
+          );
+          const projectStatus =
+            project.status === "completed"
+              ? text("Concluída", "Completed")
+              : text("Em curso", "In progress");
           return `
             <div class="experience">
               <div class="experience-head">
                 <strong>${esc(project.name)}</strong>
-                <span class="badge">${esc(project.status === "completed" ? (pt ? "Concluída" : "Completed") : (pt ? "Em curso" : "In progress"))}</span>
+                <span class="badge">${esc(projectStatus)}</span>
               </div>
-              <div class="muted">${esc(project.client || "—")} · ${esc(project.location || "—")}</div>
-              <div class="muted">${esc(project.start_date)} → ${esc(project.end_date || "—")} · ${hours} h WORKLY</div>
+              <div class="muted">${esc(project.client || "—")} · ${esc(
+                project.location || "—",
+              )}</div>
+              <div class="muted">${esc(project.start_date)} → ${esc(
+                project.end_date || "—",
+              )} · ${hours} h WORKLY</div>
               ${project.description ? `<p>${esc(project.description)}</p>` : ""}
             </div>`;
         })
         .join("")
-    : `<p class="muted">${pt ? "Sem Obras WORKLY registadas." : "No WORKLY projects recorded."}</p>`;
+    : `<p class="muted">${esc(
+        text("Sem Obras WORKLY registadas.", "No WORKLY projects recorded."),
+      )}</p>`;
 
   const qualificationRows = worker.certificates
-    .filter((item) => item.evidence_type === "qualification" || (!item.evidence_type && item.kind !== "skill"))
+    .filter(
+      (item) =>
+        item.evidence_type === "qualification" ||
+        (!item.evidence_type && item.kind !== "skill"),
+    )
     .map(
       (item) => `
         <tr>
@@ -95,27 +152,51 @@ function buildHtml(
     )
     .join("");
 
-  const specialtyRows = specialties?.nodes
-    .filter((item) => item.status !== "locked")
-    .map(
-      (item) => `
+  const specialtyRows =
+    specialties?.nodes
+      .filter((item) => item.status !== "locked")
+      .map((item) => {
+        const definition = specialtyCatalog.find(
+          (candidate) => candidate.id === item.id,
+        );
+        const display = definition
+          ? specialtyCopy(
+              language,
+              item.id,
+              definition.title,
+              definition.titleEn,
+            )
+          : item.title;
+        return `
         <tr>
-          <td>${esc(item.title)}</td>
+          <td>${esc(display)}</td>
           <td>${esc(statusLabel(item.status, language))}</td>
-        </tr>`,
-    )
-    .join("") || "";
+        </tr>`;
+      })
+      .join("") || "";
 
-  const complianceRows = compliance?.nodes
-    .map(
-      (item) => `
+  const complianceRows =
+    compliance?.nodes
+      .map((item) => {
+        const definition = complianceCatalog.find(
+          (candidate) => candidate.id === item.id,
+        );
+        const display = definition
+          ? complianceTitle(
+              language,
+              item.id,
+              definition.title,
+              definition.titleEn,
+            )
+          : item.title;
+        return `
         <tr>
-          <td>${esc(item.title)}</td>
-          <td>${esc(item.scope)}</td>
+          <td>${esc(display)}</td>
+          <td>${esc(scopeText(language, item.scope))}</td>
           <td>${esc(statusLabel(item.status, language))}</td>
-        </tr>`,
-    )
-    .join("") || "";
+        </tr>`;
+      })
+      .join("") || "";
 
   return `<!doctype html>
 <html>
@@ -149,59 +230,62 @@ function buildHtml(
   <div class="header">
     <div>
       <div class="brand">WORKLY</div>
-      <h1>${esc(worker.name || (pt ? "Perfil Worker" : "Worker Profile"))}</h1>
-      <div class="level">${esc(worker.profession || (pt ? "Profissão por definir" : "Profession not set"))}</div>
+      <h1>${esc(worker.name || text("Perfil Worker", "Worker Profile"))}</h1>
+      <div class="level">${esc(professionLabel)}</div>
       <div class="muted">${esc(title)}</div>
     </div>
     <div class="value">
       <div class="muted">WORKLY VALUE</div>
       <strong>${assessment?.score ?? 0}/100</strong>
-      <div class="level">${esc(assessment ? (pt ? assessment.levelLabel : assessment.levelLabelEn) : (pt ? "Sem avaliação" : "Not assessed"))}</div>
+      <div class="level">${esc(levelLabel)}</div>
     </div>
   </div>
 
   <div class="grid">
-    <div><div class="item-label">${pt ? "País" : "Country"}</div><div class="item-value">${esc(worker.country || "—")}</div></div>
-    <div><div class="item-label">${pt ? "Localização" : "Location"}</div><div class="item-value">${esc(worker.location || "—")}</div></div>
-    <div><div class="item-label">${pt ? "Experiência WORKLY" : "WORKLY experience"}</div><div class="item-value">${esc(assessment?.verifiedExperienceHours || 0)} h</div></div>
-    <div><div class="item-label">${pt ? "Idiomas" : "Languages"}</div><div class="item-value">${esc(worker.languages.join(" · ") || "—")}</div></div>
-    <div><div class="item-label">${pt ? "Telefone" : "Phone"}</div><div class="item-value">${esc(worker.phone || "—")}</div></div>
+    <div><div class="item-label">${esc(text("País", "Country"))}</div><div class="item-value">${esc(worker.country || "—")}</div></div>
+    <div><div class="item-label">${esc(text("Localização", "Location"))}</div><div class="item-value">${esc(worker.location || "—")}</div></div>
+    <div><div class="item-label">${esc(text("Experiência WORKLY", "WORKLY experience"))}</div><div class="item-value">${esc(assessment?.verifiedExperienceHours || 0)} h</div></div>
+    <div><div class="item-label">${esc(text("Idiomas", "Languages"))}</div><div class="item-value">${esc(worker.languages.map((item) => localizeDemoText(language, item)).join(" · ") || "—")}</div></div>
+    <div><div class="item-label">${esc(text("Telefone", "Phone"))}</div><div class="item-value">${esc(worker.phone || "—")}</div></div>
     <div><div class="item-label">Email</div><div class="item-value">${esc(worker.email || "—")}</div></div>
   </div>
 
-  ${worker.bio ? `<h2>${pt ? "Apresentação" : "About"}</h2><p>${esc(worker.bio)}</p>` : ""}
+  ${worker.bio ? `<h2>${esc(text("Apresentação", "About"))}</h2><p>${esc(worker.bio)}</p>` : ""}
 
   <h2>WORKLY VALUE</h2>
-  <table><tbody>${componentRows || `<tr><td class="muted">${pt ? "Sem avaliação disponível." : "No assessment available."}</td></tr>`}</tbody></table>
+  <table><tbody>${componentRows || `<tr><td class="muted">${esc(text("Sem avaliação disponível.", "No assessment available."))}</td></tr>`}</tbody></table>
 
-  <h2>${pt ? "Histórico WORKLY em Obras" : "WORKLY project history"}</h2>
+  <h2>${esc(text("Histórico WORKLY em Obras", "WORKLY project history"))}</h2>
   ${experienceRows}
 
-  <h2>${pt ? "Competências" : "Competences"}</h2>
+  <h2>${esc(text("Competências", "Competences"))}</h2>
   <table>
-    <thead><tr><th>${pt ? "Competência" : "Competence"}</th><th>${pt ? "Nível" : "Level"}</th><th>${pt ? "Provas" : "Evidence"}</th></tr></thead>
-    <tbody>${competenceRows || `<tr><td colspan="3" class="muted">${pt ? "Sem competências avaliadas." : "No assessed competences."}</td></tr>`}</tbody>
+    <thead><tr><th>${esc(text("Competência", "Competence"))}</th><th>${esc(text("Nível", "Level"))}</th><th>${esc(text("Provas", "Evidence"))}</th></tr></thead>
+    <tbody>${competenceRows || `<tr><td colspan="3" class="muted">${esc(text("Sem competências avaliadas.", "No assessed competences."))}</td></tr>`}</tbody>
   </table>
 
-  <h2>${pt ? "Qualificações" : "Qualifications"}</h2>
+  <h2>${esc(text("Qualificações", "Qualifications"))}</h2>
   <table>
-    <thead><tr><th>${pt ? "Qualificação" : "Qualification"}</th><th>${pt ? "Entidade" : "Issuer"}</th><th>${pt ? "Estado" : "Status"}</th></tr></thead>
-    <tbody>${qualificationRows || `<tr><td colspan="3" class="muted">${pt ? "Sem qualificações registadas." : "No qualifications recorded."}</td></tr>`}</tbody>
+    <thead><tr><th>${esc(text("Qualificação", "Qualification"))}</th><th>${esc(text("Entidade", "Issuer"))}</th><th>${esc(text("Estado", "Status"))}</th></tr></thead>
+    <tbody>${qualificationRows || `<tr><td colspan="3" class="muted">${esc(text("Sem qualificações registadas.", "No qualifications recorded."))}</td></tr>`}</tbody>
   </table>
 
-  <h2>${pt ? "Especializações" : "Specialisations"}</h2>
-  <table><tbody>${specialtyRows || `<tr><td class="muted">${pt ? "Sem especializações desbloqueadas." : "No unlocked specialisations."}</td></tr>`}</tbody></table>
+  <h2>${esc(text("Especializações", "Specialisations"))}</h2>
+  <table><tbody>${specialtyRows || `<tr><td class="muted">${esc(text("Sem especializações desbloqueadas.", "No unlocked specialisations."))}</td></tr>`}</tbody></table>
 
-  <h2>${pt ? "Conformidade e autorizações" : "Compliance and authorisations"}</h2>
+  <h2>${esc(text("Conformidade e autorizações", "Compliance and authorisations"))}</h2>
   <table>
-    <thead><tr><th>${pt ? "Requisito" : "Requirement"}</th><th>${pt ? "Âmbito" : "Scope"}</th><th>${pt ? "Estado" : "Status"}</th></tr></thead>
-    <tbody>${complianceRows || `<tr><td colspan="3" class="muted">${pt ? "Sem registos de conformidade." : "No compliance records."}</td></tr>`}</tbody>
+    <thead><tr><th>${esc(text("Requisito", "Requirement"))}</th><th>${esc(text("Âmbito", "Scope"))}</th><th>${esc(text("Estado", "Status"))}</th></tr></thead>
+    <tbody>${complianceRows || `<tr><td colspan="3" class="muted">${esc(text("Sem registos de conformidade.", "No compliance records."))}</td></tr>`}</tbody>
   </table>
 
   <div class="footer">
-    ${pt
-      ? "Documento gerado pela WORKLY. O WORKLY VALUE e os níveis são classificações internas e não substituem qualificações, licenças ou autorizações legais."
-      : "Generated by WORKLY. WORKLY VALUE and levels are internal classifications and do not replace legal qualifications, licences or authorisations."}
+    ${esc(
+      text(
+        "Documento gerado pela WORKLY. O WORKLY VALUE e os níveis são classificações internas e não substituem qualificações, licenças ou autorizações legais.",
+        "Generated by WORKLY. WORKLY VALUE and levels are internal classifications and do not replace legal qualifications, licences or authorisations.",
+      ),
+    )}
   </div>
 </body>
 </html>`;
@@ -231,7 +315,11 @@ export async function exportWorkerProfilePdf(
     await Sharing.shareAsync(result.uri, {
       mimeType: "application/pdf",
       UTI: ".pdf",
-      dialogTitle: language === "pt" ? "Partilhar perfil WORKLY" : "Share WORKLY profile",
+      dialogTitle: professionalText(
+        language,
+        "Partilhar perfil WORKLY",
+        "Share WORKLY profile",
+      ),
     });
   }
   return result;
