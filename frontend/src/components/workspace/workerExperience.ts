@@ -5,7 +5,7 @@ function durationHours(checkIn: string, checkOut: string | null) {
   const start = Date.parse(checkIn);
   const end = Date.parse(checkOut);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
-  return Math.max(0, (end - start) / 3600000);
+  return Math.min(16, Math.max(0, (end - start) / 3600000));
 }
 
 export function verifiedAttendanceHours(
