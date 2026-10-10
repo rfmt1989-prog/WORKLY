@@ -1,11 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { uiText } from "@/src/demo/fullUi";
-import { localizeDemoText } from "@/src/demo/localizedData";
+import { complianceTitle, professionalText, scopeText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import type { AchievementNode, ComplianceTree } from "./workerCertificateTree";
+import { complianceCatalog } from "./professionCatalog";
 
 export function WorkerCompliancePanel({
   tree,
@@ -16,7 +16,7 @@ export function WorkerCompliancePanel({
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
 }) {
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
 
   return (
     <View style={styles.panel} testID="worker-compliance-panel">
@@ -42,6 +42,7 @@ export function WorkerCompliancePanel({
       <View style={styles.grid}>
         {tree.nodes.map((node) => {
           const verified = node.status === "verified";
+          const definition = complianceCatalog.find((item) => item.id === node.id);
           return (
             <Pressable
               key={node.id}
@@ -56,9 +57,9 @@ export function WorkerCompliancePanel({
               <JourneySymbol node={node} />
               <View style={styles.itemCopy}>
                 <Text style={styles.itemTitle}>
-                  {localizeDemoText(language, node.title)}
+                  {complianceTitle(language, node.id, node.title, definition?.titleEn || node.title)}
                 </Text>
-                <Text style={styles.itemScope}>{node.scope}</Text>
+                <Text style={styles.itemScope}>{scopeText(language, node.scope)}</Text>
                 <JourneyStatus node={node} language={language} />
               </View>
             </Pressable>
