@@ -1,4 +1,4 @@
-import type { AuthUser, UserRole } from "@/src/demo/types";
+import type { AuthUser, IdentityDocumentType, UserRole } from "@/src/demo/types";
 
 import { api } from "./client";
 
@@ -11,6 +11,9 @@ export type LoginPayload = {
 export type RegisterPayload = LoginPayload & {
   name: string;
   invite_token?: string;
+  nationality?: string;
+  identity_document_type?: IdentityDocumentType;
+  identity_document_number?: string;
 };
 
 export type LoginResponse = {
