@@ -10,7 +10,6 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { professionDescription, professionTitle, professionalText } from "@/src/demo/professionalI18n";
 import type { Certificate, Worker } from "@/src/demo/types";
 import {
-  Avatar,
   Button,
   Field,
   ModalPanel,
