@@ -15,6 +15,7 @@ import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
 import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
+import { WorkerFormationPath } from "./WorkerFormationPath";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
@@ -203,10 +204,21 @@ export function WorkerProfileView({
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
             </View>
-            {competencyAssessment && primaryTree ? <WorkerEvidenceScoreCard assessment={competencyAssessment} language={language} onDetails={() => setRules(true)} /> : null}
             {!primaryTree ? (
               <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
             ) : <View style={styles.journey}>
+              <WorkerFormationPath
+                worker={worker}
+                language={language}
+                onNode={setSelected}
+              />
+              {competencyAssessment ? (
+                <WorkerEvidenceScoreCard
+                  assessment={competencyAssessment}
+                  language={language}
+                  onDetails={() => setRules(true)}
+                />
+              ) : null}
               <View style={styles.actionRow}>
                 <Text style={styles.journeyHint}>
                   {text(
