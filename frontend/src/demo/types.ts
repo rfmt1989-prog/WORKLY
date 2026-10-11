@@ -306,9 +306,14 @@ export type WorklyState = {
 
 export type AuthUser = {
   id: string;
+  workly_id?: string;
   name: string;
   email: string;
   role: UserRole;
+  nationality?: string;
+  identity_document_type?: IdentityDocumentType;
+  identity_verification_status?: IdentityVerificationStatus;
+  work_eligibility_status?: WorkEligibilityStatus;
   company_id?: string | null;
   company_role?: CompanyAccessRole;
   permissions?: CompanyPermission[];
