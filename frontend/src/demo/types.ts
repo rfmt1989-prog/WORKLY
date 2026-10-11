@@ -15,6 +15,9 @@ export type CompanyPermission =
   | "documents.manage"
   | "operations.read";
 export type WorkerStatus = "available" | "contracted" | "on_site";
+export type IdentityDocumentType = "citizen_card" | "passport";
+export type IdentityVerificationStatus = "pending" | "verified" | "rejected";
+export type WorkEligibilityStatus = "pending" | "eligible" | "not_eligible";
 export type ProjectStatus = "planned" | "active" | "paused" | "completed";
 export type LanguageCode = "pt" | "en" | "fr" | "es" | "ro" | "de" | "nl";
 
@@ -118,6 +121,7 @@ export type ProfessionalIdentity = {
 
 export type Worker = {
   id: string;
+  workly_id?: string;
   name: string;
   email: string;
   role: "worker";
@@ -125,7 +129,11 @@ export type Worker = {
   avatar_color: string;
   age: number;
   country: string;
+  nationality?: string;
   flag: string;
+  identity_document_type?: IdentityDocumentType;
+  identity_verification_status?: IdentityVerificationStatus;
+  work_eligibility_status?: WorkEligibilityStatus;
   profession: string;
   title: string;
   experience_years: number;
