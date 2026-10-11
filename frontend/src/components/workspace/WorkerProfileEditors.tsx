@@ -81,7 +81,7 @@ export function WorkerIdentityEditor({
       <View style={styles.form}>
         <View style={styles.lockedIdentity}>
           <Text style={styles.lockedIdentityTitle}>
-            {text("Identidade verificada por documento", "Document-backed identity")}
+            {text("Identidade criada por documento", "Document-backed identity")}
           </Text>
           <Text style={styles.lockedIdentityName}>{worker.name}</Text>
           <Text style={styles.hint}>
