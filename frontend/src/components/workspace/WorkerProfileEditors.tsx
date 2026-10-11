@@ -27,54 +27,22 @@ export function WorkerIdentityEditor({
   worker: Worker;
   onClose: () => void;
 }) {
-  const { language, updateWorker, notify } = useWorklyData();
+  const { language, updateWorker } = useWorklyData();
   const text = (pt: string, en: string) => professionalText(language, pt, en);
   const [form, setForm] = useState(() => ({
-    name: worker.name,
     profession: findProfessionDefinition(worker.profession)?.title || worker.profession,
-    country: worker.country,
-    location: worker.location,
-    phone: worker.phone,
     languages: worker.languages.join(", "),
-    bio: worker.bio,
-    avatar: worker.avatar,
   }));
-  const [available, setAvailable] = useState(worker.availability);
   const [busy, setBusy] = useState(false);
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
-  const choosePhoto = async () => {
-    try {
-      const file = await pickWorklyFile();
-      if (!file) return;
-      if (!file.contentType.startsWith("image/")) {
-        notify(
-          text(
-            "Seleciona uma imagem para a foto de perfil.",
-            "Choose an image for your profile photo.",
-          ),
-          "error",
-        );
-        return;
-      }
-      update("avatar", `data:${file.contentType};base64,${file.base64}`);
-    } catch {
-      notify(
-        text("Usa uma imagem até 2 MB.", "Use an image up to 2 MB."),
-        "error",
-      );
-    }
-  };
   const save = async () => {
-    if (busy || !form.name.trim() || !form.profession.trim()) return;
+    if (busy || !form.profession.trim()) return;
     setBusy(true);
     try {
       await updateWorker(worker.id, {
-        ...form,
-        name: form.name.trim(),
         profession: form.profession.trim(),
         title: form.profession.trim(),
-        availability: available,
         languages: form.languages
           .split(",")
           .map((item) => item.trim())
@@ -87,25 +55,13 @@ export function WorkerIdentityEditor({
       setBusy(false);
     }
   };
-  const fields: [keyof typeof form, string, string][] = [
-    ["name", "Nome", "Name"],
-    ["country", "País", "Country"],
-    ["location", "Localização", "Location"],
-    ["phone", "Telefone", "Phone"],
-    [
-      "languages",
-      "Idiomas (separados por vírgulas)",
-      "Languages (comma separated)",
-    ],
-    ["bio", "Apresentação", "About"],
-  ];
   return (
     <ModalPanel
       visible
       onClose={() => {
         if (!busy) onClose();
       }}
-      title={text("Editar identificação", "Edit identity")}
+      title={text("Dados profissionais", "Professional data")}
       footer={
         <>
           <Button
@@ -117,23 +73,24 @@ export function WorkerIdentityEditor({
           <Button
             label={text("Guardar alterações", "Save changes")}
             loading={busy}
-            disabled={!form.name.trim() || !form.profession.trim()}
+            disabled={!form.profession.trim()}
             onPress={() => void save()}
           />
         </>
       }
     >
       <View style={styles.form}>
-        <Text style={styles.hint}>{text("A identificação e a profissão ficam aqui. A experiência WORKLY conta automaticamente nas Obras através de horas aprovadas.", "Identity and profession stay here. WORKLY experience is counted automatically in Projects through approved hours.")}</Text>
-        <View style={styles.photoRow}>
-          <Avatar name={form.name} source={form.avatar} size={72} />
-          <Button
-            label={text("Alterar foto", "Change photo")}
-            variant="secondary"
-            icon="camera-outline"
-            disabled={busy}
-            onPress={() => void choosePhoto()}
-          />
+        <View style={styles.lockedIdentity}>
+          <Text style={styles.lockedIdentityTitle}>
+            {text("Identidade verificada por documento", "Document-backed identity")}
+          </Text>
+          <Text style={styles.lockedIdentityName}>{worker.name}</Text>
+          <Text style={styles.hint}>
+            {text(
+              "Nome e nacionalidade vêm do Cartão de Cidadão/Passaporte e não são editados neste ecrã.",
+              "Name and nationality come from the citizen card/passport and are not edited on this screen.",
+            )}
+          </Text>
         </View>
         <View style={styles.professionSection}>
           <Text style={styles.sectionLabel}>{text("Profissão principal", "Main profession")}</Text>
@@ -175,19 +132,15 @@ export function WorkerIdentityEditor({
             })}
           </View>
         </View>
-        {fields.map(([key, pt, en]) => (
-          <Field
-            key={key}
-            label={text(pt, en)}
-            value={form[key]}
-            multiline={key === "bio"}
-            editable={!busy}
-            onChangeText={(value) => update(key, value)}
-          />
-        ))}
-        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: available, disabled: busy }} disabled={busy} onPress={() => setAvailable((value) => !value)} style={styles.option}>
-          <Text style={styles.optionText}>{available ? "☑" : "☐"} {text("Disponível para novas obras", "Available for new projects")}</Text>
-        </Pressable>
+        <Field
+          label={text(
+            "Idiomas (separados por vírgulas)",
+            "Languages (comma separated)",
+          )}
+          value={form.languages}
+          editable={!busy}
+          onChangeText={(value) => update("languages", value)}
+        />
       </View>
     </ModalPanel>
   );
@@ -473,11 +426,27 @@ const styles = StyleSheet.create({
   professionTitleSelected: { color: "#E4F1FC" },
   professionDescription: { color: "#70869A", fontSize: 10, lineHeight: 15 },
   form: { gap: 14 },
-  photoRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 16,
+  lockedIdentity: {
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#1E3B50",
+    backgroundColor: "#07131D",
+    borderRadius: 13,
+    padding: 12,
+  },
+  lockedIdentityTitle: {
+    color: "#78A9D8",
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  lockedIdentityName: {
+    color: "#DCE9F3",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
   },
   label: { color: workspaceColors.textSoft, fontSize: 12, fontWeight: "600" },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
