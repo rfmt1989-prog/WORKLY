@@ -8,7 +8,7 @@ import { copy } from "@/src/demo/i18n";
 import { assessmentGateText, complianceTitle, professionTitle, professionalMetaText, professionalText, scopeText, specialtyCopy } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
-import { Avatar, Button, ModalPanel, StatusPill, workspaceColors } from "./primitives";
+import { Button, ModalPanel, workspaceColors } from "./primitives";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
@@ -19,7 +19,7 @@ import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
-import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, isCompleted, type AchievementNode } from "./workerCertificateTree";
+import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, type AchievementNode } from "./workerCertificateTree";
 import { complianceCatalog, findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
 
 const accent = workspaceColors.blue;
@@ -41,7 +41,6 @@ export function WorkerProfileView({
   const narrow = width < 600;
   const [selected, setSelected] = useState<AchievementNode | null>(null);
   const [editing, setEditing] = useState(false);
-  const [about, setAbout] = useState(false);
   const [rules, setRules] = useState(false);
   const [certificateTarget, setCertificateTarget] = useState<{ professionId: string; node?: AchievementNode } | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -56,7 +55,19 @@ export function WorkerProfileView({
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
   const professionDefinition = findProfessionDefinition(worker.profession);
-  const education = achievements.find(node => node.id === "course" && isCompleted(node.status) && !primaryTree?.certifications.some(item => item.id === node.id));
+  const worklyId = worker.workly_id || formatWorklyId(worker.id);
+  const eligibilityStatus =
+    worker.work_eligibility_status ||
+    (worker.id === "worker-1" ? "eligible" : "pending");
+  const eligibilityLabel =
+    eligibilityStatus === "eligible"
+      ? text("Apto para trabalhar", "Eligible to work")
+      : eligibilityStatus === "not_eligible"
+        ? text("Não apto para trabalhar", "Not eligible to work")
+        : text(
+            "Aptidão a aguardar validação",
+            "Eligibility pending verification",
+          );
 
   const exportPdf = async () => {
     if (exportingPdf) return;
@@ -82,69 +93,113 @@ export function WorkerProfileView({
       <WorkerProfileBackdrop />
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
         <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
-          {mode !== "journey" ? <View style={[styles.identity, compact && styles.identityCompact]} testID="worker-identification">
-            <View style={[styles.identityHero, compact && styles.heroCompact]}>
-              <Avatar name={worker.name || "W"} source={worker.avatar} size={compact ? 72 : 104} />
-              <View style={[styles.identityHeading, compact && styles.headingCompact]}>
-                <Text style={styles.eyebrow}>{text("Identidade profissional", "Professional identity")}</Text>
-                <Text style={[styles.name, compact && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
-                <Text style={[styles.profession, compact && styles.professionCompact]}>{worker.profession && professionDefinition ? professionTitle(language, professionDefinition.id, professionDefinition.title, professionDefinition.titleEn) : worker.profession || text("Profissão por definir", "Profession not set")}</Text>
-                {worker.profession ? <StatusPill status={worker.status} label={worker.status === "on_site" ? copy[language].onSite : worker.status === "contracted" ? copy[language].contracted : worker.availability ? copy[language].available : text("Indisponível", "Unavailable")} /> : null}
+          {mode !== "journey" ? (
+            <View
+              style={[
+                styles.identity,
+                compact && styles.identityCompact,
+                mode === "profile" && styles.identityProfile,
+              ]}
+              testID="worker-identification"
+            >
+              <View style={styles.identityHeading}>
+                <Text style={styles.eyebrow}>
+                  {text("Identidade profissional", "Professional identity")}
+                </Text>
+                <Text style={[styles.name, compact && styles.nameCompact]}>
+                  {worker.name || text("Nome por definir", "Name not set")}
+                </Text>
               </View>
-            </View>
-            <View style={styles.divider}><View style={styles.dividerLine} /><View style={styles.dividerDiamond} /><View style={styles.dividerLine} /></View>
-            <View style={[styles.identityRows, compact && styles.identityRowsCompact]}>
-              <IdentityRow icon="construct-outline" label={text("Experiência WORKLY", "WORKLY experience")} value={competencyAssessment ? `${competencyAssessment.verifiedExperienceHours} h` : "0 h"} />
-              <IdentityRow icon="location-outline" label={text("Localização", "Location")} value={worker.location ? `${worker.flag} ${worker.location}`.trim() : "—"} />
-              <IdentityRow icon="language-outline" label={text("Idiomas", "Languages")} value={worker.languages.map(item => localizeDemoText(language, item)).join(" · ") || "—"} />
-              <IdentityRow icon="calendar-outline" label={text("Novas obras", "New projects")} value={worker.availability ? text("Disponível", "Available") : text("Indisponível", "Unavailable")} />
-            </View>
-            <Button label={text("Editar perfil", "Edit profile")} icon="create-outline" variant="secondary" onPress={() => setEditing(true)} style={styles.editButton} testID="edit-worker-profile" />
-            <Pressable accessibilityRole="button" onPress={() => setAbout(true)} style={({ pressed }) => [styles.aboutButton, pressed && styles.pressed]}><Text style={styles.aboutLabel}>{text("Sobre e contactos", "About and contacts")}</Text><Ionicons name="arrow-forward-outline" size={14} color="#89A5BC" /></Pressable>
-            <Text style={styles.identityCode}>ID · {worker.id}</Text>
-          </View> : null}
-          {mode === "profile" ? (
-            <View style={styles.profileOverview}>
-              <View style={styles.mainHeader}>
-                <View style={styles.headingWrap}>
-                  <Text style={styles.eyebrow}>{text("Visão profissional", "Professional overview")}</Text>
-                  <Text style={[styles.title, narrow && styles.titleCompact]}>{text("O teu valor WORKLY", "Your WORKLY value")}</Text>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerDiamond} />
+                <View style={styles.dividerLine} />
+              </View>
+              <View style={[styles.identityRows, compact && styles.identityRowsCompact]}>
+                <IdentityRow
+                  icon="finger-print-outline"
+                  label={text("WORKLY ID", "WORKLY ID")}
+                  value={worklyId}
+                />
+                <IdentityRow
+                  icon="flag-outline"
+                  label={text("Nacionalidade", "Nationality")}
+                  value={worker.nationality || worker.country || "—"}
+                />
+                <IdentityRow
+                  icon="language-outline"
+                  label={text("Idiomas", "Languages")}
+                  value={worker.languages.map((item) => localizeDemoText(language, item)).join(" · ") || "—"}
+                />
+                <IdentityRow
+                  icon="briefcase-outline"
+                  label={text("Profissão", "Profession")}
+                  value={
+                    worker.profession && professionDefinition
+                      ? professionTitle(
+                          language,
+                          professionDefinition.id,
+                          professionDefinition.title,
+                          professionDefinition.titleEn,
+                        )
+                      : worker.profession || text("Profissão por definir", "Profession not set")
+                  }
+                />
+                <IdentityRow
+                  icon={
+                    eligibilityStatus === "eligible"
+                      ? "shield-checkmark-outline"
+                      : eligibilityStatus === "not_eligible"
+                        ? "close-circle-outline"
+                        : "time-outline"
+                  }
+                  label={text("Apto para trabalhar", "Fit to work")}
+                  value={eligibilityLabel}
+                  tone={
+                    eligibilityStatus === "eligible"
+                      ? "positive"
+                      : eligibilityStatus === "not_eligible"
+                        ? "negative"
+                        : "pending"
+                  }
+                />
+              </View>
+              <Button
+                label={text("Editar dados profissionais", "Professional data")}
+                icon="create-outline"
+                variant="secondary"
+                onPress={() => setEditing(true)}
+                style={styles.editButton}
+                testID="edit-worker-profile"
+              />
+              {mode === "profile" ? (
+                <View style={styles.profileActions}>
+                  <Button
+                    label={text("Abrir percurso", "Open journey")}
+                    icon="git-branch-outline"
+                    onPress={onOpenJourney || (() => {})}
+                    style={styles.profileActionButton}
+                  />
+                  <Button
+                    label={text("Check-in / Pontos", "Check-in")}
+                    icon="location-outline"
+                    variant="secondary"
+                    onPress={onOpenAttendance || (() => {})}
+                    style={styles.profileActionButton}
+                  />
+                  <Button
+                    label={text("Exportar PDF", "Export PDF")}
+                    icon="document-text-outline"
+                    variant="secondary"
+                    loading={exportingPdf}
+                    onPress={() => void exportPdf()}
+                    style={styles.profileActionButton}
+                  />
                 </View>
-              </View>
-              {competencyAssessment && primaryTree ? (
-                <WorkerEvidenceScoreCard
-                  assessment={competencyAssessment}
-                  language={language}
-                  onDetails={() => setRules(true)}
-                />
-              ) : (
-                <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
-              )}
-              <View style={styles.profileActions}>
-                <Button
-                  label={text("Abrir percurso", "Open journey")}
-                  icon="git-branch-outline"
-                  onPress={onOpenJourney || (() => {})}
-                  style={styles.profileActionButton}
-                />
-                <Button
-                  label={text("Exportar PDF", "Export PDF")}
-                  icon="document-text-outline"
-                  variant="secondary"
-                  loading={exportingPdf}
-                  onPress={() => void exportPdf()}
-                  style={styles.profileActionButton}
-                />
-                <Button
-                  label={text("Check-in / Pontos", "Check-in")}
-                  icon="location-outline"
-                  variant="secondary"
-                  onPress={onOpenAttendance || (() => {})}
-                  style={styles.profileActionButton}
-                />
-              </View>
+              ) : null}
             </View>
           ) : null}
+          {mode === "profile" ? null : null}
           {mode !== "profile" ? <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
@@ -214,11 +269,6 @@ export function WorkerProfileView({
           <Text style={styles.detailNote}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
         </View>
       </ModalPanel> : null}
-      {about ? <ModalPanel visible onClose={() => setAbout(false)} title={text("Sobre e contactos", "About and contacts")}><View style={styles.detailContent}>
-        <Text style={styles.detailText}>{localizeDemoText(language, worker.bio)}</Text>
-        {education ? <Pressable accessibilityRole="button" onPress={() => { setAbout(false); setSelected(education); }} style={styles.education}><Ionicons name="school-outline" size={20} color="#8ABAED" /><Text style={styles.detailText}>{localizeDemoText(language, education.title)}</Text><Ionicons name="chevron-forward-outline" size={14} color="#8ABAED" /></Pressable> : null}
-        <DetailRow label="Email" value={worker.email} /><DetailRow label={text("Telefone", "Phone")} value={worker.phone || "—"} />
-      </View></ModalPanel> : null}
       {selected ? <CertificateDetails node={selected} byId={byId} language={language} onClose={() => setSelected(null)} onAssociate={() => { setCertificateTarget({ professionId: primaryTree?.id || "professional", node: selected }); setSelected(null); }} /> : null}
       {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
       {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
@@ -272,8 +322,40 @@ function EmptyProfessionalProfile({
   );
 }
 
-function IdentityRow({ icon, label, value }: { icon: AchievementNode["icon"]; label: string; value: string }) {
-  return <View style={styles.identityRow}><Ionicons name={icon} size={16} color="#80B2E5" /><View style={styles.identityField}><Text style={styles.identityLabel}>{label}</Text><Text style={styles.identityValue}>{value}</Text></View></View>;
+function IdentityRow({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: AchievementNode["icon"];
+  label: string;
+  value: string;
+  tone?: "positive" | "negative" | "pending";
+}) {
+  const color =
+    tone === "positive"
+      ? "#78D8A7"
+      : tone === "negative"
+        ? "#FF8F8F"
+        : tone === "pending"
+          ? "#E7C76E"
+          : "#80B2E5";
+  return (
+    <View style={styles.identityRow}>
+      <Ionicons name={icon} size={16} color={color} />
+      <View style={styles.identityField}>
+        <Text style={styles.identityLabel}>{label}</Text>
+        <Text style={[styles.identityValue, tone ? { color } : null]}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function formatWorklyId(id: string) {
+  if (id === "worker-1") return "WLY-W-000001";
+  const compact = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return `WLY-W-${compact.slice(-8).padStart(8, "0")}`;
 }
 
 function CertificateDetails({
@@ -464,6 +546,7 @@ const styles = StyleSheet.create({
   layout: { width: "100%", maxWidth: 1600, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 28 },
   layoutCompact: { flexDirection: "column", gap: 24 },
   layoutJourney: { maxWidth: 1180 },
+  identityProfile: { width: "100%", maxWidth: 720, alignSelf: "center" },
   profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   profileActionButton: { minWidth: 170, flexGrow: 1 },
