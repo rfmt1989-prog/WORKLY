@@ -124,7 +124,7 @@ export function WorkerProfileView({
                 <IdentityRow
                   icon="flag-outline"
                   label={text("Nacionalidade", "Nationality")}
-                  value={worker.nationality || worker.country || "—"}
+                  value={localizeDemoText(language, worker.nationality || worker.country || "—")}
                 />
                 <IdentityRow
                   icon="language-outline"
@@ -199,7 +199,6 @@ export function WorkerProfileView({
               ) : null}
             </View>
           ) : null}
-          {mode === "profile" ? null : null}
           {mode !== "profile" ? <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
