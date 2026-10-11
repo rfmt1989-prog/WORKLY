@@ -25,6 +25,7 @@ import { LanguageSelector } from "@/src/components/LanguageSelector";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
 import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
+import type { IdentityDocumentType } from "@/src/demo/types";
 
 type ScreenMode = "login" | "register";
 
@@ -44,6 +45,72 @@ const INVITE_CODE_LABEL = {
   nl: "Uitnodigingscode (optioneel)",
 } as const;
 
+const WORKER_IDENTITY_COPY = {
+  pt: {
+    title: "Identificação oficial",
+    nationality: "Nacionalidade",
+    document: "Documento de identificação",
+    citizenCard: "Cartão de Cidadão",
+    passport: "Passaporte",
+    number: "Número do documento",
+    privacy: "O número do documento é usado apenas para criar/verificar uma única identidade WORKLY e nunca aparece no perfil.",
+  },
+  en: {
+    title: "Official identification",
+    nationality: "Nationality",
+    document: "Identity document",
+    citizenCard: "Citizen card",
+    passport: "Passport",
+    number: "Document number",
+    privacy: "The document number is used only to create/verify one WORKLY identity and is never shown on the profile.",
+  },
+  fr: {
+    title: "Identification officielle",
+    nationality: "Nationalité",
+    document: "Pièce d’identité",
+    citizenCard: "Carte d’identité",
+    passport: "Passeport",
+    number: "Numéro du document",
+    privacy: "Le numéro du document sert uniquement à créer/vérifier une identité WORKLY unique et n’apparaît jamais sur le profil.",
+  },
+  es: {
+    title: "Identificación oficial",
+    nationality: "Nacionalidad",
+    document: "Documento de identidad",
+    citizenCard: "Documento de identidad",
+    passport: "Pasaporte",
+    number: "Número del documento",
+    privacy: "El número del documento solo se usa para crear/verificar una única identidad WORKLY y nunca aparece en el perfil.",
+  },
+  ro: {
+    title: "Identificare oficială",
+    nationality: "Naționalitate",
+    document: "Document de identitate",
+    citizenCard: "Carte de identitate",
+    passport: "Pașaport",
+    number: "Numărul documentului",
+    privacy: "Numărul documentului este folosit doar pentru crearea/verificarea unei singure identități WORKLY și nu apare niciodată în profil.",
+  },
+  de: {
+    title: "Amtliche Identifikation",
+    nationality: "Staatsangehörigkeit",
+    document: "Ausweisdokument",
+    citizenCard: "Personalausweis",
+    passport: "Reisepass",
+    number: "Dokumentnummer",
+    privacy: "Die Dokumentnummer wird nur zur Erstellung/Prüfung einer eindeutigen WORKLY-Identität verwendet und niemals im Profil angezeigt.",
+  },
+  nl: {
+    title: "Officiële identificatie",
+    nationality: "Nationaliteit",
+    document: "Identiteitsdocument",
+    citizenCard: "Identiteitskaart",
+    passport: "Paspoort",
+    number: "Documentnummer",
+    privacy: "Het documentnummer wordt alleen gebruikt om één WORKLY-identiteit aan te maken/te verifiëren en wordt nooit op het profiel getoond.",
+  },
+} as const;
+
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,6 +119,7 @@ export default function Login() {
   const { user, loading: sessionLoading, login, register } = useAuth();
   const { language, setLanguage } = useWorklyData();
   const text = loginCopy[language];
+  const identityText = WORKER_IDENTITY_COPY[language];
 
   const [mode, setMode] = useState<ScreenMode>("login");
   const [role, setRole] = useState<UserRole>("worker");
@@ -59,6 +127,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteToken, setInviteToken] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [documentType, setDocumentType] = useState<IdentityDocumentType>("citizen_card");
+  const [documentNumber, setDocumentNumber] = useState("");
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -87,7 +158,11 @@ export default function Login() {
     if (
       !cleanEmail ||
       !cleanPassword ||
-      (mode === "register" && !demoRole && !cleanName)
+      (mode === "register" && !demoRole && !cleanName) ||
+      (mode === "register" &&
+        !demoRole &&
+        selectedRole === "worker" &&
+        (!nationality.trim() || !documentNumber.trim()))
     ) {
       setError(text.required);
       return;
@@ -102,6 +177,13 @@ export default function Login() {
           cleanPassword,
           selectedRole,
           selectedRole === "company" ? inviteToken : undefined,
+          selectedRole === "worker"
+            ? {
+                nationality: nationality.trim(),
+                documentType,
+                documentNumber: documentNumber.trim(),
+              }
+            : undefined,
         );
       } else {
         await login(cleanEmail, cleanPassword, selectedRole);
@@ -325,6 +407,82 @@ export default function Login() {
                       placeholderTextColor={workspaceColors.muted}
                       style={styles.input}
                     />
+                  </View>
+                </View>
+              ) : null}
+              {mode === "register" && role === "worker" ? (
+                <View style={styles.identityBlock}>
+                  <Text style={styles.identityBlockTitle}>{identityText.title}</Text>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.nationality}</Text>
+                    <View style={styles.inputShell}>
+                      <Ionicons name="flag-outline" color={workspaceColors.muted} size={18} />
+                      <TextInput
+                        accessibilityLabel={identityText.nationality}
+                        value={nationality}
+                        onChangeText={setNationality}
+                        placeholder="Portugal"
+                        placeholderTextColor={workspaceColors.muted}
+                        style={styles.input}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.document}</Text>
+                    <View style={styles.documentTypeGrid}>
+                      {([
+                        ["citizen_card", identityText.citizenCard],
+                        ["passport", identityText.passport],
+                      ] as [IdentityDocumentType, string][]).map(([value, label]) => {
+                        const selected = documentType === value;
+                        return (
+                          <Pressable
+                            key={value}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected }}
+                            onPress={() => setDocumentType(value)}
+                            style={[
+                              styles.documentTypeButton,
+                              selected && styles.documentTypeButtonActive,
+                            ]}
+                          >
+                            <Ionicons
+                              name={value === "passport" ? "book-outline" : "card-outline"}
+                              color={selected ? workspaceColors.blueSoft : workspaceColors.muted}
+                              size={17}
+                            />
+                            <Text
+                              style={[
+                                styles.documentTypeText,
+                                selected && styles.documentTypeTextActive,
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.number}</Text>
+                    <View style={styles.inputShell}>
+                      <Ionicons name="finger-print-outline" color={workspaceColors.muted} size={18} />
+                      <TextInput
+                        accessibilityLabel={identityText.number}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        value={documentNumber}
+                        onChangeText={setDocumentNumber}
+                        placeholder="••••••••"
+                        placeholderTextColor={workspaceColors.muted}
+                        style={styles.input}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.identityPrivacy}>
+                    <Ionicons name="shield-checkmark-outline" size={14} color={workspaceColors.blueSoft} />
+                    <Text style={styles.identityPrivacyText}>{identityText.privacy}</Text>
                   </View>
                 </View>
               ) : null}
@@ -840,6 +998,60 @@ const styles = StyleSheet.create({
   },
   fields: {
     gap: 13,
+  },
+  identityBlock: {
+    gap: 12,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    backgroundColor: "#07111A",
+    borderRadius: 14,
+    padding: 12,
+  },
+  identityBlockTitle: {
+    color: workspaceColors.text,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+  },
+  documentTypeGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  documentTypeButton: {
+    flex: 1,
+    minHeight: 43,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: workspaceColors.lineStrong,
+    backgroundColor: workspaceColors.panelSoft,
+    paddingHorizontal: 9,
+  },
+  documentTypeButtonActive: {
+    borderColor: workspaceColors.blue,
+    backgroundColor: "#0B2234",
+  },
+  documentTypeText: {
+    color: workspaceColors.muted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  documentTypeTextActive: {
+    color: workspaceColors.text,
+  },
+  identityPrivacy: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+  },
+  identityPrivacyText: {
+    flex: 1,
+    color: workspaceColors.muted,
+    fontSize: 9,
+    lineHeight: 14,
   },
   inputWrap: {
     gap: 6,
