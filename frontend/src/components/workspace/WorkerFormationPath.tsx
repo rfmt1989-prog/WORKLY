@@ -4,26 +4,24 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { professionalText } from "@/src/demo/professionalI18n";
 import type { Certificate, LanguageCode, Worker } from "@/src/demo/types";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
-import type { AchievementNode, AchievementStatus } from "./workerCertificateTree";
+import type {
+  AchievementNode,
+  AchievementStatus,
+} from "./workerCertificateTree";
 
-const formationStages = [
+const apprenticeshipRequirements = [
   {
-    id: "formation-apprenticeship",
-    title: "Aprendizagem",
-    titleEn: "Apprenticeship",
-    subtitle: "Entrada na profissão · aprendizagem prática e acompanhada",
-    subtitleEn: "Entry into the trade · supervised practical learning",
-    icon: "hammer-outline" as const,
-    aliases: ["aprendizagem", "aprendiz", "apprenticeship", "apprentice"],
-  },
-  {
-    id: "formation-technological-course",
-    title: "Curso Tecnológico",
-    titleEn: "Technological course",
+    id: "formation-professional-course",
+    title: "Curso Profissional / Tecnológico",
+    titleEn: "Professional / technological course",
     subtitle: "Formação técnica estruturada ligada à profissão",
     subtitleEn: "Structured technical education linked to the trade",
     icon: "school-outline" as const,
+    kind: "certification" as const,
+    evidenceType: "qualification",
     aliases: [
+      "curso profissional",
+      "professional course",
       "curso tecnologico",
       "curso tecnológico",
       "technological course",
@@ -33,6 +31,25 @@ const formationStages = [
       "tecnico",
       "técnico",
       "technician",
+    ],
+  },
+  {
+    id: "formation-internship",
+    title: "Estágio",
+    titleEn: "Internship",
+    subtitle: "Prática supervisionada em contexto real de trabalho",
+    subtitleEn: "Supervised practice in a real work environment",
+    icon: "briefcase-outline" as const,
+    kind: "skill" as const,
+    evidenceType: "work_record",
+    aliases: [
+      "estagio",
+      "estágio",
+      "internship",
+      "work placement",
+      "practical placement",
+      "pratica profissional",
+      "prática profissional",
     ],
   },
 ];
@@ -47,13 +64,27 @@ function normalize(value: string) {
 
 function evidenceFor(
   worker: Worker,
-  stage: (typeof formationStages)[number],
+  requirement: (typeof apprenticeshipRequirements)[number],
 ): Certificate | undefined {
   return worker.certificates.find((item) => {
-    if (item.competency_id === stage.id || item.node_id === stage.id) return true;
-    if (item.evidence_type && item.evidence_type !== "qualification") return false;
+    if (
+      item.competency_id === requirement.id ||
+      item.node_id === requirement.id
+    ) {
+      return true;
+    }
+
+    if (
+      item.evidence_type &&
+      item.evidence_type !== requirement.evidenceType
+    ) {
+      return false;
+    }
+
     const name = normalize(item.name);
-    return stage.aliases.some((alias) => name.includes(normalize(alias)));
+    return requirement.aliases.some((alias) =>
+      name.includes(normalize(alias)),
+    );
   });
 }
 
@@ -68,30 +99,36 @@ export function workerFormationNodes(
   worker: Worker,
   language: LanguageCode,
 ): AchievementNode[] {
-  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const text = (pt: string, en: string) =>
+    professionalText(language, pt, en);
 
-  return formationStages.map((stage) => {
-    const certificate = evidenceFor(worker, stage);
+  return apprenticeshipRequirements.map((requirement) => {
+    const certificate = evidenceFor(worker, requirement);
     return {
-      id: stage.id,
-      title: text(stage.title, stage.titleEn),
-      subtitle: text(stage.subtitle, stage.subtitleEn),
-      icon: stage.icon,
+      id: requirement.id,
+      title: text(requirement.title, requirement.titleEn),
+      subtitle: text(requirement.subtitle, requirement.subtitleEn),
+      icon: requirement.icon,
       status: statusFor(certificate),
       stage: "foundation",
-      family: "professional-formation",
-      scope: text("Formação profissional", "Professional education"),
+      family: "apprenticeship-requirement",
+      scope: text("Nível de aprendizagem", "Apprenticeship level"),
       certificate,
-      kind: "certification",
+      kind: requirement.kind,
       meta: [
         text(
-          "Etapa formativa do percurso profissional.",
-          "Education stage in the professional journey.",
+          "Requisito do nível Aprendizagem.",
+          "Requirement of the Apprenticeship level.",
         ),
-        text(
-          "A progressão técnica continua a ser avaliada pelas competências e provas de trabalho.",
-          "Technical progression continues to be assessed through competences and work evidence.",
-        ),
+        requirement.id === "formation-professional-course"
+          ? text(
+              "Comprovado por diploma, certificado profissional ou formação tecnológica equivalente.",
+              "Supported by a diploma, professional certificate or equivalent technological education.",
+            )
+          : text(
+              "Comprovado por estágio curricular/profissional ou prática supervisionada equivalente.",
+              "Supported by a curricular/professional internship or equivalent supervised practice.",
+            ),
       ],
     };
   });
@@ -106,33 +143,78 @@ export function WorkerFormationPath({
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
 }) {
-  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const text = (pt: string, en: string) =>
+    professionalText(language, pt, en);
   const nodes = workerFormationNodes(worker, language);
-  const completed = nodes.filter(
-    (node) => node.status === "verified" || node.status === "recorded",
-  ).length;
+  const verified = nodes.filter((node) => node.status === "verified").length;
+  const complete = verified === nodes.length;
 
   return (
     <View style={styles.shell} testID="worker-formation-path">
       <View style={styles.header}>
-        <View style={styles.headerMark}>
-          <Ionicons name="school-outline" size={20} color="#8BC7FF" />
+        <View
+          style={[
+            styles.headerMark,
+            complete && styles.headerMarkComplete,
+          ]}
+        >
+          <Ionicons
+            name={complete ? "checkmark-done-outline" : "school-outline"}
+            size={20}
+            color="#8BC7FF"
+          />
         </View>
+
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
-            {text("INÍCIO DO PERCURSO", "JOURNEY FOUNDATION")}
+            {text("NÍVEL 1", "LEVEL 1")}
           </Text>
           <Text style={styles.title}>
-            {text("Formação de base", "Foundation education")}
+            {text("Aprendizagem", "Apprenticeship")}
           </Text>
           <Text style={styles.subtitle}>
             {text(
-              "O percurso profissional começa pela aprendizagem e formação técnica antes da progressão por competências.",
-              "The professional journey starts with apprenticeship and technical education before competence progression.",
+              "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível de Aprendizagem.",
+              "Professional/technological course + internship. Both requirements form the Apprenticeship level.",
             )}
           </Text>
         </View>
-        <Text style={styles.count}>{completed}/2</Text>
+
+        <View style={styles.progress}>
+          <Text style={styles.count}>{verified}/2</Text>
+          <Text style={styles.countLabel}>
+            {text("verificados", "verified")}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.levelState,
+          complete && styles.levelStateComplete,
+        ]}
+      >
+        <Ionicons
+          name={complete ? "shield-checkmark-outline" : "time-outline"}
+          size={14}
+          color={complete ? "#78D8A7" : "#E7C76E"}
+        />
+        <Text
+          style={[
+            styles.levelStateText,
+            complete && styles.levelStateTextComplete,
+          ]}
+        >
+          {complete
+            ? text(
+                "Nível Aprendizagem concluído",
+                "Apprenticeship level completed",
+              )
+            : text(
+                "Nível Aprendizagem em progresso",
+                "Apprenticeship level in progress",
+              )}
+        </Text>
       </View>
 
       <View style={styles.timeline}>
@@ -157,6 +239,7 @@ export function WorkerFormationPath({
               />
               <JourneySymbol node={node} />
             </View>
+
             <View style={styles.copy}>
               <View style={styles.stepRow}>
                 <Text style={styles.step}>0{index + 1}</Text>
@@ -173,7 +256,10 @@ export function WorkerFormationPath({
         <View style={styles.gatewayLine} />
         <View style={styles.gatewayDiamond} />
         <Text style={styles.gatewayText}>
-          {text("COMPETÊNCIAS PROFISSIONAIS", "PROFESSIONAL COMPETENCES")}
+          {text(
+            "DEPOIS: COMPETÊNCIAS PROFISSIONAIS",
+            "NEXT: PROFESSIONAL COMPETENCES",
+          )}
         </Text>
         <View style={styles.gatewayLine} />
       </View>
@@ -205,6 +291,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerMarkComplete: {
+    borderColor: "#39795B",
+    backgroundColor: "#0A1C17",
+  },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
     color: "#6F90AA",
@@ -225,11 +315,43 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     maxWidth: 620,
   },
+  progress: {
+    alignItems: "flex-end",
+  },
   count: {
     color: "#8BC7FF",
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 20,
     fontWeight: "700",
+  },
+  countLabel: {
+    color: "#647E93",
+    fontSize: 8,
+    lineHeight: 12,
+  },
+  levelState: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: "#574E2D",
+    backgroundColor: "#17150C",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+  },
+  levelStateComplete: {
+    borderColor: "#285C45",
+    backgroundColor: "#0A1713",
+  },
+  levelStateText: {
+    color: "#D9C16F",
+    fontSize: 9,
+    lineHeight: 14,
+    fontWeight: "700",
+  },
+  levelStateTextComplete: {
+    color: "#78D8A7",
   },
   timeline: {
     borderTopWidth: 1,
@@ -314,7 +436,7 @@ const styles = StyleSheet.create({
     color: "#6F8BA3",
     fontSize: 8,
     lineHeight: 12,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     fontWeight: "700",
   },
 });
