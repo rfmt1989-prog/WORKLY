@@ -156,6 +156,9 @@ class RegisterInput(BaseModel):
     user_type: str | None = None
     role: str | None = None
     invite_token: str | None = Field(default=None, max_length=120)
+    nationality: str | None = Field(default=None, max_length=80)
+    identity_document_type: str | None = Field(default=None, max_length=30)
+    identity_document_number: str | None = Field(default=None, max_length=80)
 
 
 class EntityPatch(BaseModel):
@@ -315,10 +318,15 @@ def _password_matches(password: str, record: dict[str, str]) -> bool:
 
 
 def _public_auth_user(user: dict[str, Any]) -> dict[str, Any]:
+    private_keys = {
+        "password_record",
+        "identity_document_number_hash",
+        "identity_document_last4",
+    }
     return {
         key: value
         for key, value in user.items()
-        if key not in {"password_record"}
+        if key not in private_keys
     }
 
 
@@ -689,6 +697,45 @@ def register(data: RegisterInput) -> dict[str, Any]:
         role = _role_from_input(data.user_type, data.role)
         if invite_token:
             raise HTTPException(status_code=404, detail="Código de convite inválido.")
+    identity_document_type: str | None = None
+    identity_document_number_hash: str | None = None
+    identity_document_last4: str | None = None
+    nationality = (data.nationality or "").strip()
+
+    if role == "worker":
+        identity_document_type = (data.identity_document_type or "").strip()
+        raw_document_number = (data.identity_document_number or "").strip()
+        if identity_document_type not in {"citizen_card", "passport"}:
+            raise HTTPException(
+                status_code=422,
+                detail="Escolha Cartão de Cidadão ou Passaporte.",
+            )
+        if not nationality:
+            raise HTTPException(status_code=422, detail="Indique a nacionalidade.")
+        normalized_document_number = "".join(
+            character
+            for character in raw_document_number.upper()
+            if character.isalnum()
+        )
+        if len(normalized_document_number) < 5:
+            raise HTTPException(
+                status_code=422,
+                detail="Indique um número de documento válido.",
+            )
+        identity_document_number_hash = hashlib.sha256(
+            normalized_document_number.encode("utf-8")
+        ).hexdigest()
+        identity_document_last4 = normalized_document_number[-4:]
+        if any(
+            item.get("identity_document_number_hash")
+            == identity_document_number_hash
+            for item in _registered_users.values()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Este documento já está associado a uma identidade WORKLY.",
+            )
+
     if invitation:
         user_id = f"company-user-{uuid.uuid4().hex[:10]}"
         company_id = str(invitation["company_id"])
@@ -713,6 +760,18 @@ def register(data: RegisterInput) -> dict[str, Any]:
         "productivity_score": 0.0 if role == "worker" else 5.0,
         "password_record": _password_record(data.password),
     }
+    if role == "worker":
+        user.update(
+            {
+                "workly_id": f"WLY-W-{uuid.uuid4().hex[:8].upper()}",
+                "nationality": nationality,
+                "identity_document_type": identity_document_type,
+                "identity_document_number_hash": identity_document_number_hash,
+                "identity_document_last4": identity_document_last4,
+                "identity_verification_status": "pending",
+                "work_eligibility_status": "pending",
+            }
+        )
     with _state_lock:
         if (
             email in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL}
@@ -727,8 +786,13 @@ def register(data: RegisterInput) -> dict[str, Any]:
                     **_public_auth_user(user),
                     "avatar_color": "#1B6CFF",
                     "age": 0,
-                    "country": "",
+                    "country": nationality,
+                    "nationality": nationality,
                     "flag": "",
+                    "workly_id": user["workly_id"],
+                    "identity_document_type": identity_document_type,
+                    "identity_verification_status": "pending",
+                    "work_eligibility_status": "pending",
                     "profession": "",
                     "experience_years": 0,
                     "location": "",
