@@ -8,15 +8,14 @@ import { copy } from "@/src/demo/i18n";
 import { assessmentGateText, complianceTitle, professionTitle, professionalMetaText, professionalText, scopeText, specialtyCopy } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { Attendance, Certificate, Company, LanguageCode, Project } from "@/src/demo/types";
-import { Button, ModalPanel, workspaceColors } from "./primitives";
+import { Avatar, Button, ModalPanel, workspaceColors } from "./primitives";
+import { WorkerCareerAtlas } from "./WorkerCareerAtlas";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
 import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
 import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
 import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
-import { WorkerFormationPath } from "./WorkerFormationPath";
-import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
 import { WorkerProofOfWork } from "./WorkerProofOfWork";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
@@ -113,16 +112,27 @@ export function WorkerProfileView({
               ]}
               testID="worker-identification"
             >
-              <View style={styles.identityHeading}>
-                <Text style={styles.eyebrow}>
-                  {text("Identidade profissional", "Professional identity")}
-                </Text>
-                <Text style={[styles.name, compact && styles.nameCompact]}>
-                  {worker.name || text("Nome por definir", "Name not set")}
-                </Text>
-                <View style={styles.professionLine}>
-                  <Ionicons name="briefcase-outline" size={14} color="#C96954" />
-                  <Text style={styles.profession}>{displayProfession}</Text>
+
+              <View style={styles.passportTop}>
+                <View style={styles.passportEmblem}><Text style={styles.passportEmblemText}>W</Text></View>
+                <View style={styles.passportTopCopy}>
+                  <Text style={styles.passportKicker}>{text("WORKLY · IDENTIDADE PROFISSIONAL", "WORKLY · PROFESSIONAL IDENTITY")}</Text>
+                  <Text style={styles.passportSub}>{text("Passaporte de carreira", "Career passport")}</Text>
+                </View>
+                <Ionicons name="shield-outline" size={21} color="#DBAD8D" />
+              </View>
+              <View style={[styles.identityHero, narrow && styles.heroCompact]}>
+                <View style={styles.photoFrame}>
+                  <Avatar name={worker.name || "Worker"} source={worker.avatar} flag={worker.flag} size={narrow ? 86 : 114} accent="#C7785D" />
+                </View>
+                <View style={[styles.identityHeading, narrow && styles.headingCompact]}>
+                  <Text style={styles.eyebrow}>{text("PERFIL ÚNICO", "ONE PROFESSIONAL PROFILE")}</Text>
+                  <Text style={[styles.name, narrow && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
+                  <View style={styles.professionLine}>
+                    <Ionicons name="briefcase-outline" size={16} color="#BB624A" />
+                    <Text style={styles.profession}>{displayProfession}</Text>
+                  </View>
+                  {worker.location ? <View style={styles.locationLine}><Ionicons name="location-outline" size={13} color="#8FA0A2" /><Text style={styles.locationText}>{worker.location}</Text></View> : null}
                 </View>
               </View>
 
@@ -181,6 +191,36 @@ export function WorkerProfileView({
                 </View>
               </View>
 
+
+              {mode === "profile" && competencyAssessment ? (
+                <View style={styles.snapshot} testID="worker-career-snapshot">
+                  <View style={styles.snapshotMain}>
+                    <Text style={styles.snapshotEyebrow}>{text("POSIÇÃO NA CARREIRA", "CAREER POSITION")}</Text>
+                    <Text style={styles.snapshotLevel}>{competencyAssessment.levelLabel}</Text>
+                    <Text style={styles.snapshotCaption}>{text("Nível profissional", "Professional level")}</Text>
+                  </View>
+                  <View style={styles.snapshotMetric}>
+                    <Text style={styles.snapshotNumber}>{competencyAssessment.score}<Text style={styles.snapshotSuffix}>/100</Text></Text>
+                    <Text style={styles.snapshotCaption}>WORKLY VALUE</Text>
+                    <View style={styles.snapshotTrack}><View style={[styles.snapshotFill, { width: String(Math.max(0, Math.min(100, competencyAssessment.score))) + "%" }]} /></View>
+                  </View>
+                  <View style={styles.snapshotMetric}>
+                    <Text style={styles.snapshotNumber}>{competencyAssessment.verifiedProjects}</Text>
+                    <Text style={styles.snapshotCaption}>{text("Obras verificadas", "Verified projects")}</Text>
+                  </View>
+                </View>
+              ) : null}
+              {mode === "profile" && competencyAssessment?.nextLevelId ? (
+                <Pressable accessibilityRole="button" onPress={onOpenJourney} style={({ pressed }) => [styles.nextChapter, pressed && styles.pressed]} testID="worker-next-career-level">
+                  <View style={styles.nextChapterIcon}><Ionicons name="trending-up-outline" color="#AF543C" size={21}/></View>
+                  <View style={styles.nextChapterCopy}>
+                    <Text style={styles.nextChapterEyebrow}>{text("PRÓXIMO OBJETIVO", "NEXT MILESTONE")}</Text>
+                    <Text style={styles.nextChapterTitle}>{text("Explorar o próximo nível da carreira", "Explore the next career level")}</Text>
+                    <Text style={styles.nextChapterDetail}>{competencyAssessment.missingGates.length} {text("critérios ainda por cumprir", "requirements remaining")}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward-outline" size={20} color="#AF543C" />
+                </Pressable>
+              ) : null}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <View style={styles.dividerDiamond} />
@@ -258,17 +298,10 @@ export function WorkerProfileView({
             {!primaryTree ? (
               <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
             ) : <View style={styles.journey}>
-              <WorkerFormationPath
-                worker={worker}
-                language={language}
-                onNode={setSelected}
-              />
               {competencyAssessment ? (
-                <WorkerEvidenceScoreCard
-                  assessment={competencyAssessment}
-                  language={language}
-                  onDetails={() => setRules(true)}
-                />
+                <WorkerCareerAtlas worker={worker} assessment={competencyAssessment} language={language} onNode={setSelected}
+                  onAddEvidence={() => setCertificateTarget({ professionId: primaryTree?.id || "professional" })}
+                  onRules={() => setRules(true)} />
               ) : null}
               <View style={styles.actionRow}>
                 <Text style={styles.journeyHint}>
@@ -660,61 +693,61 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: "#090908" },
+  root: { flex: 1, minHeight: 0, backgroundColor: "#F5F3EE" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { padding: 28, paddingBottom: 32 },
-  contentCompact: { padding: 16, paddingBottom: 24 },
-  layout: { width: "100%", maxWidth: 1600, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 28 },
+  content: { padding: 31, paddingBottom: 44 },
+  contentCompact: { padding: 15, paddingBottom: 26 },
+  layout: { width: "100%", maxWidth: 1400, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 24 },
   layoutCompact: { flexDirection: "column", gap: 24 },
   layoutJourney: { maxWidth: 1180 },
-  identityProfile: { width: "100%", maxWidth: 720, alignSelf: "center" },
+  identityProfile: { width: "100%", maxWidth: 1040, alignSelf: "center" },
   profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   profileActionButton: { minWidth: 170, flexGrow: 1 },
-  identity: { width: 284, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#44342B", backgroundColor: "#0E0C0AF2", borderRadius: 6, shadowColor: "#000000", shadowOpacity: .28, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
-  identityCompact: { width: "100%", padding: 18, borderRadius: 6 },
-  identityHero: { alignItems: "center", gap: 18 },
-  heroCompact: { flexDirection: "row", alignItems: "center", gap: 18 },
-  identityHeading: { width: "100%", alignItems: "center", gap: 7 },
-  professionLine: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, maxWidth: "100%" },
+  identity: { width: 316, flexShrink: 0, padding: 26, borderWidth: 1, borderColor: "#DDD6CC", backgroundColor: "#FFFEFC", borderRadius: 24, shadowColor: "#24353E", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 11 } },
+  identityCompact: { width: "100%", padding: 18, borderRadius: 18 },
+  identityHero: { flexDirection: "row", alignItems: "center", gap: 23, paddingVertical: 24, flexWrap: "wrap" },
+  heroCompact: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 20, flexWrap: "nowrap" },
+  identityHeading: { flex: 1, minWidth: 150, alignItems: "flex-start", gap: 6 },
+  professionLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", gap: 7, maxWidth: "100%" },
   headingCompact: { flex: 1, minWidth: 0, alignItems: "flex-start" },
-  eyebrow: { color: "#A98A76", fontSize: 10, lineHeight: 16, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "600" },
-  name: { color: "#ECE8DF", fontFamily: serif, fontSize: 26, lineHeight: 34, textAlign: "center" },
-  nameCompact: { fontSize: 23, lineHeight: 30, textAlign: "left" },
-  profession: { color: "#C6B9AB", fontSize: 13, lineHeight: 19, textAlign: "center", flexShrink: 1, fontWeight: "600" },
+  eyebrow: { color: "#916E5E", fontSize: 10, lineHeight: 16, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "800" },
+  name: { color: "#20323B", fontFamily: serif, fontSize: 32, lineHeight: 41, textAlign: "left", fontWeight: "700" },
+  nameCompact: { fontSize: 22, lineHeight: 29, textAlign: "left" },
+  profession: { color: "#445A63", fontSize: 14, lineHeight: 21, textAlign: "left", flexShrink: 1, fontWeight: "700" },
   professionCompact: { textAlign: "left" },
-  identityBadges: { marginTop: 20, flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  worklyBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#68483B", backgroundColor: "#14100E", borderRadius: 4, paddingHorizontal: 12, paddingVertical: 9 },
-  fitBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 9 },
-  fitBadgePositive: { borderColor: "#2B654B", backgroundColor: "#091B15" },
-  fitBadgePending: { borderColor: "#665A2D", backgroundColor: "#1A170B" },
-  fitBadgeNegative: { borderColor: "#6E3838", backgroundColor: "#1C0D0D" },
+  identityBadges: { marginTop: 0, flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  worklyBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#E3D9CF", backgroundColor: "#F8F4ED", borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
+  fitBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
+  fitBadgePositive: { borderColor: "#B9DBCA", backgroundColor: "#EFF8F0" },
+  fitBadgePending: { borderColor: "#E8D6AD", backgroundColor: "#FFF8E9" },
+  fitBadgeNegative: { borderColor: "#E9C0B9", backgroundColor: "#FFF2F1" },
   badgeCopy: { flex: 1, minWidth: 0, gap: 2 },
-  badgeLabel: { color: "#8C7A6D", fontSize: 8, lineHeight: 12, letterSpacing: .8, textTransform: "uppercase", fontWeight: "700" },
-  badgeValue: { color: "#E6DED3", fontSize: 11, lineHeight: 16, fontWeight: "700", flexShrink: 1 },
-  fitTextPositive: { color: "#8FAE91" },
-  fitTextPending: { color: "#E7C76E" },
-  fitTextNegative: { color: "#FF8F8F" },
+  badgeLabel: { color: "#78858A", fontSize: 9, lineHeight: 13, letterSpacing: .7, textTransform: "uppercase", fontWeight: "800" },
+  badgeValue: { color: "#263A43", fontSize: 12, lineHeight: 18, fontWeight: "800", flexShrink: 1 },
+  fitTextPositive: { color: "#2B7750" },
+  fitTextPending: { color: "#926F23" },
+  fitTextNegative: { color: "#B74342" },
   divider: { marginVertical: 18, flexDirection: "row", gap: 8, alignItems: "center" },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#3A2E28" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#E1DBD1" },
   dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#A15A48", transform: [{ rotate: "45deg" }] },
   identityFacts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  identityFact: { flex: 1, minWidth: 190, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#342A24", backgroundColor: "#0F0E0C", borderRadius: 4, padding: 11 },
+  identityFact: { flex: 1, minWidth: 175, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#E7E0D8", backgroundColor: "#F9F7F2", borderRadius: 12, padding: 13 },
   identityRows: { gap: 18 },
   identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
   identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flexShrink: 1, minWidth: 100 },
   identityField: { flex: 1, minWidth: 0, gap: 4 },
-  identityLabel: { color: "#8C7B6D", fontSize: 10, lineHeight: 15, minWidth: 60 },
-  identityValue: { color: "#CFC5B9", fontSize: 12, lineHeight: 19, flexShrink: 1 },
+  identityLabel: { color: "#76858A", fontSize: 10, lineHeight: 15, minWidth: 60 },
+  identityValue: { color: "#273C45", fontSize: 12, lineHeight: 19, flexShrink: 1, fontWeight: "700" },
   identityCode: { color: "#87776B", fontSize: 10, lineHeight: 17, textAlign: "center", marginTop: 12, letterSpacing: .5 },
-  editButton: { marginTop: 24, borderRadius: 6, borderColor: "#64483D", minHeight: 42 },
+  editButton: { marginTop: 18, borderRadius: 11, borderColor: "#DCCBBE", minHeight: 44 },
   aboutButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, minHeight: 42, marginTop: 4 },
   aboutLabel: { color: "#9B897A", fontSize: 11 },
   main: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   mainHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 },
   mainHeaderNarrow: { flexWrap: "nowrap", gap: 10 },
   headingWrap: { flexGrow: 1, flexShrink: 1, gap: 4 },
-  title: { color: "#ECE8DF", fontFamily: serif, fontSize: 34, lineHeight: 44 },
+  title: { color: "#22343D", fontFamily: serif, fontSize: 34, lineHeight: 44 },
   titleCompact: { fontSize: 27, lineHeight: 35 },
   scoreBadge: { alignItems: "flex-end", gap: 3, paddingVertical: 6, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#5A4035" },
   scoreValue: { color: "#D57A60", fontSize: 30, lineHeight: 36, fontWeight: "600" },
@@ -727,7 +760,7 @@ const styles = StyleSheet.create({
   tabTextActive: { color: "#EEE8DE" },
   journey: { gap: 15 },
   actionRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  journeyHint: { color: "#8D8074", fontSize: 12, lineHeight: 19, flexShrink: 1 },
+  journeyHint: { color: "#627780", fontSize: 12, lineHeight: 19, flexShrink: 1 },
   addButton: { minHeight: 40, borderRadius: 6 },
   portfolio: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   portfolioItem: { width: "100%", flexGrow: 1, minWidth: 0, padding: 20, gap: 12, borderRadius: 3, borderWidth: 1, borderColor: "#2B4054", backgroundColor: "#0C1925DB" },
@@ -757,18 +790,43 @@ const styles = StyleSheet.create({
   criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 16 },
   related: { gap: 10, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 18 },
   education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
-  emptyProfile: { borderWidth: 1, borderColor: "#3A2E28", borderRadius: 6, backgroundColor: "#0D0C0BF2", padding: 22, gap: 20 },
+  emptyProfile: { borderWidth: 1, borderColor: "#DDD6CC", borderRadius: 18, backgroundColor: "#FFFEFC", padding: 22, gap: 20 },
   emptyCore: { alignItems: "center", gap: 8, paddingVertical: 8 },
   emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#2F6388", backgroundColor: "#17100E", alignItems: "center", justifyContent: "center", marginBottom: 4 },
   emptyEyebrow: { color: "#7292AD", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
-  emptyTitle: { color: "#EEE8DE", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
-  emptyDescription: { maxWidth: 620, color: "#849CAE", fontSize: 12, lineHeight: 20, textAlign: "center" },
+  emptyTitle: { color: "#20333B", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
+  emptyDescription: { maxWidth: 620, color: "#637780", fontSize: 12, lineHeight: 20, textAlign: "center" },
   emptySteps: { gap: 4 },
   emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#132736", paddingVertical: 10 },
   emptyStepIndex: { width: 30 },
   emptyStepNumber: { color: "#456C8B", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
   emptyStepCopy: { flex: 1, minWidth: 0, gap: 2 },
-  emptyStepTitle: { color: "#CADAE7", fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  emptyStepTitle: { color: "#263C45", fontSize: 12, lineHeight: 17, fontWeight: "700" },
   emptyStepDescription: { color: "#82766B", fontSize: 10, lineHeight: 16 },
+  passportTop: { marginHorizontal: -26, marginTop: -26, paddingHorizontal: 26, paddingVertical: 16, minHeight: 71, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#253741", borderTopLeftRadius: 23, borderTopRightRadius: 23 },
+  passportEmblem: { width: 37, height: 37, borderWidth: 1, borderColor: "#96715C", backgroundColor: "#354B54", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  passportEmblemText: { color: "#E4A88D", fontSize: 22, fontWeight: "900" },
+  passportTopCopy: { flex: 1, minWidth: 0, gap: 2 },
+  passportKicker: { color: "#E5C7B8", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  passportSub: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  photoFrame: { padding: 4, borderRadius: 65, borderWidth: 2, borderColor: "#E0D3C5", backgroundColor: "#F3EEE6" },
+  locationLine: { flexDirection: "row", alignItems: "center", gap: 5 },
+  locationText: { color: "#71838B", fontSize: 12 },
+  snapshot: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 18 },
+  snapshotMain: { flex: 1, minWidth: 120, backgroundColor: "#F0E3D8", padding: 15, borderRadius: 15, gap: 2 },
+  snapshotMetric: { flex: 1, minWidth: 120, backgroundColor: "#F3F5F2", borderWidth: 1, borderColor: "#E7EAE4", padding: 15, borderRadius: 15, gap: 3 },
+  snapshotEyebrow: { color: "#A2634C", letterSpacing: 1.1, fontSize: 9, fontWeight: "800" },
+  snapshotLevel: { color: "#954632", fontSize: 30, fontWeight: "900", lineHeight: 37 },
+  snapshotCaption: { color: "#667981", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  snapshotNumber: { color: "#273B44", fontSize: 27, fontWeight: "800" },
+  snapshotSuffix: { color: "#859295", fontSize: 12 },
+  snapshotTrack: { height: 4, borderRadius: 4, backgroundColor: "#E0E6E4", marginTop: 6, overflow: "hidden" },
+  snapshotFill: { height: "100%", backgroundColor: "#BE6A50" },
+  nextChapter: { marginTop: 14, borderWidth: 1, borderColor: "#E5D3C5", backgroundColor: "#FCF5EE", borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", gap: 12 },
+  nextChapterIcon: { width: 38, height: 38, backgroundColor: "#F4E1D1", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  nextChapterCopy: { flex: 1, gap: 2 },
+  nextChapterEyebrow: { color: "#9C634C", fontSize: 9, fontWeight: "800", letterSpacing: 1.1 },
+  nextChapterTitle: { color: "#293C43", fontSize: 12, fontWeight: "800" },
+  nextChapterDetail: { color: "#77868A", fontSize: 10 },
   emptyStart: { alignSelf: "center", minWidth: 220 },
 });
