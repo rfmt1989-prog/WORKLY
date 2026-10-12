@@ -35,9 +35,11 @@ export function WorkerCompliancePanel({
             {text("CONFORMIDADE CONTEXTUAL", "CONTEXTUAL COMPLIANCE")}
           </Text>
           <Text style={styles.title}>{text(tree.title, tree.titleEn)}</Text>
-          <Text style={styles.description}>
-            {text(tree.description, tree.descriptionEn)}
-          </Text>
+          {expanded ? (
+            <Text style={styles.description}>
+              {text(tree.description, tree.descriptionEn)}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.counter}>
           <Text style={styles.counterValue}>{tree.validCount}</Text>
