@@ -100,10 +100,10 @@ export function WorkerCompliancePanel({
 }
 
 const styles=StyleSheet.create({
-  panel:{borderWidth:1,borderColor:"#3A2F28",borderRadius:20,backgroundColor:"#100F0DEB",padding:16,gap:14},
-  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:14},
+  panel:{borderWidth:1,borderColor:"#3A2F28",borderRadius:6,backgroundColor:"#100F0DEB",padding:16,gap:14},
+  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:3},
   headerPressed:{opacity:.78},
-  headerIcon:{width:40,height:40,borderRadius:13,borderWidth:1,borderColor:"#6D493B",backgroundColor:"#17100E",alignItems:"center",justifyContent:"center"},
+  headerIcon:{width:40,height:40,borderRadius:3,borderWidth:1,borderColor:"#6D493B",backgroundColor:"#17100E",alignItems:"center",justifyContent:"center"},
   headerCopy:{flex:1,minWidth:0,gap:3},
   eyebrow:{color:"#8D7C70",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
   title:{color:"#E9E2D8",fontSize:17,lineHeight:22,fontWeight:"700"},
