@@ -44,10 +44,10 @@ function verificationUrl(worklyId: string) {
     const origin = (globalThis as typeof globalThis & {
       location?: { origin?: string };
     }).location?.origin;
-    if (origin) return `${origin}/verify/${encodeURIComponent(worklyId)}`;
+    if (origin) return `${origin}/verify?worklyId=${encodeURIComponent(worklyId)}`;
   }
   const base = configured || "https://workly-demo.vercel.app";
-  return `${base}/verify/${encodeURIComponent(worklyId)}`;
+  return `${base}/verify?worklyId=${encodeURIComponent(worklyId)}`;
 }
 
 function qrImageUrl(target: string) {
