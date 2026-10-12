@@ -189,7 +189,7 @@ export function WorkerProfileView({
                     style={styles.profileActionButton}
                   />
                   <Button
-                    label={text("Exportar PDF", "Export PDF")}
+                    label={text("Passaporte PDF", "PDF professional passport")}
                     icon="document-text-outline"
                     variant="secondary"
                     loading={exportingPdf}
