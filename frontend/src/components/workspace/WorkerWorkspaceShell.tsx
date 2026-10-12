@@ -164,7 +164,7 @@ export function WorkerWorkspaceShell() {
           styles.topbar,
           {
             paddingTop: Math.max(insets.top, 8),
-            borderBottomColor: `${accent}24`,
+            borderBottomColor: "#E0E7EA",
           },
         ]}
       >
@@ -232,7 +232,7 @@ export function WorkerWorkspaceShell() {
           styles.dockArea,
           {
             paddingBottom: Math.max(insets.bottom, 10),
-            borderTopColor: `${accent}28`,
+            borderTopColor: "#E0E7EA",
           },
         ]}
       >
@@ -272,7 +272,7 @@ export function WorkerWorkspaceShell() {
                 <Text
                   style={[
                     styles.dockLabel,
-                    active ? { color: "#A54C36" } : null,
+                    active ? { color: "#58798B" } : null,
                   ]}
                   numberOfLines={1}
                 >
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 9,
     borderBottomWidth: 1,
-    backgroundColor: "#253741",
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#344A54",
+    backgroundColor: "#EAF0F3",
   },
   logoText: {
     fontSize: 20,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: 6,
     paddingHorizontal: 8,
-    backgroundColor: "#FFFEFA",
+    backgroundColor: "#FFFFFF",
     zIndex: 20,
   },
   dockContent: {
@@ -407,13 +407,13 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E5DDD3",
+    borderColor: "#DCE4E7",
     alignItems: "center",
     justifyContent: "center",
   },
   dockLabel: {
     maxWidth: "95%",
-    color: "#566A72",
+    color: "#667C85",
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "700",
