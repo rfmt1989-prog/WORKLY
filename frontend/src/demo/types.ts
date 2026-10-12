@@ -39,6 +39,8 @@ export type WorkExperience = {
   hours?: number;
   status: "recorded" | "pending" | "verified";
   verified_by?: string;
+  verified_by_company_id?: string;
+  verified_at?: string;
 };
 
 export type Certificate = {
