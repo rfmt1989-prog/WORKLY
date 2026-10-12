@@ -1179,6 +1179,18 @@ def update_worker(
                     or hours > 100000
                 ):
                     raise HTTPException(status_code=422, detail="Horas de evidência inválidas.")
+                project_id = certificate.get("project_id")
+                if project_id:
+                    if evidence_type not in {"work_record", "employer_validation", "technical_assessment"}:
+                        raise HTTPException(status_code=422, detail="Só evidência de trabalho pode ser ligada a uma Obra.")
+                    project = next(
+                        (item for item in _state["projects"] if item.get("id") == project_id),
+                        None,
+                    )
+                    if not project or worker_id not in project.get("worker_ids", []):
+                        raise HTTPException(status_code=422, detail="Obra WORKLY inválida para este worker.")
+                    if user["role"] == "company" and project.get("company_id") != user.get("company_id"):
+                        raise HTTPException(status_code=403, detail="Só a empresa responsável pela Obra pode validar esta prova.")
             existing = {item["id"]: item for item in worker.get("certificates", [])}
             incoming = deepcopy(incoming)
             if user["role"] == "worker":
@@ -1191,6 +1203,8 @@ def update_worker(
                     # Editing any verified qualification invalidates its old confirmation.
                     certificate["status"] = "pending" if certificate.get("file_id") or previous and previous.get("status") == "verified" else "recorded"
                     certificate.pop("verified_by", None)
+                    certificate.pop("verified_by_company_id", None)
+                    certificate.pop("verified_at", None)
             else:
                 for certificate in incoming:
                     if certificate.get("status") == "verified":
@@ -1200,6 +1214,8 @@ def update_worker(
                             if not evidence or evidence.get("owner_type") != "worker" or evidence.get("owner_id") != worker_id:
                                 raise HTTPException(status_code=422, detail="Associe um comprovativo do worker antes de verificar o certificado.")
                             certificate["verified_by"] = user["sub"]
+                            certificate["verified_by_company_id"] = user.get("company_id")
+                            certificate["verified_at"] = datetime.now(timezone.utc).isoformat()
             clean_patch["certificates"] = incoming
         if "best_projects" in clean_patch:
             incoming = clean_patch["best_projects"]
