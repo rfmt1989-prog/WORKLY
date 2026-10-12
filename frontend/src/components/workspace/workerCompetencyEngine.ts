@@ -337,6 +337,27 @@ export function assessWorkerCompetence(
       confidencePoints,
   );
 
+  // A WORKLY level is only awarded after the foundational course and
+  // supervised internship are both backed by verified evidence.
+  const hasFoundationProof = (
+    id: string, evidenceType: "qualification" | "work_record", aliases: string[],
+  ) => worker.certificates.some(certificate => {
+    if (!isCurrentVerified(certificate)) return false;
+    if (certificate.node_id === id || certificate.competency_id === id) return true;
+    if (certificate.evidence_type && certificate.evidence_type !== evidenceType) return false;
+    const name = normalize(certificate.name);
+    return aliases.some(alias => name.includes(normalize(alias)));
+  });
+  const courseReady = hasFoundationProof(
+    "formation-professional-course", "qualification",
+    ["curso profissional", "curso tecnologico", "curso tecnológico", "professional course", "technological course", "technical course", "curso tecnico", "curso técnico", "técnico", "tecnico", "technician"],
+  );
+  const internshipReady = hasFoundationProof(
+    "formation-internship", "work_record",
+    ["estagio", "estágio", "internship", "work placement", "practical placement", "pratica profissional", "prática profissional"],
+  );
+  const foundationReady = courseReady && internshipReady;
+
   let achieved = worklyLevelGates[0];
   for (const gate of worklyLevelGates) {
     const eligible =
@@ -345,7 +366,7 @@ export function assessWorkerCompetence(
       verifiedProjects >= gate.verifiedProjects &&
       verifiedWorkHours >= gate.verifiedExperienceHours &&
       responsibilityEvidence >= gate.responsibilityEvidence;
-    if (eligible) achieved = gate;
+    if (eligible && (gate.id === "apprentice" || foundationReady)) achieved = gate;
   }
   const achievedIndex = worklyLevelGates.findIndex(
     (item) => item.id === achieved.id,
@@ -355,6 +376,14 @@ export function assessWorkerCompetence(
   const missingGates: string[] = [];
   const missingGatesEn: string[] = [];
   if (next) {
+    if (!courseReady) {
+      missingGates.push("Curso profissional/tecnológico verificado");
+      missingGatesEn.push("Verified professional/technological course");
+    }
+    if (!internshipReady) {
+      missingGates.push("Estágio supervisionado verificado");
+      missingGatesEn.push("Verified supervised internship");
+    }
     if (score < next.minimum) {
       missingGates.push(`WORKLY VALUE: ${score}/${next.minimum}`);
       missingGatesEn.push(`WORKLY VALUE: ${score}/${next.minimum}`);
