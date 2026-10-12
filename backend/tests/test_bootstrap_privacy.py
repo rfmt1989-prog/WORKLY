@@ -61,9 +61,21 @@ def test_generation_upgrade_preserves_existing_people_and_documents():
     main._state["demo_generation"] = "old-generation"
     users = {"existing@worklyapp.com": {"id": "existing", "registered_at": "2026-01-01"}}
     main._prepare_runtime_state(main._state, users)
-    assert main._state["workers"] == before["workers"]
+    for worker, saved in zip(main._state["workers"], before["workers"]):
+        assert {key: worker[key] for key in saved} == saved
     assert main._state["projects"][1]["id"] == "project-private"
     assert "existing@worklyapp.com" in users
+
+
+def test_legacy_seed_does_not_create_work_history_before_enrolment():
+    seed_private_accounts()
+    main._state["generated_at"] = "2026-10-01T00:00:00Z"
+    own = main._state["workers"][0]
+    own.pop("registered_at", None)
+    main._state["attendance"] = [{"id": "old-demo", "worker_id": own["id"], "project_id": "project-own", "check_in": "2026-07-29T08:00:00Z", "check_out": "2026-07-29T16:00:00Z", "approval_status": "approved"}]
+    main._prepare_runtime_state(main._state, {})
+    wallet = main._worker_payload(own)["professional_wallet"]
+    assert wallet["verified_hours"] == wallet["check_in_count"] == 0
 
 
 def test_configured_storage_failure_does_not_accept_registration(client, monkeypatch):

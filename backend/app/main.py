@@ -107,8 +107,9 @@ def _prepare_runtime_state(state, users) -> None:
         state.setdefault(collection, [])
     for worker in state["workers"]:
         account = users.get(str(worker.get("email") or "").lower(), {})
-        if account.get("registered_at"):
-            worker.setdefault("registered_at", account["registered_at"])
+        registered_at = account.get("registered_at") or state.get("generated_at")
+        if registered_at:
+            worker.setdefault("registered_at", registered_at)
         for key in ("workly_id", "identity_document_type", "identity_verification_status"):
             if account.get(key):
                 worker.setdefault(key, account[key])
