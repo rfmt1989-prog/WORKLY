@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { competencyTitle, professionTitle, professionalText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
@@ -93,6 +93,7 @@ export function WorkerCompetencyTree({
   onNode: (node: AchievementNode) => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const [expanded, setExpanded] = useState(false);
   const profile = competencyProfileFor(assessment.professionId);
   if (!profile) return null;
 
@@ -105,7 +106,12 @@ export function WorkerCompetencyTree({
 
   return (
     <View style={styles.shell} testID="worker-competency-tree">
-      <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
+      >
         <View style={styles.headerMark}>
           <Ionicons name="git-branch-outline" size={20} color="#8BC7FF" />
         </View>
@@ -120,12 +126,21 @@ export function WorkerCompetencyTree({
         </View>
         <View style={styles.coverage}>
           <Text style={styles.coverageValue}>{assessment.coreCoverage}%</Text>
-          <Text style={styles.coverageLabel}>
-            {text("núcleo", "core")}
-          </Text>
+          <View style={styles.coverageLine}>
+            <Text style={styles.coverageLabel}>
+              {text("núcleo", "core")}
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={14}
+              color="#7EA9CB"
+            />
+          </View>
         </View>
-      </View>
+      </Pressable>
 
+      {expanded ? (
+        <>
       <CompetencySection
         title={text("Competências essenciais", "Essential competences")}
         subtitle={text(
@@ -158,6 +173,8 @@ export function WorkerCompetencyTree({
         <LegendItem value="3" label={text("Avançada", "Advanced")} />
         <LegendItem value="4" label={text("Referência", "Reference")} />
       </View>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -273,7 +290,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
+    borderRadius: 14,
   },
+  headerPressed: { opacity: 0.78 },
   headerMark: {
     width: 42,
     height: 42,
@@ -306,6 +325,7 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     fontWeight: "700",
   },
+  coverageLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   coverageLabel: { color: "#68849A", fontSize: 9, lineHeight: 13 },
   section: {
     borderTopWidth: 1,
