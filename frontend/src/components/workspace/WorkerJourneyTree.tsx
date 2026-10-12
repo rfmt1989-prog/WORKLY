@@ -183,10 +183,16 @@ export function WorkerJourneyTree({
   const completedSkills = tree.additionalSkills.filter(
     (node) => isCompleted(node.status) || node.status === "pending",
   ).length;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={styles.board} testID={`profession-tree-${tree.id}`}>
-      <View style={styles.origin}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.origin, pressed && styles.originPressed]}
+      >
         <View style={styles.originGlow} />
         <View style={styles.originSymbol}>
           <TechGlyph node={tree.root} size={28} color="#A8D8FF" />
@@ -194,9 +200,16 @@ export function WorkerJourneyTree({
         <Text style={styles.originCaption}>
           {uiText(language, "PERCURSO", "JOURNEY")}
         </Text>
-        <View style={styles.originStem} />
-      </View>
+        <Ionicons
+          name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+          size={15}
+          color="#8BA7C1"
+        />
+        {expanded ? <View style={styles.originStem} /> : null}
+      </Pressable>
 
+      {expanded ? (
+        <>
       <TimelineSection
         title={uiText(language, "Percurso da profissão", "Trade progression")}
         icon="git-branch-outline"
@@ -237,6 +250,8 @@ export function WorkerJourneyTree({
           "Tap a stage to view requirements and attach supporting evidence.",
         )}
       </Text>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -273,24 +288,33 @@ function TimelineSection({
     [nodes],
   );
 
-  const initialCount = Math.min(
-    ordered.length,
-    Math.max(compact ? 4 : 6, completed + 2),
-  );
-  const visible = expanded ? ordered : ordered.slice(0, initialCount);
-  const hidden = Math.max(0, ordered.length - visible.length);
+  const visible = expanded ? ordered : [];
+  const hidden = ordered.length;
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeading}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [
+          styles.sectionHeading,
+          pressed && styles.sectionHeadingPressed,
+        ]}
+      >
         <Ionicons name={icon} size={15} color="#86BAEE" />
         <Text style={styles.sectionTitle}>{title}</Text>
         <Text style={styles.sectionCount}>
           {completed}/{ordered.length}
         </Text>
-      </View>
+        <Ionicons
+          name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+          size={14}
+          color="#8BA7C1"
+        />
+      </Pressable>
 
-      <View style={styles.timeline}>
+      {expanded ? <View style={styles.timeline}>
         {visible.map((node, index) => {
           const left = !stacked && index % 2 === 0;
           return (
@@ -342,35 +366,7 @@ function TimelineSection({
             </Pressable>
           );
         })}
-      </View>
-
-      {ordered.length > initialCount ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          onPress={() => setExpanded((value) => !value)}
-          style={({ pressed }) => [
-            styles.expand,
-            pressed && styles.expandPressed,
-          ]}
-        >
-          <View style={styles.expandDot} />
-          <Text style={styles.expandText}>
-            {expanded
-              ? uiText(language, "Mostrar menos", "Show less")
-              : uiText(
-                  language,
-                  `Ver mais ${hidden} etapas`,
-                  `View ${hidden} more steps`,
-                )}
-          </Text>
-          <Ionicons
-            name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
-            size={14}
-            color="#8BA7C1"
-          />
-        </Pressable>
-      ) : null}
+      </View> : null}
     </View>
   );
 }
@@ -430,11 +426,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   origin: {
-    height: 118,
+    minHeight: 94,
     alignItems: "center",
     justifyContent: "flex-start",
     position: "relative",
+    borderRadius: 16,
   },
+  originPressed: { opacity: 0.78 },
   originGlow: {
     position: "absolute",
     top: 3,
@@ -478,7 +476,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   sectionHeading: {
-    minHeight: 38,
+    minHeight: 42,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
@@ -490,6 +488,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#07131D",
     zIndex: 2,
   },
+  sectionHeadingPressed: { opacity: 0.76 },
   sectionTitle: {
     color: "#B9CDDE",
     fontSize: 10,
