@@ -1211,8 +1211,25 @@ def update_worker(
                         if existing.get(certificate["id"]) != certificate:
                             file_id = certificate.get("file_id")
                             evidence = _persistence.get_file(str(file_id)) if file_id else None
-                            if not evidence or evidence.get("owner_type") != "worker" or evidence.get("owner_id") != worker_id:
-                                raise HTTPException(status_code=422, detail="Associe um comprovativo do worker antes de verificar o certificado.")
+                            project_id = certificate.get("project_id")
+                            project_proof = bool(
+                                project_id
+                                and _approved_attendance_hours(
+                                    worker_id,
+                                    _state.get("attendance", []),
+                                    str(project_id),
+                                ) > 0
+                            )
+                            file_proof = bool(
+                                evidence
+                                and evidence.get("owner_type") == "worker"
+                                and evidence.get("owner_id") == worker_id
+                            )
+                            if not file_proof and not project_proof:
+                                raise HTTPException(
+                                    status_code=422,
+                                    detail="Associe um comprovativo ou uma Obra WORKLY com presença aprovada antes de validar.",
+                                )
                             certificate["verified_by"] = user["sub"]
                             certificate["verified_by_company_id"] = user.get("company_id")
                             certificate["verified_at"] = datetime.now(timezone.utc).isoformat()
