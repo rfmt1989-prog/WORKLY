@@ -673,7 +673,7 @@ def _public_workly_id(worker: dict[str, Any]) -> str:
     return f"WLY-W-{compact[-8:].rjust(8, '0')}"
 
 
-@app.get(f"{API_PREFIX}/public/workers/{workly_id}", tags=["Public"])
+@app.get(f"{API_PREFIX}/public/workers/{{workly_id}}", tags=["Public"])
 def public_worker_verification(workly_id: str) -> dict[str, Any]:
     normalized = workly_id.strip().upper()
     with _state_lock:
