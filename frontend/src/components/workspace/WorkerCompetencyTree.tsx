@@ -120,9 +120,11 @@ export function WorkerCompetencyTree({
             {text("MAPA DE COMPETÊNCIAS", "COMPETENCY MAP")}
           </Text>
           <Text style={styles.title}>{professionTitle(language, profile.professionId, profile.title, profile.titleEn)}</Text>
-          <Text style={styles.subtitle}>
-            {text("Competências essenciais e opcionais são avaliadas separadamente de qualificações e autorizações.", "Essential and optional competences are assessed separately from qualifications and authorisations.")}
-          </Text>
+          {expanded ? (
+            <Text style={styles.subtitle}>
+              {text("Competências essenciais e opcionais são avaliadas separadamente de qualificações e autorizações.", "Essential and optional competences are assessed separately from qualifications and authorisations.")}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.coverage}>
           <Text style={styles.coverageValue}>{assessment.coreCoverage}%</Text>
