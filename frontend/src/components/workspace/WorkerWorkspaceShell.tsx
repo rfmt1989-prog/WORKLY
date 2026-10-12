@@ -266,13 +266,13 @@ export function WorkerWorkspaceShell() {
                   <Ionicons
                     name={item.icon}
                     size={21}
-                    color={active ? accent : workspaceColors.muted}
+                    color={active ? accent : "#64747A"}
                   />
                 </View>
                 <Text
                   style={[
                     styles.dockLabel,
-                    active ? { color: workspaceColors.text } : null,
+                    active ? { color: "#A54C36" } : null,
                   ]}
                   numberOfLines={1}
                 >
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 9,
     borderBottomWidth: 1,
-    backgroundColor: "#0B0A09F5",
+    backgroundColor: "#253741",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#15110F",
+    backgroundColor: "#344A54",
   },
   logoText: {
     fontSize: 20,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: 6,
     paddingHorizontal: 8,
-    backgroundColor: "#0B0A09F5",
+    backgroundColor: "#FFFEFA",
     zIndex: 20,
   },
   dockContent: {
@@ -394,8 +394,8 @@ const styles = StyleSheet.create({
     position: "relative",
     flex: 1,
     minWidth: 0,
-    height: 60,
-    borderRadius: 3,
+    height: 64,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
@@ -405,16 +405,16 @@ const styles = StyleSheet.create({
   dockIcon: {
     width: 34,
     height: 28,
-    borderRadius: 2,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#332B26",
+    borderColor: "#E5DDD3",
     alignItems: "center",
     justifyContent: "center",
   },
   dockLabel: {
     maxWidth: "95%",
-    color: workspaceColors.muted,
-    fontSize: 9,
+    color: "#566A72",
+    fontSize: 10,
     lineHeight: 14,
     fontWeight: "700",
     letterSpacing: 1.15,
