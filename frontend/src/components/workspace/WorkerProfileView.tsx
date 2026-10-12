@@ -121,14 +121,14 @@ export function WorkerProfileView({
                   {worker.name || text("Nome por definir", "Name not set")}
                 </Text>
                 <View style={styles.professionLine}>
-                  <Ionicons name="briefcase-outline" size={14} color="#82BDF0" />
+                  <Ionicons name="briefcase-outline" size={14} color="#C96954" />
                   <Text style={styles.profession}>{displayProfession}</Text>
                 </View>
               </View>
 
               <View style={styles.identityBadges}>
                 <View style={styles.worklyBadge}>
-                  <Ionicons name="finger-print-outline" size={15} color="#8BC7FF" />
+                  <Ionicons name="finger-print-outline" size={15} color="#D57A60" />
                   <View style={styles.badgeCopy}>
                     <Text style={styles.badgeLabel}>{text("WORKLY ID", "WORKLY ID")}</Text>
                     <Text style={styles.badgeValue}>{worklyId}</Text>
@@ -155,7 +155,7 @@ export function WorkerProfileView({
                     size={15}
                     color={
                       eligibilityStatus === "eligible"
-                        ? "#78D8A7"
+                        ? "#8FAE91"
                         : eligibilityStatus === "not_eligible"
                           ? "#FF8F8F"
                           : "#E7C76E"
@@ -189,7 +189,7 @@ export function WorkerProfileView({
 
               <View style={styles.identityFacts}>
                 <View style={styles.identityFact}>
-                  <Ionicons name="flag-outline" size={15} color="#80B2E5" />
+                  <Ionicons name="flag-outline" size={15} color="#B98972" />
                   <View style={styles.identityField}>
                     <Text style={styles.identityLabel}>
                       {text("Nacionalidade", "Nationality")}
@@ -203,7 +203,7 @@ export function WorkerProfileView({
                   </View>
                 </View>
                 <View style={styles.identityFact}>
-                  <Ionicons name="language-outline" size={15} color="#80B2E5" />
+                  <Ionicons name="language-outline" size={15} color="#B98972" />
                   <View style={styles.identityField}>
                     <Text style={styles.identityLabel}>
                       {text("Idiomas", "Languages")}
@@ -379,7 +379,7 @@ function EmptyProfessionalProfile({
     <View style={styles.emptyProfile} testID="empty-worker-profile">
       <View style={styles.emptyCore}>
         <View style={styles.emptyCoreRing}>
-          <Ionicons name="finger-print-outline" size={30} color="#8BC7FF" />
+          <Ionicons name="finger-print-outline" size={30} color="#D57A60" />
         </View>
         <Text style={styles.emptyEyebrow}>{text("NOVA IDENTIDADE PROFISSIONAL", "NEW PROFESSIONAL IDENTITY")}</Text>
         <Text style={styles.emptyTitle}>{text("Constrói o teu perfil Worker", "Build your Worker profile")}</Text>
@@ -420,12 +420,12 @@ function IdentityRow({
 }) {
   const color =
     tone === "positive"
-      ? "#78D8A7"
+      ? "#8FAE91"
       : tone === "negative"
         ? "#FF8F8F"
         : tone === "pending"
           ? "#E7C76E"
-          : "#80B2E5";
+          : "#B98972";
   return (
     <View style={styles.identityRow}>
       <Ionicons name={icon} size={16} color={color} />
@@ -549,7 +549,7 @@ function CertificateDetails({
           <View style={styles.proofSection}>
             <View style={styles.proofHeading}>
               <View style={styles.proofHeadingIcon}>
-                <Ionicons name="link-outline" size={14} color="#78D8A7" />
+                <Ionicons name="link-outline" size={14} color="#8FAE91" />
               </View>
               <View style={styles.proofHeadingCopy}>
                 <Text style={styles.sectionLabel}>PROOF OF WORK</Text>
@@ -660,7 +660,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: "#080E15" },
+  root: { flex: 1, minHeight: 0, backgroundColor: "#090908" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   content: { padding: 28, paddingBottom: 32 },
   contentCompact: { padding: 16, paddingBottom: 24 },
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   profileActionButton: { minWidth: 170, flexGrow: 1 },
-  identity: { width: 284, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#1D3A52", backgroundColor: "#08131CE8", borderRadius: 18, shadowColor: "#2388FF", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
+  identity: { width: 284, flexShrink: 0, padding: 22, borderWidth: 1, borderColor: "#44342B", backgroundColor: "#08131CE8", borderRadius: 18, shadowColor: "#2388FF", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
   identityCompact: { width: "100%", padding: 18, borderRadius: 16 },
   identityHero: { alignItems: "center", gap: 18 },
   heroCompact: { flexDirection: "row", alignItems: "center", gap: 18 },
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
   profession: { color: "#BFD1E0", fontSize: 13, lineHeight: 19, textAlign: "center", flexShrink: 1, fontWeight: "600" },
   professionCompact: { textAlign: "left" },
   identityBadges: { marginTop: 20, flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  worklyBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#2B587A", backgroundColor: "#071826", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9 },
+  worklyBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#2B587A", backgroundColor: "#14100E", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9 },
   fitBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9 },
   fitBadgePositive: { borderColor: "#2B654B", backgroundColor: "#091B15" },
   fitBadgePending: { borderColor: "#665A2D", backgroundColor: "#1A170B" },
@@ -692,14 +692,14 @@ const styles = StyleSheet.create({
   badgeCopy: { flex: 1, minWidth: 0, gap: 2 },
   badgeLabel: { color: "#708CA4", fontSize: 8, lineHeight: 12, letterSpacing: .8, textTransform: "uppercase", fontWeight: "700" },
   badgeValue: { color: "#D7E6F1", fontSize: 11, lineHeight: 16, fontWeight: "700", flexShrink: 1 },
-  fitTextPositive: { color: "#78D8A7" },
+  fitTextPositive: { color: "#8FAE91" },
   fitTextPending: { color: "#E7C76E" },
   fitTextNegative: { color: "#FF8F8F" },
   divider: { marginVertical: 18, flexDirection: "row", gap: 8, alignItems: "center" },
   dividerLine: { flex: 1, height: 1, backgroundColor: "#20394E" },
   dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#7998B5", transform: [{ rotate: "45deg" }] },
   identityFacts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  identityFact: { flex: 1, minWidth: 190, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#172F42", backgroundColor: "#07111A", borderRadius: 12, padding: 11 },
+  identityFact: { flex: 1, minWidth: 190, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#342A24", backgroundColor: "#0F0E0C", borderRadius: 12, padding: 11 },
   identityRows: { gap: 18 },
   identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
   identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flexShrink: 1, minWidth: 100 },
@@ -744,9 +744,9 @@ const styles = StyleSheet.create({
   ruleTitle: { color: "#BFCEDF", fontSize: 13, lineHeight: 20 },
   ruleValue: { color: "#8FC0F6", fontSize: 24, fontWeight: "600" },
   detailContent: { gap: 18 },
-  proofSection: { gap: 10, borderWidth: 1, borderColor: "#1F3D51", borderRadius: 14, backgroundColor: "#050D14", padding: 12 },
+  proofSection: { gap: 10, borderWidth: 1, borderColor: "#43342B", borderRadius: 14, backgroundColor: "#050D14", padding: 12 },
   proofHeading: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
-  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#285941", backgroundColor: "#091813", alignItems: "center", justifyContent: "center" },
+  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#285941", backgroundColor: "#11140F", alignItems: "center", justifyContent: "center" },
   proofHeadingCopy: { flex: 1, minWidth: 0, gap: 2 },
   detailSymbol: { alignItems: "center", gap: 8, paddingBottom: 12 },
   sectionLabel: { color: "#BDCADA", fontSize: 11, lineHeight: 17, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
@@ -757,11 +757,11 @@ const styles = StyleSheet.create({
   criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 16 },
   related: { gap: 10, borderTopWidth: 1, borderColor: "#2A3F54", paddingTop: 18 },
   education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
-  emptyProfile: { borderWidth: 1, borderColor: "#183247", borderRadius: 22, backgroundColor: "#050B11F2", padding: 22, gap: 20 },
+  emptyProfile: { borderWidth: 1, borderColor: "#3A2E28", borderRadius: 22, backgroundColor: "#0D0C0BF2", padding: 22, gap: 20 },
   emptyCore: { alignItems: "center", gap: 8, paddingVertical: 8 },
-  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#2F6388", backgroundColor: "#071725", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#2F6388", backgroundColor: "#17100E", alignItems: "center", justifyContent: "center", marginBottom: 4 },
   emptyEyebrow: { color: "#7292AD", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
-  emptyTitle: { color: "#E6EFF7", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
+  emptyTitle: { color: "#EEE8DE", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
   emptyDescription: { maxWidth: 620, color: "#849CAE", fontSize: 12, lineHeight: 20, textAlign: "center" },
   emptySteps: { gap: 4 },
   emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#132736", paddingVertical: 10 },
@@ -769,6 +769,6 @@ const styles = StyleSheet.create({
   emptyStepNumber: { color: "#456C8B", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
   emptyStepCopy: { flex: 1, minWidth: 0, gap: 2 },
   emptyStepTitle: { color: "#CADAE7", fontSize: 12, lineHeight: 17, fontWeight: "600" },
-  emptyStepDescription: { color: "#70879B", fontSize: 10, lineHeight: 16 },
+  emptyStepDescription: { color: "#82766B", fontSize: 10, lineHeight: 16 },
   emptyStart: { alignSelf: "center", minWidth: 220 },
 });
