@@ -42,11 +42,11 @@ type NodeSpec = Omit<AchievementNode, "status"> & {
 };
 
 const badgeColors = {
-  verified: "#8CBFFF",
+  verified: "#58798B",
   recorded: workspaceColors.blue,
-  pending: "#CDB37E",
-  available: "#687385",
-  locked: "#3E4652",
+  pending: "#83969F",
+  available: "#70818B",
+  locked: "#9DABB2",
 };
 
 function findCertificate(certificates: Certificate[], needles: string[]) {
