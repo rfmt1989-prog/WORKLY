@@ -662,6 +662,53 @@ def health() -> dict[str, Any]:
     }
 
 
+def _public_workly_id(worker: dict[str, Any]) -> str:
+    explicit = str(worker.get("workly_id") or "").strip()
+    if explicit:
+        return explicit
+    worker_id = str(worker.get("id") or "")
+    if worker_id == "worker-1":
+        return "WLY-W-000001"
+    compact = "".join(character for character in worker_id.upper() if character.isalnum())
+    return f"WLY-W-{compact[-8:].rjust(8, '0')}"
+
+
+@app.get(f"{API_PREFIX}/public/workers/{workly_id}", tags=["Public"])
+def public_worker_verification(workly_id: str) -> dict[str, Any]:
+    normalized = workly_id.strip().upper()
+    with _state_lock:
+        worker = next(
+            (
+                item
+                for item in _state["workers"]
+                if _public_workly_id(item).upper() == normalized
+            ),
+            None,
+        )
+        if not worker:
+            raise HTTPException(status_code=404, detail="WORKLY ID não encontrado.")
+        identity = professional_identity(
+            worker,
+            _state["projects"],
+            _state.get("attendance", []),
+        )
+        return {
+            "verified_profile": True,
+            "workly_id": _public_workly_id(worker),
+            "name": worker.get("name") or "",
+            "nationality": worker.get("nationality") or worker.get("country") or "",
+            "languages": list(worker.get("languages") or []),
+            "profession": worker.get("profession") or "",
+            "work_eligibility_status": worker.get("work_eligibility_status") or "pending",
+            "identity_verification_status": worker.get("identity_verification_status") or "pending",
+            "level": identity.get("level", {}).get("label", "I"),
+            "workly_value": identity.get("score", 0),
+            "verified_projects": identity.get("verified_projects", 0),
+            "verified_experience_hours": identity.get("verified_experience_hours", 0),
+            "core_coverage": identity.get("core_coverage", 0),
+        }
+
+
 @app.post(f"{API_PREFIX}/auth/login", tags=["Authentication"])
 def login(data: LoginInput) -> dict[str, Any]:
     email = str(data.email).strip().lower()
