@@ -422,7 +422,7 @@ function buildHtml(
     )}</td></tr>`
   }</tbody></table>
 
-  <h2>${esc(text("Certificações extra", "Compliance and authorisations"))}</h2>
+  <h2>${esc(text("Certificações extra", "Extra certifications"))}</h2>
   <table>
     <thead>
       <tr>
