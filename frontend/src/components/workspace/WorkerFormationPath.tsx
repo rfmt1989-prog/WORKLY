@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { professionalText } from "@/src/demo/professionalI18n";
 import type { Certificate, LanguageCode, Worker } from "@/src/demo/types";
@@ -146,12 +146,18 @@ export function WorkerFormationPath({
   const text = (pt: string, en: string) =>
     professionalText(language, pt, en);
   const nodes = workerFormationNodes(worker, language);
+  const [expanded, setExpanded] = useState(false);
   const verified = nodes.filter((node) => node.status === "verified").length;
   const complete = verified === nodes.length;
 
   return (
     <View style={styles.shell} testID="worker-formation-path">
-      <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
+      >
         <View
           style={[
             styles.headerMark,
@@ -180,12 +186,21 @@ export function WorkerFormationPath({
 
         <View style={styles.progress}>
           <Text style={styles.count}>{verified}/2</Text>
-          <Text style={styles.countLabel}>
-            {text("verificados", "verified")}
-          </Text>
+          <View style={styles.countLine}>
+            <Text style={styles.countLabel}>
+              {text("verificados", "verified")}
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={14}
+              color="#7EA9CB"
+            />
+          </View>
         </View>
-      </View>
+      </Pressable>
 
+      {expanded ? (
+        <>
       <View
         style={[
           styles.levelState,
@@ -261,6 +276,8 @@ export function WorkerFormationPath({
         </Text>
         <View style={styles.gatewayLine} />
       </View>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -278,7 +295,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
+    borderRadius: 14,
   },
+  headerPressed: { opacity: 0.78 },
   headerMark: {
     width: 42,
     height: 42,
@@ -322,6 +341,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "700",
   },
+  countLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   countLabel: {
     color: "#647E93",
     fontSize: 8,
