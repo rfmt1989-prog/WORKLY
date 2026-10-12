@@ -112,13 +112,13 @@ export function workerFormationNodes(
       status: statusFor(certificate),
       stage: "foundation",
       family: "apprenticeship-requirement",
-      scope: text("Nível de aprendizagem", "Apprenticeship level"),
+      scope: "I",
       certificate,
       kind: requirement.kind,
       meta: [
         text(
-          "Requisito do nível Aprendizagem.",
-          "Requirement of the Apprenticeship level.",
+          "Requisito do nível I.",
+          "Requirement of level I.",
         ),
         requirement.id === "formation-professional-course"
           ? text(
@@ -167,15 +167,15 @@ export function WorkerFormationPath({
 
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
-            {text("NÍVEL 1", "LEVEL 1")}
+            I
           </Text>
           <Text style={styles.title}>
-            {text("Aprendizagem", "Apprenticeship")}
+            I
           </Text>
           <Text style={styles.subtitle}>
             {text(
-              "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível de Aprendizagem.",
-              "Professional/technological course + internship. Both requirements form the Apprenticeship level.",
+              "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível I.",
+              "Professional/technological course + internship. Both requirements form level I.",
             )}
           </Text>
         </View>
@@ -207,12 +207,12 @@ export function WorkerFormationPath({
         >
           {complete
             ? text(
-                "Nível Aprendizagem concluído",
-                "Apprenticeship level completed",
+                "Nível I concluído",
+                "Level I completed",
               )
             : text(
-                "Nível Aprendizagem em progresso",
-                "Apprenticeship level in progress",
+                "Nível I em progresso",
+                "Level I in progress",
               )}
         </Text>
       </View>
