@@ -28,7 +28,7 @@ export function WorkerCompliancePanel({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerIcon}>
-          <Ionicons name="shield-checkmark-outline" size={18} color="#58798B" />
+          <Ionicons name="shield-checkmark-outline" size={18} color="#91C9DD" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
@@ -48,7 +48,7 @@ export function WorkerCompliancePanel({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#70818B"
+              color="#AEC2CB"
             />
           </View>
         </View>
@@ -85,7 +85,7 @@ export function WorkerCompliancePanel({
       </View>
 
       <View style={styles.note}>
-        <Ionicons name="information-circle-outline" size={14} color="#8A7A6C" />
+        <Ionicons name="information-circle-outline" size={14} color="#C7B6A4" />
         <Text style={styles.noteText}>
           {text(
             "Estes requisitos indicam aptidão legal, empresarial ou de site. Não aumentam diretamente a senioridade técnica.",
@@ -100,25 +100,25 @@ export function WorkerCompliancePanel({
 }
 
 const styles=StyleSheet.create({
-  panel:{borderWidth:1,borderColor: "#DDE5E8",borderRadius:20,backgroundColor: "#FFFFFF",padding:16,gap:14},
+  panel:{borderWidth:1,borderColor: "#40596A",borderRadius:20,backgroundColor: "#172736",padding:16,gap:14},
   header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:12},
   headerPressed:{opacity:.78},
-  headerIcon:{width:40,height:40,borderRadius:12,borderWidth:1,borderColor: "#DDE5E8",backgroundColor: "#E7EFF2",alignItems:"center",justifyContent:"center"},
+  headerIcon:{width:40,height:40,borderRadius:12,borderWidth:1,borderColor: "#40596A",backgroundColor: "#284354",alignItems:"center",justifyContent:"center"},
   headerCopy:{flex:1,minWidth:0,gap:3},
-  eyebrow:{color: "#58798B",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
-  title:{color: "#253842",fontSize:17,lineHeight:22,fontWeight:"700"},
-  description:{color: "#70818B",fontSize:10,lineHeight:16},
+  eyebrow:{color: "#91C9DD",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
+  title:{color: "#EDF5F7",fontSize:17,lineHeight:22,fontWeight:"700"},
+  description:{color: "#AEC2CB",fontSize:10,lineHeight:16},
   counter:{alignItems:"flex-end"},
-  counterValue:{color: "#253842",fontSize:20,lineHeight:24,fontWeight:"700"},
+  counterValue:{color: "#EDF5F7",fontSize:20,lineHeight:24,fontWeight:"700"},
   counterLine:{flexDirection:"row",alignItems:"center",gap:6},
-  counterLabel:{color: "#70818B",fontSize:8,lineHeight:12},
+  counterLabel:{color: "#AEC2CB",fontSize:8,lineHeight:12},
   grid:{flexDirection:"row",flexWrap:"wrap",gap:8},
-  item:{width:"100%",minHeight:76,flexDirection:"row",alignItems:"center",gap:11,borderWidth:1,borderColor: "#DDE5E8",borderRadius:13,backgroundColor: "#FFFFFF",padding:10},
-  itemVerified:{borderColor: "#B8CDD7",backgroundColor: "#E7EFF2"},
+  item:{width:"100%",minHeight:76,flexDirection:"row",alignItems:"center",gap:11,borderWidth:1,borderColor: "#40596A",borderRadius:13,backgroundColor: "#172736",padding:10},
+  itemVerified:{borderColor: "#7394A7",backgroundColor: "#284354"},
   itemPressed:{opacity:.75},
   itemCopy:{flex:1,minWidth:0,gap:3},
-  itemTitle:{color: "#253842",fontSize:11,lineHeight:16,fontWeight:"600"},
-  itemScope:{color: "#70818B",fontSize:8,lineHeight:12},
-  note:{flexDirection:"row",gap:8,borderTopWidth:1,borderTopColor: "#DDE5E8",paddingTop:12},
-  noteText:{flex:1,color: "#70818B",fontSize:9,lineHeight:14},
+  itemTitle:{color: "#EDF5F7",fontSize:11,lineHeight:16,fontWeight:"600"},
+  itemScope:{color: "#AEC2CB",fontSize:8,lineHeight:12},
+  note:{flexDirection:"row",gap:8,borderTopWidth:1,borderTopColor: "#40596A",paddingTop:12},
+  noteText:{flex:1,color: "#AEC2CB",fontSize:9,lineHeight:14},
 });

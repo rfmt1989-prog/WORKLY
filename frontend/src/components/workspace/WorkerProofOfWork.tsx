@@ -137,7 +137,7 @@ export function WorkerProofOfWork({
                 <Ionicons
                   name={hasWorklyChain ? "shield-checkmark-outline" : "briefcase-outline"}
                   size={17}
-                  color={hasWorklyChain ? "#8FAE91" : "#C96954"}
+                  color={hasWorklyChain ? "#95C7A9" : "#C96954"}
                 />
               </View>
               <View style={styles.projectCopy}>
@@ -257,7 +257,7 @@ function ChainStep({
         <Ionicons
           name={icon}
           size={12}
-          color={complete ? "#8FAE91" : "#648096"}
+          color={complete ? "#95C7A9" : "#648096"}
         />
       </View>
       <Text style={styles.stepLabel}>{label}</Text>
@@ -279,19 +279,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 10,
     borderWidth: 1,
-    borderColor:"#DDE5E8",
+    borderColor:"#40596A",
     borderRadius: 12,
-    backgroundColor:"#FFFFFF",
+    backgroundColor:"#172736",
     padding: 12,
   },
   emptyCopy: { flex: 1, minWidth: 0, gap: 2 },
-  emptyTitle: { color:"#253842", fontSize: 11, fontWeight: "700" },
-  emptyText: { color:"#70818B", fontSize: 10, lineHeight: 16 },
+  emptyTitle: { color:"#EDF5F7", fontSize: 11, fontWeight: "700" },
+  emptyText: { color:"#AEC2CB", fontSize: 10, lineHeight: 16 },
   card: {
     borderWidth: 1,
-    borderColor:"#DDE5E8",
+    borderColor:"#40596A",
     borderRadius: 14,
-    backgroundColor:"#FFFFFF",
+    backgroundColor:"#172736",
     padding: 12,
     gap: 12,
   },
@@ -301,22 +301,22 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor:"#DDE5E8",
-    backgroundColor:"#E7EFF2",
+    borderColor:"#40596A",
+    backgroundColor:"#284354",
     alignItems: "center",
     justifyContent: "center",
   },
   projectCopy: { flex: 1, minWidth: 0, gap: 2 },
-  projectName: { color:"#253842", fontSize: 12, lineHeight: 17, fontWeight: "700" },
-  evidenceType: { color:"#70818B", fontSize: 9, lineHeight: 13 },
+  projectName: { color:"#EDF5F7", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  evidenceType: { color:"#AEC2CB", fontSize: 9, lineHeight: 13 },
   status: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4 },
-  statusVerified: { borderColor:"#DDE5E8", backgroundColor:"#E7EFF2" },
-  statusPending: { borderColor:"#DDE5E8", backgroundColor:"#E7EFF2" },
-  statusRecorded: { borderColor:"#DDE5E8", backgroundColor:"#E7EFF2" },
+  statusVerified: { borderColor:"#40596A", backgroundColor:"#284354" },
+  statusPending: { borderColor:"#40596A", backgroundColor:"#284354" },
+  statusRecorded: { borderColor:"#40596A", backgroundColor:"#284354" },
   statusText: { fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .7 },
-  statusTextVerified: { color:"#58798B" },
-  statusTextPending: { color:"#70818B" },
-  statusTextRecorded: { color:"#70818B" },
+  statusTextVerified: { color:"#91C9DD" },
+  statusTextPending: { color:"#AEC2CB" },
+  statusTextRecorded: { color:"#AEC2CB" },
   chain: { flexDirection: "row", alignItems: "flex-start" },
   step: { width: 54, alignItems: "center", gap: 3 },
   stepDot: {
@@ -324,39 +324,39 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor:"#DDE5E8",
-    backgroundColor:"#E7EFF2",
+    borderColor:"#40596A",
+    backgroundColor:"#284354",
     alignItems: "center",
     justifyContent: "center",
   },
-  stepDotComplete: { borderColor:"#DDE5E8", backgroundColor:"#E7EFF2" },
-  stepLabel: { color:"#70818B", fontSize: 7, lineHeight: 10, textAlign: "center" },
-  stepValue: { color:"#253842", fontSize: 8, lineHeight: 11, fontWeight: "700", textAlign: "center" },
-  stepValueComplete: { color:"#58798B" },
+  stepDotComplete: { borderColor:"#40596A", backgroundColor:"#284354" },
+  stepLabel: { color:"#AEC2CB", fontSize: 7, lineHeight: 10, textAlign: "center" },
+  stepValue: { color:"#EDF5F7", fontSize: 8, lineHeight: 11, fontWeight: "700", textAlign: "center" },
+  stepValueComplete: { color:"#91C9DD" },
   connector: {
     flex: 1,
     minWidth: 8,
     height: 1,
     marginTop: 13,
-    backgroundColor:"#F3F6F7",
+    backgroundColor:"#223747",
   },
-  connectorComplete: { backgroundColor:"#E7EFF2" },
+  connectorComplete: { backgroundColor:"#284354" },
   context: {
-    color:"#70818B",
+    color:"#AEC2CB",
     fontSize: 10,
     lineHeight: 16,
     borderTopWidth: 1,
-    borderTopColor:"#DDE5E8",
+    borderTopColor:"#40596A",
     paddingTop: 9,
   },
   audit: { gap: 2 },
   auditLabel: {
-    color:"#70818B",
+    color:"#AEC2CB",
     fontSize: 7,
     lineHeight: 10,
     letterSpacing: .7,
     textTransform: "uppercase",
     fontWeight: "700",
   },
-  auditValue: { color:"#253842", fontSize: 9, lineHeight: 14 },
+  auditValue: { color:"#EDF5F7", fontSize: 9, lineHeight: 14 },
 });

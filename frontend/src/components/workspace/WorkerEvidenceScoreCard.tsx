@@ -53,7 +53,7 @@ export function WorkerEvidenceScoreCard({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#A88F7B"
+              color="#D3B9A3"
             />
           </View>
         </View>
@@ -133,7 +133,7 @@ export function WorkerEvidenceScoreCard({
         <Text style={styles.detailsText}>
           {text("Ver critérios de avaliação", "View assessment criteria")}
         </Text>
-        <Ionicons name="arrow-forward-outline" size={13} color="#A88F7B" />
+        <Ionicons name="arrow-forward-outline" size={13} color="#D3B9A3" />
       </Pressable>
         </>
       ) : null}
@@ -152,7 +152,7 @@ function Metric({
 }) {
   return (
     <View style={styles.metric}>
-      <Ionicons name={icon} size={14} color="#B98972" />
+      <Ionicons name={icon} size={14} color="#D9B395" />
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
@@ -162,9 +162,9 @@ function Metric({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderColor: "#DDE5E8",
+    borderColor: "#40596A",
     borderRadius: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#172736",
     padding: 18,
     gap: 18,
   },
@@ -179,31 +179,31 @@ const styles = StyleSheet.create({
   topPressed: { opacity: 0.78 },
   levelBlock: { flex: 1, minWidth: 220, gap: 4 },
   eyebrow: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   level: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 30,
     lineHeight: 34,
     fontWeight: "500",
     letterSpacing: 2,
   },
-  note: { color: "#70818B", fontSize: 9, lineHeight: 14, maxWidth: 520 },
+  note: { color: "#AEC2CB", fontSize: 9, lineHeight: 14, maxWidth: 520 },
   score: { alignItems: "flex-end" },
   scoreLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   scoreValue: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 31,
     lineHeight: 36,
     fontWeight: "700",
   },
-  scoreMax: { color: "#70818B", fontSize: 14, fontWeight: "500" },
+  scoreMax: { color: "#AEC2CB", fontSize: 14, fontWeight: "500" },
   scoreLabel: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.1,
@@ -218,19 +218,19 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 130,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#F3F6F7",
+    borderColor: "#40596A",
+    backgroundColor: "#223747",
     borderRadius: 3,
     padding: 11,
     gap: 3,
   },
   metricValue: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "700",
   },
-  metricLabel: { color: "#70818B", fontSize: 8, lineHeight: 12 },
+  metricLabel: { color: "#AEC2CB", fontSize: 8, lineHeight: 12 },
   components: { gap: 10 },
   component: { gap: 4 },
   componentTop: {
@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
-  componentName: { color: "#253842", fontSize: 10, lineHeight: 14 },
+  componentName: { color: "#EDF5F7", fontSize: 10, lineHeight: 14 },
   componentValue: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "700",
@@ -248,19 +248,19 @@ const styles = StyleSheet.create({
   track: {
     height: 2,
     borderRadius: 1,
-    backgroundColor: "#F3F6F7",
+    backgroundColor: "#223747",
     overflow: "hidden",
   },
-  fill: { height: "100%", backgroundColor: "#F3F6F7" },
+  fill: { height: "100%", backgroundColor: "#223747" },
   gates: {
     borderTopWidth: 1,
-    borderTopColor: "#DDE5E8",
+    borderTopColor: "#40596A",
     paddingTop: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
   },
-  gateText: { color: "#253842", fontSize: 9, lineHeight: 14 },
+  gateText: { color: "#EDF5F7", fontSize: 9, lineHeight: 14 },
   detailsButton: {
     minHeight: 38,
     flexDirection: "row",
@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: "#DDE5E8",
+    borderTopColor: "#40596A",
     paddingTop: 10,
   },
   detailsPressed: { opacity: 0.7 },
-  detailsText: { color: "#253842", fontSize: 10, lineHeight: 14 },
+  detailsText: { color: "#EDF5F7", fontSize: 10, lineHeight: 14 },
 });

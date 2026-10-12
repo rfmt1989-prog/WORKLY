@@ -167,7 +167,7 @@ export function WorkerFormationPath({
           <Ionicons
             name={complete ? "checkmark-done-outline" : "school-outline"}
             size={20}
-            color="#58798B"
+            color="#91C9DD"
           />
         </View>
 
@@ -195,7 +195,7 @@ export function WorkerFormationPath({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#70818B"
+              color="#AEC2CB"
             />
           </View>
         </View>
@@ -212,7 +212,7 @@ export function WorkerFormationPath({
         <Ionicons
           name={complete ? "shield-checkmark-outline" : "time-outline"}
           size={14}
-          color={complete ? "#8FAE91" : "#E7C76E"}
+          color={complete ? "#95C7A9" : "#D9C48E"}
         />
         <Text
           style={[
@@ -287,9 +287,9 @@ export function WorkerFormationPath({
 const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
-    borderColor: "#DDE5E8",
+    borderColor: "#40596A",
     borderRadius: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#172736",
     padding: 16,
     gap: 12,
   },
@@ -305,32 +305,32 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 3,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#40596A",
+    backgroundColor: "#284354",
     alignItems: "center",
     justifyContent: "center",
   },
   headerMarkComplete: {
-    borderColor: "#B8CDD7",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#7394A7",
+    backgroundColor: "#284354",
   },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   title: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 29,
     lineHeight: 34,
     fontWeight: "500",
     letterSpacing: 2,
   },
   subtitle: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 10,
     lineHeight: 16,
     maxWidth: 620,
@@ -339,14 +339,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   count: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "700",
   },
   countLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   countLabel: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 8,
     lineHeight: 12,
   },
@@ -356,27 +356,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#F3F6F7",
+    borderColor: "#40596A",
+    backgroundColor: "#223747",
     borderRadius: 10,
     paddingHorizontal: 10,
   },
   levelStateComplete: {
-    borderColor: "#B8CDD7",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#7394A7",
+    backgroundColor: "#284354",
   },
   levelStateText: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "700",
   },
   levelStateTextComplete: {
-    color: "#253842",
+    color: "#EDF5F7",
   },
   timeline: {
     borderTopWidth: 1,
-    borderTopColor: "#DDE5E8",
+    borderTopColor: "#40596A",
     paddingTop: 5,
   },
   row: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 2,
   },
-  rowPressed: { backgroundColor: "#E7EFF2" },
+  rowPressed: { backgroundColor: "#284354" },
   lane: {
     width: 64,
     alignItems: "center",
@@ -397,11 +397,11 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#F3F6F7",
+    backgroundColor: "#223747",
   },
   railFirst: { top: 47 },
   railLast: { bottom: 47 },
-  railVerified: { backgroundColor: "#E7EFF2" },
+  railVerified: { backgroundColor: "#284354" },
   copy: {
     flex: 1,
     minWidth: 0,
@@ -416,20 +416,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   step: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 9,
     lineHeight: 13,
     fontWeight: "800",
     letterSpacing: 1,
   },
   nodeTitle: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "700",
   },
   nodeSubtitle: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 9,
     lineHeight: 14,
   },
@@ -443,18 +443,18 @@ const styles = StyleSheet.create({
   gatewayLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#F3F6F7",
+    backgroundColor: "#223747",
   },
   gatewayDiamond: {
     width: 7,
     height: 7,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#40596A",
+    backgroundColor: "#284354",
     transform: [{ rotate: "45deg" }],
   },
   gatewayText: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.2,

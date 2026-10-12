@@ -19,24 +19,25 @@ import { Image } from "expo-image";
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
 
 export const workspaceColors = {
-  background: "#F6F7F8",
-  backgroundElevated: "#FFFFFF",
-  panel: "#FFFFFF",
-  panelStrong: "#F1F4F5",
-  panelSoft: "#F8FAFA",
-  line: "#DEE5E7",
-  lineStrong: "#CBD7DC",
-  text: "#253842",
-  textSoft: "#536872",
-  muted: "#71838C",
-  blue: "#58798B",
-  blueSoft: "#7090A0",
-  red: "#A96E6E",
-  redSoft: "#A96E6E",
-  green: "#587C71",
-  yellow: "#9B8966",
-  orange: "#A08772",
-  shadow: "#263844",
+  // Night-blue canvas from the Workly entry; slate surfaces replace white tiles.
+  background: "#080C14",
+  backgroundElevated: "#121D2A",
+  panel: "#172736",
+  panelStrong: "#213746",
+  panelSoft: "#1B2E3D",
+  line: "#3E596A",
+  lineStrong: "#5A7A8A",
+  text: "#EDF5F7",
+  textSoft: "#CDDEE6",
+  muted: "#A6BEC9",
+  blue: "#91C9DD",
+  blueSoft: "#B6DDEA",
+  red: "#DAACAF",
+  redSoft: "#DAACAF",
+  green: "#91C6AF",
+  yellow: "#D6C197",
+  orange: "#D0B397",
+  shadow: "#030910",
 };
 
 export function roleAccent(role: UserRole) {
@@ -118,12 +119,12 @@ export function Button({
   // Neutral, high-contrast actions. Primary actions never use filled dark surfaces.
   const backgroundColor =
     variant === "primary" ? `${accent}16`
-      : variant === "danger" ? "#FAF3F3"
-      : variant === "secondary" ? "#FFFFFF"
+      : variant === "danger" ? "#412C35"
+      : variant === "secondary" ? workspaceColors.panelSoft
       : "transparent";
   const borderColor =
     variant === "primary" ? `${accent}65`
-      : variant === "danger" ? "#E7D5D5"
+      : variant === "danger" ? "#77515D"
       : workspaceColors.lineStrong;
   const color =
     variant === "primary" ? accent
@@ -540,10 +541,10 @@ const styles = StyleSheet.create({
     backgroundColor: workspaceColors.panel,
     borderWidth: 1,
     borderColor: workspaceColors.line,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 20,
+    padding: 20,
     shadowColor: workspaceColors.shadow,
-    shadowOpacity: Platform.OS === "web" ? 0.16 : 0.1,
+    shadowOpacity: Platform.OS === "web" ? 0.12 : 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
   },
@@ -592,7 +593,7 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 40,
     height: 40,
-    borderRadius: 4,
+    borderRadius: 12,
     backgroundColor: workspaceColors.panelStrong,
     borderWidth: 1,
     borderColor: workspaceColors.line,
@@ -717,7 +718,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(42,63,75,0.24)",
+    backgroundColor: "rgba(2,7,13,0.66)",
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
@@ -729,7 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: workspaceColors.backgroundElevated,
     borderWidth: 1,
     borderColor: workspaceColors.lineStrong,
-    borderRadius: 8,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.12,

@@ -113,7 +113,7 @@ export function WorkerCompetencyTree({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerMark}>
-          <Ionicons name="git-branch-outline" size={20} color="#58798B" />
+          <Ionicons name="git-branch-outline" size={20} color="#91C9DD" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
@@ -135,7 +135,7 @@ export function WorkerCompetencyTree({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#70818B"
+              color="#AEC2CB"
             />
           </View>
         </View>
@@ -222,7 +222,7 @@ function CompetencySection({
           <Ionicons
             name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
             size={14}
-            color="#A88F7B"
+            color="#D3B9A3"
           />
         </View>
       </Pressable>
@@ -278,7 +278,7 @@ function CompetencySection({
                   <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
                   {item.evidence.some((evidence) => Boolean(evidence.project_id)) ? (
                     <View style={styles.powChip}>
-                      <Ionicons name="link-outline" size={10} color="#58798B" />
+                      <Ionicons name="link-outline" size={10} color="#91C9DD" />
                       <Text style={styles.powText}>
                         POW {item.evidence.filter((evidence) => Boolean(evidence.project_id)).length}
                       </Text>
@@ -306,9 +306,9 @@ function LegendItem({ value, label }: { value: string; label: string }) {
 const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
-    borderColor: "#DDE5E8",
+    borderColor: "#40596A",
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#172736",
     padding: 16,
     gap: 18,
   },
@@ -324,40 +324,40 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#40596A",
+    backgroundColor: "#284354",
     alignItems: "center",
     justifyContent: "center",
   },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   title: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 19,
     lineHeight: 25,
     fontWeight: "700",
   },
-  subtitle: { color: "#70818B", fontSize: 10, lineHeight: 16 },
-  powChip: { marginLeft: 5, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#E7EFF2", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
-  powText: { color: "#58798B", fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .4 },
+  subtitle: { color: "#AEC2CB", fontSize: 10, lineHeight: 16 },
+  powChip: { marginLeft: 5, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  powText: { color: "#91C9DD", fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .4 },
   coverage: { alignItems: "flex-end" },
   coverageValue: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 23,
     lineHeight: 27,
     fontWeight: "700",
   },
   coverageLine: { flexDirection: "row", alignItems: "center", gap: 6 },
-  coverageLabel: { color: "#70818B", fontSize: 9, lineHeight: 13 },
+  coverageLabel: { color: "#AEC2CB", fontSize: 9, lineHeight: 13 },
   section: {
     borderTopWidth: 1,
-    borderTopColor: "#DDE5E8",
+    borderTopColor: "#40596A",
     paddingTop: 14,
     gap: 8,
   },
@@ -375,20 +375,20 @@ const styles = StyleSheet.create({
   sectionHeaderCopy: { flex: 1, minWidth: 0 },
   sectionHeaderMeta: { flexDirection: "row", alignItems: "center", gap: 7 },
   sectionTitle: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
   },
   sectionSubtitle: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 9,
     lineHeight: 14,
     marginTop: 2,
     maxWidth: 620,
   },
   sectionCount: {
-    color: "#70818B",
+    color: "#AEC2CB",
     fontSize: 10,
     lineHeight: 15,
     fontWeight: "700",
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 12,
   },
-  rowPressed: { backgroundColor: "#E7EFF2" },
+  rowPressed: { backgroundColor: "#284354" },
   lane: {
     width: 64,
     alignItems: "center",
@@ -412,9 +412,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#F3F6F7",
+    backgroundColor: "#223747",
   },
-  railVerified: { backgroundColor: "#E7EFF2" },
+  railVerified: { backgroundColor: "#284354" },
   railFirst: { top: 46 },
   railLast: { bottom: 46 },
   rowCopy: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   nodeTitle: {
-    color: "#253842",
+    color: "#EDF5F7",
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
@@ -440,14 +440,14 @@ const styles = StyleSheet.create({
   },
   criticalChip: {
     borderWidth: 1,
-    borderColor: "#DDE5E8",
-    backgroundColor: "#E7EFF2",
+    borderColor: "#40596A",
+    backgroundColor: "#284354",
     borderRadius: 999,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
   criticalText: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 7,
     lineHeight: 10,
     letterSpacing: 0.8,
@@ -459,19 +459,19 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 5,
   },
-  summaryDot: { color: "#70818B", fontSize: 9, lineHeight: 12 },
-  evidenceCount: { color: "#70818B", fontSize: 9, lineHeight: 12, fontWeight: "700" },
-  evidenceLabel: { color: "#70818B", fontSize: 8, lineHeight: 12 },
+  summaryDot: { color: "#AEC2CB", fontSize: 9, lineHeight: 12 },
+  evidenceCount: { color: "#AEC2CB", fontSize: 9, lineHeight: 12, fontWeight: "700" },
+  evidenceLabel: { color: "#AEC2CB", fontSize: 8, lineHeight: 12 },
   levelValue: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "700",
   },
-  levelLabel: { color: "#70818B", fontSize: 8, lineHeight: 12 },
+  levelLabel: { color: "#AEC2CB", fontSize: 8, lineHeight: 12 },
   legend: {
     borderTopWidth: 1,
-    borderTopColor: "#DDE5E8",
+    borderTopColor: "#40596A",
     paddingTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
@@ -482,16 +482,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     borderWidth: 1,
-    borderColor: "#DDE5E8",
+    borderColor: "#40596A",
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   legendValue: {
-    color: "#58798B",
+    color: "#91C9DD",
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "700",
   },
-  legendLabel: { color: "#70818B", fontSize: 8, lineHeight: 12 },
+  legendLabel: { color: "#AEC2CB", fontSize: 8, lineHeight: 12 },
 });

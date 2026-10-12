@@ -28,7 +28,7 @@ export function WorkerSpecialtyTree({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerIcon}>
-          <Ionicons name="git-network-outline" size={18} color="#58798B" />
+          <Ionicons name="git-network-outline" size={18} color="#91C9DD" />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>{text("DESENVOLVIMENTO TÉCNICO", "TECHNICAL DEVELOPMENT")}</Text>
@@ -46,7 +46,7 @@ export function WorkerSpecialtyTree({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#70818B"
+              color="#AEC2CB"
             />
           </View>
         </View>
@@ -114,7 +114,7 @@ export function WorkerSpecialtyTree({
       </View>
 
       <View style={styles.note}>
-        <Ionicons name="information-circle-outline" size={14} color="#8A7A6C" />
+        <Ionicons name="information-circle-outline" size={14} color="#C7B6A4" />
         <Text style={styles.noteText}>
           {text(
             "O desbloqueio é progressão interna WORKLY. Certificações e autorizações legais continuam a exigir comprovativo próprio.",
@@ -129,36 +129,36 @@ export function WorkerSpecialtyTree({
 }
 
 const styles=StyleSheet.create({
-  panel:{borderWidth:1,borderColor: "#DDE5E8",borderRadius:20,backgroundColor: "#FFFFFF",padding:16,gap:14},
+  panel:{borderWidth:1,borderColor: "#40596A",borderRadius:20,backgroundColor: "#172736",padding:16,gap:14},
   header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:12},
   headerPressed:{opacity:.78},
-  headerIcon:{width:40,height:40,borderRadius:14,borderWidth:1,borderColor: "#DDE5E8",backgroundColor: "#E7EFF2",alignItems:"center",justifyContent:"center"},
+  headerIcon:{width:40,height:40,borderRadius:14,borderWidth:1,borderColor: "#40596A",backgroundColor: "#284354",alignItems:"center",justifyContent:"center"},
   headerText:{flex:1,minWidth:0,gap:3},
-  eyebrow:{color: "#58798B",fontSize:8,lineHeight:12,letterSpacing:1.8,fontWeight:"700"},
-  title:{color: "#253842",fontSize:18,lineHeight:24,fontWeight:"700"},
-  description:{color: "#70818B",fontSize:11,lineHeight:17},
+  eyebrow:{color: "#91C9DD",fontSize:8,lineHeight:12,letterSpacing:1.8,fontWeight:"700"},
+  title:{color: "#EDF5F7",fontSize:18,lineHeight:24,fontWeight:"700"},
+  description:{color: "#AEC2CB",fontSize:11,lineHeight:17},
   count:{alignItems:"flex-end"},
-  countValue:{color: "#58798B",fontSize:21,lineHeight:25,fontWeight:"700"},
+  countValue:{color: "#91C9DD",fontSize:21,lineHeight:25,fontWeight:"700"},
   countLine:{flexDirection:"row",alignItems:"center",gap:6},
-  countLabel:{color: "#70818B",fontSize:9,lineHeight:13},
+  countLabel:{color: "#AEC2CB",fontSize:9,lineHeight:13},
   timeline:{paddingTop:2},
   row:{minHeight:90,flexDirection:"row",alignItems:"stretch",borderRadius:12},
   rowLocked:{opacity:.72},
-  pressed:{backgroundColor: "#E7EFF2",opacity:.88},
+  pressed:{backgroundColor: "#284354",opacity:.88},
   lane:{width:62,alignItems:"center",justifyContent:"center",position:"relative"},
-  rail:{position:"absolute",top:0,bottom:0,width:1,backgroundColor: "#F3F6F7"},
-  railOpen:{backgroundColor: "#E7EFF2"},
+  rail:{position:"absolute",top:0,bottom:0,width:1,backgroundColor: "#223747"},
+  railOpen:{backgroundColor: "#284354"},
   railFirst:{top:45},
   railLast:{bottom:45},
   copy:{flex:1,minWidth:0,justifyContent:"center",gap:4,paddingVertical:10,paddingLeft:8},
   titleRow:{flexDirection:"row",alignItems:"center",flexWrap:"wrap",gap:8},
-  nodeTitle:{color: "#253842",fontSize:13,lineHeight:18,fontWeight:"600",flexShrink:1},
-  nodeTitleLocked:{color: "#70818B"},
-  nodeSubtitle:{color: "#70818B",fontSize:10,lineHeight:15},
-  unlockChip:{borderWidth:1,borderColor: "#DDE5E8",backgroundColor: "#E7EFF2",borderRadius:999,paddingHorizontal:7,paddingVertical:2},
-  unlockText:{color: "#58798B",fontSize:7,lineHeight:10,letterSpacing:.8,fontWeight:"700"},
+  nodeTitle:{color: "#EDF5F7",fontSize:13,lineHeight:18,fontWeight:"600",flexShrink:1},
+  nodeTitleLocked:{color: "#AEC2CB"},
+  nodeSubtitle:{color: "#AEC2CB",fontSize:10,lineHeight:15},
+  unlockChip:{borderWidth:1,borderColor: "#40596A",backgroundColor: "#284354",borderRadius:999,paddingHorizontal:7,paddingVertical:2},
+  unlockText:{color: "#91C9DD",fontSize:7,lineHeight:10,letterSpacing:.8,fontWeight:"700"},
   requirements:{gap:2,marginTop:3},
-  requirement:{color: "#70818B",fontSize:9,lineHeight:14},
-  note:{flexDirection:"row",gap:8,paddingTop:12,borderTopWidth:1,borderTopColor: "#DDE5E8"},
-  noteText:{flex:1,color: "#70818B",fontSize:9,lineHeight:15},
+  requirement:{color: "#AEC2CB",fontSize:9,lineHeight:14},
+  note:{flexDirection:"row",gap:8,paddingTop:12,borderTopWidth:1,borderTopColor: "#40596A"},
+  noteText:{flex:1,color: "#AEC2CB",fontSize:9,lineHeight:15},
 });

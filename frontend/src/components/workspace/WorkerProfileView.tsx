@@ -119,26 +119,26 @@ export function WorkerProfileView({
                   <Text style={styles.passportKicker}>{text("WORKLY · IDENTIDADE PROFISSIONAL", "WORKLY · PROFESSIONAL IDENTITY")}</Text>
                   <Text style={styles.passportSub}>{text("Passaporte de carreira", "Career passport")}</Text>
                 </View>
-                <Ionicons name="shield-outline" size={21} color="#58798B" />
+                <Ionicons name="shield-outline" size={21} color="#91C9DD" />
               </View>
               <View style={[styles.identityHero, narrow && styles.heroCompact]}>
                 <View style={styles.photoFrame}>
-                  <Avatar name={worker.name || "Worker"} source={worker.avatar} flag={worker.flag} size={narrow ? 86 : 114} accent="#C7785D" />
+                  <Avatar name={worker.name || "Worker"} source={worker.avatar} flag={worker.flag} size={narrow ? 98 : 124} accent="#C7785D" />
                 </View>
                 <View style={[styles.identityHeading, narrow && styles.headingCompact]}>
                   <Text style={styles.eyebrow}>{text("PERFIL ÚNICO", "ONE PROFESSIONAL PROFILE")}</Text>
                   <Text style={[styles.name, narrow && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
                   <View style={styles.professionLine}>
-                    <Ionicons name="briefcase-outline" size={16} color="#58798B" />
+                    <Ionicons name="briefcase-outline" size={16} color="#91C9DD" />
                     <Text style={styles.profession}>{displayProfession}</Text>
                   </View>
-                  {worker.location ? <View style={styles.locationLine}><Ionicons name="location-outline" size={13} color="#8FA0A2" /><Text style={styles.locationText}>{worker.location}</Text></View> : null}
+                  {worker.location ? <View style={styles.locationLine}><Ionicons name="location-outline" size={13} color="#A7BEC8" /><Text style={styles.locationText}>{worker.location}</Text></View> : null}
                 </View>
               </View>
 
               <View style={styles.identityBadges}>
                 <View style={styles.worklyBadge}>
-                  <Ionicons name="finger-print-outline" size={15} color="#58798B" />
+                  <Ionicons name="finger-print-outline" size={15} color="#91C9DD" />
                   <View style={styles.badgeCopy}>
                     <Text style={styles.badgeLabel}>{text("WORKLY ID", "WORKLY ID")}</Text>
                     <Text style={styles.badgeValue}>{worklyId}</Text>
@@ -165,10 +165,10 @@ export function WorkerProfileView({
                     size={15}
                     color={
                       eligibilityStatus === "eligible"
-                        ? "#8FAE91"
+                        ? "#95C7A9"
                         : eligibilityStatus === "not_eligible"
-                          ? "#FF8F8F"
-                          : "#E7C76E"
+                          ? "#E5A6A6"
+                          : "#D9C48E"
                     }
                   />
                   <View style={styles.badgeCopy}>
@@ -212,13 +212,13 @@ export function WorkerProfileView({
               ) : null}
               {mode === "profile" && competencyAssessment?.nextLevelId ? (
                 <Pressable accessibilityRole="button" onPress={onOpenJourney} style={({ pressed }) => [styles.nextChapter, pressed && styles.pressed]} testID="worker-next-career-level">
-                  <View style={styles.nextChapterIcon}><Ionicons name="trending-up-outline" color="#58798B" size={21}/></View>
+                  <View style={styles.nextChapterIcon}><Ionicons name="trending-up-outline" color="#91C9DD" size={21}/></View>
                   <View style={styles.nextChapterCopy}>
                     <Text style={styles.nextChapterEyebrow}>{text("PRÓXIMO OBJETIVO", "NEXT MILESTONE")}</Text>
                     <Text style={styles.nextChapterTitle}>{text("Explorar o próximo nível da carreira", "Explore the next career level")}</Text>
                     <Text style={styles.nextChapterDetail}>{competencyAssessment.missingGates.length} {text("critérios ainda por cumprir", "requirements remaining")}</Text>
                   </View>
-                  <Ionicons name="arrow-forward-outline" size={20} color="#58798B" />
+                  <Ionicons name="arrow-forward-outline" size={20} color="#91C9DD" />
                 </Pressable>
               ) : null}
               <View style={styles.divider}>
@@ -229,7 +229,7 @@ export function WorkerProfileView({
 
               <View style={styles.identityFacts}>
                 <View style={styles.identityFact}>
-                  <Ionicons name="flag-outline" size={15} color="#58798B" />
+                  <Ionicons name="flag-outline" size={15} color="#91C9DD" />
                   <View style={styles.identityField}>
                     <Text style={styles.identityLabel}>
                       {text("Nacionalidade", "Nationality")}
@@ -243,7 +243,7 @@ export function WorkerProfileView({
                   </View>
                 </View>
                 <View style={styles.identityFact}>
-                  <Ionicons name="language-outline" size={15} color="#58798B" />
+                  <Ionicons name="language-outline" size={15} color="#91C9DD" />
                   <View style={styles.identityField}>
                     <Text style={styles.identityLabel}>
                       {text("Idiomas", "Languages")}
@@ -412,7 +412,7 @@ function EmptyProfessionalProfile({
     <View style={styles.emptyProfile} testID="empty-worker-profile">
       <View style={styles.emptyCore}>
         <View style={styles.emptyCoreRing}>
-          <Ionicons name="finger-print-outline" size={30} color="#58798B" />
+          <Ionicons name="finger-print-outline" size={30} color="#91C9DD" />
         </View>
         <Text style={styles.emptyEyebrow}>{text("NOVA IDENTIDADE PROFISSIONAL", "NEW PROFESSIONAL IDENTITY")}</Text>
         <Text style={styles.emptyTitle}>{text("Constrói o teu perfil Worker", "Build your Worker profile")}</Text>
@@ -427,7 +427,7 @@ function EmptyProfessionalProfile({
         {steps.map(([icon, title, description], index) => (
           <View key={title} style={styles.emptyStep}>
             <View style={styles.emptyStepIndex}><Text style={styles.emptyStepNumber}>{String(index + 1).padStart(2, "0")}</Text></View>
-            <Ionicons name={icon} size={19} color="#58798B" />
+            <Ionicons name={icon} size={19} color="#91C9DD" />
             <View style={styles.emptyStepCopy}>
               <Text style={styles.emptyStepTitle}>{title}</Text>
               <Text style={styles.emptyStepDescription}>{description}</Text>
@@ -453,12 +453,12 @@ function IdentityRow({
 }) {
   const color =
     tone === "positive"
-      ? "#8FAE91"
+      ? "#95C7A9"
       : tone === "negative"
-        ? "#FF8F8F"
+        ? "#E5A6A6"
         : tone === "pending"
-          ? "#E7C76E"
-          : "#B98972";
+          ? "#D9C48E"
+          : "#D9B395";
   return (
     <View style={styles.identityRow}>
       <Ionicons name={icon} size={16} color={color} />
@@ -582,7 +582,7 @@ function CertificateDetails({
           <View style={styles.proofSection}>
             <View style={styles.proofHeading}>
               <View style={styles.proofHeadingIcon}>
-                <Ionicons name="link-outline" size={14} color="#58798B" />
+                <Ionicons name="link-outline" size={14} color="#91C9DD" />
               </View>
               <View style={styles.proofHeadingCopy}>
                 <Text style={styles.sectionLabel}>PROOF OF WORK</Text>
@@ -693,10 +693,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: "#F6F7F8" },
+  root: { flex: 1, minHeight: 0, backgroundColor: "#080C14" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { padding: 31, paddingBottom: 44 },
-  contentCompact: { padding: 15, paddingBottom: 26 },
+  content: { padding: 32, paddingBottom: 54 },
+  contentCompact: { padding: 16, paddingBottom: 38 },
   layout: { width: "100%", maxWidth: 1400, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 24 },
   layoutCompact: { flexDirection: "column", gap: 24 },
   layoutJourney: { maxWidth: 1180 },
@@ -704,130 +704,130 @@ const styles = StyleSheet.create({
   profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   profileActionButton: { minWidth: 170, flexGrow: 1 },
-  identity: { width: 316, flexShrink: 0, padding: 26, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#FFFFFF", borderRadius: 24, shadowColor: "#24353E", shadowOpacity: .08, shadowRadius: 24, shadowOffset: { width: 0, height: 11 } },
+  identity: { width: 330, flexShrink: 0, padding: 26, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#172736", borderRadius: 24, shadowColor: "#24353E", shadowOpacity: .18, shadowRadius: 30, shadowOffset: { width: 0, height: 11 } },
   identityCompact: { width: "100%", padding: 18, borderRadius: 18 },
-  identityHero: { flexDirection: "row", alignItems: "center", gap: 23, paddingVertical: 24, flexWrap: "wrap" },
+  identityHero: { flexDirection: "row", alignItems: "center", gap: 26, paddingVertical: 30, flexWrap: "wrap" },
   heroCompact: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 20, flexWrap: "nowrap" },
   identityHeading: { flex: 1, minWidth: 150, alignItems: "flex-start", gap: 6 },
   professionLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", gap: 7, maxWidth: "100%" },
   headingCompact: { flex: 1, minWidth: 0, alignItems: "flex-start" },
-  eyebrow: { color: "#70818B", fontSize: 10, lineHeight: 16, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "800" },
-  name: { color: "#253842", fontFamily: serif, fontSize: 32, lineHeight: 41, textAlign: "left", fontWeight: "700" },
+  eyebrow: { color: "#AEC2CB", fontSize: 10, lineHeight: 16, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "800" },
+  name: { color: "#EDF5F7", fontFamily: serif, fontSize: 32, lineHeight: 41, textAlign: "left", fontWeight: "700" },
   nameCompact: { fontSize: 22, lineHeight: 29, textAlign: "left" },
-  profession: { color: "#253842", fontSize: 14, lineHeight: 21, textAlign: "left", flexShrink: 1, fontWeight: "700" },
+  profession: { color: "#EDF5F7", fontSize: 14, lineHeight: 21, textAlign: "left", flexShrink: 1, fontWeight: "700" },
   professionCompact: { textAlign: "left" },
   identityBadges: { marginTop: 0, flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  worklyBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#F3F6F7", borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
+  worklyBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
   fitBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
-  fitBadgePositive: { borderColor: "#DDE5E8", backgroundColor: "#F3F6F7" },
-  fitBadgePending: { borderColor: "#DDE5E8", backgroundColor: "#F3F6F7" },
-  fitBadgeNegative: { borderColor: "#DDE5E8", backgroundColor: "#F3F6F7" },
+  fitBadgePositive: { borderColor: "#40596A", backgroundColor: "#223747" },
+  fitBadgePending: { borderColor: "#40596A", backgroundColor: "#223747" },
+  fitBadgeNegative: { borderColor: "#40596A", backgroundColor: "#223747" },
   badgeCopy: { flex: 1, minWidth: 0, gap: 2 },
-  badgeLabel: { color: "#70818B", fontSize: 9, lineHeight: 13, letterSpacing: .7, textTransform: "uppercase", fontWeight: "800" },
-  badgeValue: { color: "#253842", fontSize: 12, lineHeight: 18, fontWeight: "800", flexShrink: 1 },
-  fitTextPositive: { color: "#58798B" },
-  fitTextPending: { color: "#6D7980" },
-  fitTextNegative: { color: "#AB6666" },
+  badgeLabel: { color: "#AEC2CB", fontSize: 9, lineHeight: 13, letterSpacing: .7, textTransform: "uppercase", fontWeight: "800" },
+  badgeValue: { color: "#EDF5F7", fontSize: 12, lineHeight: 18, fontWeight: "800", flexShrink: 1 },
+  fitTextPositive: { color: "#91C9DD" },
+  fitTextPending: { color: "#C0C9CE" },
+  fitTextNegative: { color: "#E2A5A5" },
   divider: { marginVertical: 18, flexDirection: "row", gap: 8, alignItems: "center" },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#F3F6F7" },
-  dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#DDE5E8", transform: [{ rotate: "45deg" }] },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#223747" },
+  dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#40596A", transform: [{ rotate: "45deg" }] },
   identityFacts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  identityFact: { flex: 1, minWidth: 175, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#F3F6F7", borderRadius: 12, padding: 13 },
+  identityFact: { flex: 1, minWidth: 175, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", borderRadius: 12, padding: 13 },
   identityRows: { gap: 18 },
   identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
   identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flexShrink: 1, minWidth: 100 },
   identityField: { flex: 1, minWidth: 0, gap: 4 },
-  identityLabel: { color: "#70818B", fontSize: 10, lineHeight: 15, minWidth: 60 },
-  identityValue: { color: "#253842", fontSize: 12, lineHeight: 19, flexShrink: 1, fontWeight: "700" },
-  identityCode: { color: "#70818B", fontSize: 10, lineHeight: 17, textAlign: "center", marginTop: 12, letterSpacing: .5 },
-  editButton: { marginTop: 18, borderRadius: 11, borderColor: "#DDE5E8", minHeight: 44 },
+  identityLabel: { color: "#AEC2CB", fontSize: 10, lineHeight: 15, minWidth: 60 },
+  identityValue: { color: "#EDF5F7", fontSize: 12, lineHeight: 19, flexShrink: 1, fontWeight: "700" },
+  identityCode: { color: "#AEC2CB", fontSize: 10, lineHeight: 17, textAlign: "center", marginTop: 12, letterSpacing: .5 },
+  editButton: { marginTop: 18, borderRadius: 11, borderColor: "#40596A", minHeight: 44 },
   aboutButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, minHeight: 42, marginTop: 4 },
-  aboutLabel: { color: "#70818B", fontSize: 11 },
+  aboutLabel: { color: "#AEC2CB", fontSize: 11 },
   main: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   mainHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 },
   mainHeaderNarrow: { flexWrap: "nowrap", gap: 10 },
   headingWrap: { flexGrow: 1, flexShrink: 1, gap: 4 },
-  title: { color: "#253842", fontFamily: serif, fontSize: 34, lineHeight: 44 },
+  title: { color: "#EDF5F7", fontFamily: serif, fontSize: 34, lineHeight: 44 },
   titleCompact: { fontSize: 27, lineHeight: 35 },
-  scoreBadge: { alignItems: "flex-end", gap: 3, paddingVertical: 6, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#DDE5E8" },
-  scoreValue: { color: "#58798B", fontSize: 30, lineHeight: 36, fontWeight: "600" },
-  scoreMaximum: { color: "#70818B", fontSize: 15 },
-  scoreLabel: { color: "#70818B", fontSize: 10, lineHeight: 15 },
-  tabs: { flexDirection: "row", flexWrap: "wrap", gap: 20, borderBottomWidth: 1, borderColor: "#DDE5E8" },
+  scoreBadge: { alignItems: "flex-end", gap: 3, paddingVertical: 6, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#40596A" },
+  scoreValue: { color: "#91C9DD", fontSize: 30, lineHeight: 36, fontWeight: "600" },
+  scoreMaximum: { color: "#AEC2CB", fontSize: 15 },
+  scoreLabel: { color: "#AEC2CB", fontSize: 10, lineHeight: 15 },
+  tabs: { flexDirection: "row", flexWrap: "wrap", gap: 20, borderBottomWidth: 1, borderColor: "#40596A" },
   tab: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48, paddingHorizontal: 2, borderBottomWidth: 2, borderColor: "transparent" },
-  tabActive: { borderColor: "#58798B" },
-  tabText: { color: "#70818B", fontSize: 12 },
-  tabTextActive: { color: "#70818B" },
+  tabActive: { borderColor: "#91C9DD" },
+  tabText: { color: "#AEC2CB", fontSize: 12 },
+  tabTextActive: { color: "#AEC2CB" },
   journey: { gap: 15 },
   actionRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  journeyHint: { color: "#70818B", fontSize: 12, lineHeight: 19, flexShrink: 1 },
+  journeyHint: { color: "#AEC2CB", fontSize: 12, lineHeight: 19, flexShrink: 1 },
   addButton: { minHeight: 40, borderRadius: 6 },
   portfolio: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  portfolioItem: { width: "100%", flexGrow: 1, minWidth: 0, padding: 20, gap: 12, borderRadius: 3, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#FFFFFF" },
+  portfolioItem: { width: "100%", flexGrow: 1, minWidth: 0, padding: 22, gap: 12, borderRadius: 18, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#172736" },
   projectHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
-  portfolioTitle: { flex: 1, minWidth: 0, color: "#253842", fontFamily: serif, fontSize: 22, lineHeight: 29 },
-  projectYear: { color: "#70818B", fontSize: 13 },
-  projectLocation: { color: "#70818B", fontSize: 12, lineHeight: 19 },
-  projectSummary: { color: "#253842", fontSize: 13, lineHeight: 22 },
-  projectStatus: { flexDirection: "row", alignItems: "center", gap: 7, borderTopWidth: 1, borderColor: "#DDE5E8", paddingTop: 12 },
+  portfolioTitle: { flex: 1, minWidth: 0, color: "#EDF5F7", fontFamily: serif, fontSize: 22, lineHeight: 29 },
+  projectYear: { color: "#AEC2CB", fontSize: 13 },
+  projectLocation: { color: "#AEC2CB", fontSize: 12, lineHeight: 19 },
+  projectSummary: { color: "#EDF5F7", fontSize: 13, lineHeight: 22 },
+  projectStatus: { flexDirection: "row", alignItems: "center", gap: 7, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 12 },
   muted: { color: workspaceColors.muted, fontSize: 12, lineHeight: 19 },
   pressed: { opacity: .72 },
   ruleList: { gap: 16 },
-  ruleItem: { padding: 16, gap: 8, borderWidth: 1, borderColor: "#DDE5E8", borderRadius: 8, backgroundColor: "#FFFFFF" },
-  ruleTitle: { color: "#253842", fontSize: 13, lineHeight: 20 },
-  ruleValue: { color: "#58798B", fontSize: 24, fontWeight: "600" },
+  ruleItem: { padding: 16, gap: 8, borderWidth: 1, borderColor: "#40596A", borderRadius: 8, backgroundColor: "#172736" },
+  ruleTitle: { color: "#EDF5F7", fontSize: 13, lineHeight: 20 },
+  ruleValue: { color: "#91C9DD", fontSize: 24, fontWeight: "600" },
   detailContent: { gap: 18 },
-  proofSection: { gap: 10, borderWidth: 1, borderColor: "#DDE5E8", borderRadius: 5, backgroundColor: "#FFFFFF", padding: 12 },
+  proofSection: { gap: 10, borderWidth: 1, borderColor: "#40596A", borderRadius: 16, backgroundColor: "#172736", padding: 12 },
   proofHeading: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
-  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#F3F6F7", alignItems: "center", justifyContent: "center" },
+  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", alignItems: "center", justifyContent: "center" },
   proofHeadingCopy: { flex: 1, minWidth: 0, gap: 2 },
   detailSymbol: { alignItems: "center", gap: 8, paddingBottom: 12 },
-  sectionLabel: { color: "#253842", fontSize: 11, lineHeight: 17, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
-  detailText: { color: "#253842", fontSize: 13, lineHeight: 22 },
-  detailNote: { color: "#70818B", fontSize: 12, lineHeight: 20 },
-  detailsGrid: { gap: 14, padding: 16, borderWidth: 1, borderColor: "#DDE5E8", borderRadius: 7 },
+  sectionLabel: { color: "#EDF5F7", fontSize: 11, lineHeight: 17, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
+  detailText: { color: "#EDF5F7", fontSize: 13, lineHeight: 22 },
+  detailNote: { color: "#AEC2CB", fontSize: 12, lineHeight: 20 },
+  detailsGrid: { gap: 14, padding: 16, borderWidth: 1, borderColor: "#40596A", borderRadius: 7 },
   detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#DDE5E8", paddingTop: 16 },
-  related: { gap: 10, borderTopWidth: 1, borderColor: "#DDE5E8", paddingTop: 18 },
+  criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 16 },
+  related: { gap: 10, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 18 },
   education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
-  emptyProfile: { borderWidth: 1, borderColor: "#DDE5E8", borderRadius: 18, backgroundColor: "#FFFFFF", padding: 22, gap: 20 },
+  emptyProfile: { borderWidth: 1, borderColor: "#40596A", borderRadius: 18, backgroundColor: "#172736", padding: 22, gap: 20 },
   emptyCore: { alignItems: "center", gap: 8, paddingVertical: 8 },
-  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#E7EFF2", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  emptyEyebrow: { color: "#70818B", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
-  emptyTitle: { color: "#253842", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
-  emptyDescription: { maxWidth: 620, color: "#70818B", fontSize: 12, lineHeight: 20, textAlign: "center" },
+  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyEyebrow: { color: "#AEC2CB", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
+  emptyTitle: { color: "#EDF5F7", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
+  emptyDescription: { maxWidth: 620, color: "#AEC2CB", fontSize: 12, lineHeight: 20, textAlign: "center" },
   emptySteps: { gap: 4 },
-  emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#DDE5E8", paddingVertical: 10 },
+  emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#40596A", paddingVertical: 10 },
   emptyStepIndex: { width: 30 },
-  emptyStepNumber: { color: "#58798B", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
+  emptyStepNumber: { color: "#91C9DD", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
   emptyStepCopy: { flex: 1, minWidth: 0, gap: 2 },
-  emptyStepTitle: { color: "#253842", fontSize: 12, lineHeight: 17, fontWeight: "700" },
-  emptyStepDescription: { color: "#70818B", fontSize: 10, lineHeight: 16 },
-  passportTop: { marginHorizontal: -26, marginTop: -26, paddingHorizontal: 26, paddingVertical: 16, minHeight: 71, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#F1F4F5", borderTopLeftRadius: 23, borderTopRightRadius: 23, borderBottomWidth: 1, borderBottomColor: "#DDE5E8" },
+  emptyStepTitle: { color: "#EDF5F7", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  emptyStepDescription: { color: "#AEC2CB", fontSize: 10, lineHeight: 16 },
+  passportTop: { marginHorizontal: -26, marginTop: -26, paddingHorizontal: 26, paddingVertical: 16, minHeight: 71, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#1C2D3B", borderTopLeftRadius: 23, borderTopRightRadius: 23, borderBottomWidth: 1, borderBottomColor: "#40596A" },
   passportTopCompact: { marginHorizontal: -18, marginTop: -18, borderTopLeftRadius: 17, borderTopRightRadius: 17, paddingHorizontal: 18 },
-  passportEmblem: { width: 37, height: 37, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#E7EFF2", borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  passportEmblemText: { color: "#58798B", fontSize: 22, fontWeight: "900" },
+  passportEmblem: { width: 37, height: 37, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  passportEmblemText: { color: "#91C9DD", fontSize: 22, fontWeight: "900" },
   passportTopCopy: { flex: 1, minWidth: 0, gap: 2 },
-  passportKicker: { color: "#58798B", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
-  passportSub: { color: "#253842", fontSize: 14, fontWeight: "700" },
-  photoFrame: { padding: 4, borderRadius: 65, borderWidth: 2, borderColor: "#DDE5E8", backgroundColor: "#F3F6F7" },
+  passportKicker: { color: "#91C9DD", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  passportSub: { color: "#EDF5F7", fontSize: 14, fontWeight: "700" },
+  photoFrame: { padding: 5, borderRadius: 90, borderWidth: 2, borderColor: "#40596A", backgroundColor: "#223747" },
   locationLine: { flexDirection: "row", alignItems: "center", gap: 5 },
-  locationText: { color: "#70818B", fontSize: 12 },
+  locationText: { color: "#AEC2CB", fontSize: 12 },
   snapshot: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 18 },
-  snapshotMain: { flex: 1, minWidth: 120, backgroundColor: "#E7EFF2", padding: 15, borderRadius: 15, gap: 2 },
-  snapshotMetric: { flex: 1, minWidth: 120, backgroundColor: "#F3F6F7", borderWidth: 1, borderColor: "#DDE5E8", padding: 15, borderRadius: 15, gap: 3 },
-  snapshotEyebrow: { color: "#58798B", letterSpacing: 1.1, fontSize: 9, fontWeight: "800" },
-  snapshotLevel: { color: "#58798B", fontSize: 30, fontWeight: "900", lineHeight: 37 },
-  snapshotCaption: { color: "#70818B", fontSize: 10, lineHeight: 15, fontWeight: "700" },
-  snapshotNumber: { color: "#253842", fontSize: 27, fontWeight: "800" },
-  snapshotSuffix: { color: "#70818B", fontSize: 12 },
-  snapshotTrack: { height: 4, borderRadius: 4, backgroundColor: "#F3F6F7", marginTop: 6, overflow: "hidden" },
-  snapshotFill: { height: "100%", backgroundColor: "#58798B" },
-  nextChapter: { marginTop: 14, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#E7EFF2", borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", gap: 12 },
-  nextChapterIcon: { width: 38, height: 38, backgroundColor: "#E7EFF2", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  snapshotMain: { flex: 1, minWidth: 120, backgroundColor: "#284354", padding: 15, borderRadius: 15, gap: 2 },
+  snapshotMetric: { flex: 1, minWidth: 120, backgroundColor: "#223747", borderWidth: 1, borderColor: "#40596A", padding: 15, borderRadius: 15, gap: 3 },
+  snapshotEyebrow: { color: "#91C9DD", letterSpacing: 1.1, fontSize: 9, fontWeight: "800" },
+  snapshotLevel: { color: "#91C9DD", fontSize: 30, fontWeight: "900", lineHeight: 37 },
+  snapshotCaption: { color: "#AEC2CB", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  snapshotNumber: { color: "#EDF5F7", fontSize: 27, fontWeight: "800" },
+  snapshotSuffix: { color: "#AEC2CB", fontSize: 12 },
+  snapshotTrack: { height: 4, borderRadius: 4, backgroundColor: "#223747", marginTop: 6, overflow: "hidden" },
+  snapshotFill: { height: "100%", backgroundColor: "#91C9DD" },
+  nextChapter: { marginTop: 14, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", gap: 12 },
+  nextChapterIcon: { width: 38, height: 38, backgroundColor: "#284354", borderRadius: 11, alignItems: "center", justifyContent: "center" },
   nextChapterCopy: { flex: 1, gap: 2 },
-  nextChapterEyebrow: { color: "#58798B", fontSize: 9, fontWeight: "800", letterSpacing: 1.1 },
-  nextChapterTitle: { color: "#253842", fontSize: 12, fontWeight: "800" },
-  nextChapterDetail: { color: "#70818B", fontSize: 10 },
+  nextChapterEyebrow: { color: "#91C9DD", fontSize: 9, fontWeight: "800", letterSpacing: 1.1 },
+  nextChapterTitle: { color: "#EDF5F7", fontSize: 12, fontWeight: "800" },
+  nextChapterDetail: { color: "#AEC2CB", fontSize: 10 },
   emptyStart: { alignSelf: "center", minWidth: 220 },
 });

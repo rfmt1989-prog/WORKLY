@@ -164,7 +164,7 @@ export function WorkerWorkspaceShell() {
           styles.topbar,
           {
             paddingTop: Math.max(insets.top, 8),
-            borderBottomColor: "#E0E7EA",
+            borderBottomColor: "#3B5567",
           },
         ]}
       >
@@ -232,7 +232,7 @@ export function WorkerWorkspaceShell() {
           styles.dockArea,
           {
             paddingBottom: Math.max(insets.bottom, 10),
-            borderTopColor: "#E0E7EA",
+            borderTopColor: "#3B5567",
           },
         ]}
       >
@@ -266,13 +266,13 @@ export function WorkerWorkspaceShell() {
                   <Ionicons
                     name={item.icon}
                     size={21}
-                    color={active ? accent : "#64747A"}
+                    color={active ? accent : "#AEC2CB"}
                   />
                 </View>
                 <Text
                   style={[
                     styles.dockLabel,
-                    active ? { color: "#58798B" } : null,
+                    active ? { color: "#91C9DD" } : null,
                   ]}
                   numberOfLines={1}
                 >
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 9,
     borderBottomWidth: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#101B28CC",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -317,11 +317,11 @@ const styles = StyleSheet.create({
   logo: {
     width: 36,
     height: 36,
-    borderRadius: 3,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EAF0F3",
+    backgroundColor: "#284354",
   },
   logoText: {
     fontSize: 20,
@@ -372,13 +372,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     overflow: "hidden",
-    backgroundColor: workspaceColors.background,
+    backgroundColor: "transparent",
   },
   dockArea: {
     borderTopWidth: 1,
     paddingTop: 6,
     paddingHorizontal: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#111C2BCC",
     zIndex: 20,
   },
   dockContent: {
@@ -394,8 +394,8 @@ const styles = StyleSheet.create({
     position: "relative",
     flex: 1,
     minWidth: 0,
-    height: 64,
-    borderRadius: 12,
+    height: 67,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
@@ -407,13 +407,13 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#DCE4E7",
+    borderColor: "#3B5567",
     alignItems: "center",
     justifyContent: "center",
   },
   dockLabel: {
     maxWidth: "95%",
-    color: "#667C85",
+    color: "#AEC2CB",
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "700",
