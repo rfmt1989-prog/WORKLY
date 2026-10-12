@@ -18,6 +18,7 @@ import {
 import { type AchievementNode } from "./workerCertificateTree";
 import { findProfessionDefinition, professionCatalog } from "./professionCatalog";
 import { evidenceTypes, type EvidenceType } from "./competencyEvidenceModel";
+import { verifiedAttendanceHours } from "./workerExperience";
 
 export function WorkerIdentityEditor({
   worker,
@@ -156,7 +157,7 @@ export function WorkerCertificateEditor({
   node?: AchievementNode;
   onClose: () => void;
 }) {
-  const { language, updateWorker, notify } = useWorklyData();
+  const { language, updateWorker, notify, state } = useWorklyData();
   const text = (pt: string, en: string) => professionalText(language, pt, en);
   const certificate = node?.certificate;
   const profession = professionId;
@@ -168,6 +169,15 @@ export function WorkerCertificateEditor({
   const [expiresAt, setExpiresAt] = useState(certificate?.expires_at || "");
   const [context, setContext] = useState(certificate?.context || "");
   const [hours, setHours] = useState(certificate?.hours ? String(certificate.hours) : "");
+  const [projectId, setProjectId] = useState(certificate?.project_id || "");
+  const projectEvidence = ["work_record", "employer_validation", "technical_assessment"].includes(evidenceType);
+  const workerProjects = (state?.projects || [])
+    .filter((project) => project.worker_ids.includes(worker.id))
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
+  const selectedProject = workerProjects.find((project) => project.id === projectId);
+  const approvedProjectHours = selectedProject
+    ? verifiedAttendanceHours(worker.id, state?.attendance || [], selectedProject.id)
+    : 0;
   const [file, setFile] = useState<PickedWorklyFile | null>(null);
   const [uploaded, setUploaded] = useState<
     StoredDocumentResponse["document"] | null
@@ -246,6 +256,7 @@ export function WorkerCertificateEditor({
         kind,
         evidence_type: evidenceType,
         competency_id: node?.id,
+        project_id: projectEvidence && projectId ? projectId : undefined,
         context: context.trim() || undefined,
         hours: parsedHours,
         node_id: profession === professionId ? node?.id : undefined,
@@ -342,6 +353,76 @@ export function WorkerCertificateEditor({
             })}
           </View>
         </View>
+        {projectEvidence && workerProjects.length ? (
+          <View style={styles.projectSection}>
+            <Text style={styles.sectionLabel}>
+              {text("Ligar a uma Obra WORKLY", "Link to a WORKLY project")}
+            </Text>
+            <Text style={styles.hint}>
+              {text(
+                "A Obra cria a cadeia Proof of Work: presença aprovada → competência → validação da empresa.",
+                "The project creates the Proof of Work chain: approved attendance → competence → employer validation.",
+              )}
+            </Text>
+            <View style={styles.projectGrid}>
+              {workerProjects.map((project) => {
+                const selected = projectId === project.id;
+                const projectHours = verifiedAttendanceHours(
+                  worker.id,
+                  state?.attendance || [],
+                  project.id,
+                );
+                return (
+                  <Pressable
+                    key={project.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    disabled={busy}
+                    onPress={() => setProjectId(selected ? "" : project.id)}
+                    style={({ pressed }) => [
+                      styles.projectOption,
+                      selected && styles.projectOptionSelected,
+                      pressed && styles.professionOptionPressed,
+                    ]}
+                  >
+                    <View style={styles.projectOptionCopy}>
+                      <Text
+                        style={[
+                          styles.projectOptionTitle,
+                          selected && styles.projectOptionTitleSelected,
+                        ]}
+                      >
+                        {project.name}
+                      </Text>
+                      <Text style={styles.projectOptionMeta}>
+                        {project.status === "completed"
+                          ? text("Concluída", "Completed")
+                          : text("Em curso", "In progress")}
+                        {" · "}
+                        {projectHours} h {text("aprovadas", "approved")}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={selected ? "checkmark-circle" : "ellipse-outline"}
+                      size={18}
+                      color={selected ? "#78D8A7" : "#55758E"}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+            {selectedProject ? (
+              <View style={styles.proofHint}>
+                <Ionicons name="link-outline" size={14} color="#78D8A7" />
+                <Text style={styles.proofHintText}>
+                  {text("Proof of Work ligado", "Proof of Work linked")}
+                  {" · "}
+                  {approvedProjectHours} h {text("confirmadas por presença", "confirmed by attendance")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <Field
           label={text("Título da evidência", "Evidence title")}
           value={name}
@@ -404,6 +485,16 @@ export function WorkerCertificateEditor({
 }
 const styles = StyleSheet.create({
   evidenceSection: { gap: 9 },
+  projectSection: { gap: 9 },
+  projectGrid: { gap: 7 },
+  projectOption: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderWidth: 1, borderColor: "#243B4D", borderRadius: 12, backgroundColor: "#071019" },
+  projectOptionSelected: { borderColor: "#35664F", backgroundColor: "#091A14" },
+  projectOptionCopy: { flex: 1, minWidth: 0, gap: 2 },
+  projectOptionTitle: { color: "#B8CAD8", fontSize: 11, lineHeight: 16, fontWeight: "600" },
+  projectOptionTitleSelected: { color: "#DDF2E7" },
+  projectOptionMeta: { color: "#70899D", fontSize: 9, lineHeight: 14 },
+  proofHint: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderColor: "#285941", backgroundColor: "#091813", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  proofHintText: { flex: 1, color: "#8FC9AA", fontSize: 9, lineHeight: 14 },
   evidenceGrid: { gap: 7 },
   evidenceOption: { padding: 11, borderWidth: 1, borderColor: "#243B4D", borderRadius: 12, backgroundColor: "#071019", gap: 3 },
   evidenceOptionSelected: { borderColor: "#3D80B5", backgroundColor: "#0A1C2A" },
