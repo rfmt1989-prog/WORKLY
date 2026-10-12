@@ -189,6 +189,38 @@ function buildHtml(
       )
       .join("") || "";
 
+  const proofRows =
+    assessment?.competencies
+      .flatMap((item) =>
+        item.evidence
+          .filter((evidence) => Boolean(evidence.project_id))
+          .map((evidence) => ({ item, evidence })),
+      )
+      .filter(
+        (entry, index, all) =>
+          all.findIndex((candidate) => candidate.evidence.id === entry.evidence.id) === index,
+      )
+      .map(({ item, evidence }) => {
+        const project = projects.find((candidate) => candidate.id === evidence.project_id);
+        const approvedHours = project
+          ? verifiedAttendanceHours(worker.id, attendance, project.id)
+          : 0;
+        const competence = competencyTitle(
+          language,
+          item.competency.id,
+          item.competency.title,
+          item.competency.titleEn,
+        );
+        return `
+        <tr>
+          <td><strong>${esc(competence)}</strong></td>
+          <td>${esc(project?.name || evidence.context || "—")}</td>
+          <td class="right">${approvedHours} h</td>
+          <td class="right">${esc(statusLabel(evidence.status, language))}</td>
+        </tr>`;
+      })
+      .join("") || "";
+
   const qualificationRows = worker.certificates
     .filter(
       (item) =>
@@ -407,6 +439,27 @@ function buildHtml(
       </tr>
     </thead>
     <tbody>${projectRows}</tbody>
+  </table>
+
+  <h2>PROOF OF WORK</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>${esc(text("Competência", "Competence"))}</th>
+        <th>${esc(text("Obra", "Project"))}</th>
+        <th class="right">${esc(text("Horas", "Hours"))}</th>
+        <th class="right">${esc(text("Validação", "Validation"))}</th>
+      </tr>
+    </thead>
+    <tbody>${
+      proofRows ||
+      `<tr><td colspan="4" class="muted">${esc(
+        text(
+          "Ainda não existem competências ligadas a Obras WORKLY.",
+          "No competences are linked to WORKLY projects yet.",
+        ),
+      )}</td></tr>`
+    }</tbody>
   </table>
 
   <h2>${esc(text("Competências essenciais", "Essential competences"))}</h2>
