@@ -32,6 +32,10 @@
     {
       "source": "/workspace",
       "destination": "/index.html"
+    },
+    {
+      "source": "/verify",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -101,6 +105,23 @@
     },
     {
       "source": "/workspace",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Vercel-CDN-Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/verify",
       "headers": [
         {
           "key": "Cache-Control",
