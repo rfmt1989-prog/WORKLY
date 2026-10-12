@@ -53,7 +53,7 @@ export function WorkerEvidenceScoreCard({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#7EA9CB"
+              color="#A88F7B"
             />
           </View>
         </View>
@@ -111,7 +111,7 @@ export function WorkerEvidenceScoreCard({
 
       {assessment.nextLevelId && assessment.missingGates.length ? (
         <View style={styles.gates}>
-          <Ionicons name="lock-open-outline" size={14} color="#82BDF0" />
+          <Ionicons name="lock-open-outline" size={14} color="#C96954" />
           <Text style={styles.gateText}>
             {assessment.missingGates.length}{" "}
             {text(
@@ -133,7 +133,7 @@ export function WorkerEvidenceScoreCard({
         <Text style={styles.detailsText}>
           {text("Ver critérios de avaliação", "View assessment criteria")}
         </Text>
-        <Ionicons name="arrow-forward-outline" size={13} color="#7EA9CB" />
+        <Ionicons name="arrow-forward-outline" size={13} color="#A88F7B" />
       </Pressable>
         </>
       ) : null}
@@ -152,7 +152,7 @@ function Metric({
 }) {
   return (
     <View style={styles.metric}>
-      <Ionicons name={icon} size={14} color="#70AEE2" />
+      <Ionicons name={icon} size={14} color="#B98972" />
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
@@ -162,9 +162,9 @@ function Metric({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderColor: "#1B374D",
+    borderColor: "#403229",
     borderRadius: 20,
-    backgroundColor: "#071019E8",
+    backgroundColor: "#100F0DEB",
     padding: 18,
     gap: 18,
   },
@@ -179,14 +179,14 @@ const styles = StyleSheet.create({
   topPressed: { opacity: 0.78 },
   levelBlock: { flex: 1, minWidth: 220, gap: 4 },
   eyebrow: {
-    color: "#7192AD",
+    color: "#918275",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   level: {
-    color: "#E6EFF7",
+    color: "#EEE8DE",
     fontSize: 24,
     lineHeight: 30,
     fontWeight: "700",
@@ -195,14 +195,14 @@ const styles = StyleSheet.create({
   score: { alignItems: "flex-end" },
   scoreLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   scoreValue: {
-    color: "#8FCBFF",
+    color: "#D57A60",
     fontSize: 31,
     lineHeight: 36,
     fontWeight: "700",
   },
   scoreMax: { color: "#67849D", fontSize: 14, fontWeight: "500" },
   scoreLabel: {
-    color: "#6D8AA3",
+    color: "#8D7C70",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.1,
@@ -217,19 +217,19 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 130,
     borderWidth: 1,
-    borderColor: "#193247",
-    backgroundColor: "#060D14",
+    borderColor: "#382D27",
+    backgroundColor: "#0D0C0B",
     borderRadius: 12,
     padding: 11,
     gap: 3,
   },
   metricValue: {
-    color: "#CFE2F1",
+    color: "#DED5CA",
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "700",
   },
-  metricLabel: { color: "#698298", fontSize: 8, lineHeight: 12 },
+  metricLabel: { color: "#82766B", fontSize: 8, lineHeight: 12 },
   components: { gap: 10 },
   component: { gap: 4 },
   componentTop: {
@@ -237,9 +237,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
-  componentName: { color: "#AFC2D2", fontSize: 10, lineHeight: 14 },
+  componentName: { color: "#BEB3A7", fontSize: 10, lineHeight: 14 },
   componentValue: {
-    color: "#8EBFE8",
+    color: "#C96954",
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "700",
@@ -247,13 +247,13 @@ const styles = StyleSheet.create({
   track: {
     height: 2,
     borderRadius: 1,
-    backgroundColor: "#172B3A",
+    backgroundColor: "#302823",
     overflow: "hidden",
   },
-  fill: { height: "100%", backgroundColor: "#4E9DDB" },
+  fill: { height: "100%", backgroundColor: "#B84A3A" },
   gates: {
     borderTopWidth: 1,
-    borderTopColor: "#173044",
+    borderTopColor: "#352A24",
     paddingTop: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -267,9 +267,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: "#173044",
+    borderTopColor: "#352A24",
     paddingTop: 10,
   },
   detailsPressed: { opacity: 0.7 },
-  detailsText: { color: "#7EA9CB", fontSize: 10, lineHeight: 14 },
+  detailsText: { color: "#A88F7B", fontSize: 10, lineHeight: 14 },
 });
