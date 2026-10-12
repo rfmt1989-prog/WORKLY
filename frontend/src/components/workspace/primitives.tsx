@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(2,4,9,0.82)",
+    backgroundColor: "rgba(42,63,75,0.24)",
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.55,
+    shadowOpacity: 0.12,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 16 },
   },
