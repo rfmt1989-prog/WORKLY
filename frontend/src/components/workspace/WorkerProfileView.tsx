@@ -7,7 +7,7 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
 import { assessmentGateText, complianceTitle, professionTitle, professionalMetaText, professionalText, scopeText, specialtyCopy } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import type { LanguageCode } from "@/src/demo/types";
+import type { Attendance, Certificate, Company, LanguageCode, Project } from "@/src/demo/types";
 import { Button, ModalPanel, workspaceColors } from "./primitives";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
 import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
@@ -17,6 +17,7 @@ import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerFormationPath } from "./WorkerFormationPath";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
+import { WorkerProofOfWork } from "./WorkerProofOfWork";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
@@ -330,7 +331,30 @@ export function WorkerProfileView({
           <Text style={styles.detailNote}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
         </View>
       </ModalPanel> : null}
-      {selected ? <CertificateDetails node={selected} byId={byId} language={language} onClose={() => setSelected(null)} onAssociate={() => { setCertificateTarget({ professionId: primaryTree?.id || "professional", node: selected }); setSelected(null); }} /> : null}
+      {selected ? (
+        <CertificateDetails
+          node={selected}
+          byId={byId}
+          language={language}
+          workerId={worker.id}
+          proofEvidence={
+            competencyAssessment?.competencies.find(
+              (item) => item.competency.id === selected.id,
+            )?.evidence
+          }
+          projects={state?.projects || []}
+          attendance={state?.attendance || []}
+          companies={state?.companies || []}
+          onClose={() => setSelected(null)}
+          onAssociate={() => {
+            setCertificateTarget({
+              professionId: primaryTree?.id || "professional",
+              node: selected,
+            });
+            setSelected(null);
+          }}
+        />
+      ) : null}
       {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
       {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
     </View>
@@ -423,12 +447,22 @@ function CertificateDetails({
   node,
   byId,
   language,
+  workerId,
+  proofEvidence,
+  projects,
+  attendance,
+  companies,
   onClose,
   onAssociate,
 }: {
   node: AchievementNode;
   byId: Map<string, AchievementNode>;
   language: LanguageCode;
+  workerId: string;
+  proofEvidence?: Certificate[];
+  projects: Project[];
+  attendance: Attendance[];
+  companies: Company[];
   onClose: () => void;
   onAssociate: () => void;
 }) {
@@ -511,6 +545,32 @@ function CertificateDetails({
           <JourneySymbol node={node} large />
           <JourneyStatus node={node} language={language} />
         </View>
+        {proofEvidence !== undefined ? (
+          <View style={styles.proofSection}>
+            <View style={styles.proofHeading}>
+              <View style={styles.proofHeadingIcon}>
+                <Ionicons name="link-outline" size={14} color="#78D8A7" />
+              </View>
+              <View style={styles.proofHeadingCopy}>
+                <Text style={styles.sectionLabel}>PROOF OF WORK</Text>
+                <Text style={styles.detailNote}>
+                  {text(
+                    "Prova rastreável da competência em contexto real.",
+                    "Traceable proof of the competence in real work.",
+                  )}
+                </Text>
+              </View>
+            </View>
+            <WorkerProofOfWork
+              workerId={workerId}
+              evidence={proofEvidence}
+              projects={projects}
+              attendance={attendance}
+              companies={companies}
+              language={language}
+            />
+          </View>
+        ) : null}
         <Text style={styles.sectionLabel}>{text("Âmbito", "Scope")}</Text>
         <Text style={styles.detailText}>
           {scopeText(language, localizeDemoText(language, node.scope))}
@@ -684,6 +744,10 @@ const styles = StyleSheet.create({
   ruleTitle: { color: "#BFCEDF", fontSize: 13, lineHeight: 20 },
   ruleValue: { color: "#8FC0F6", fontSize: 24, fontWeight: "600" },
   detailContent: { gap: 18 },
+  proofSection: { gap: 10, borderWidth: 1, borderColor: "#1F3D51", borderRadius: 14, backgroundColor: "#050D14", padding: 12 },
+  proofHeading: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
+  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#285941", backgroundColor: "#091813", alignItems: "center", justifyContent: "center" },
+  proofHeadingCopy: { flex: 1, minWidth: 0, gap: 2 },
   detailSymbol: { alignItems: "center", gap: 8, paddingBottom: 12 },
   sectionLabel: { color: "#BDCADA", fontSize: 11, lineHeight: 17, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
   detailText: { color: "#BCCCDC", fontSize: 13, lineHeight: 22 },
