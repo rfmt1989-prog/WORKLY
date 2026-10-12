@@ -93,7 +93,7 @@ export function WorkerCareerAtlas({
             >
               {index < 4 && !compact ? <View style={[styles.connector, reached && styles.connectorReached]} /> : null}
               <View style={[styles.milestoneGlyph, reached && styles.milestoneGlyphReached, opened && styles.milestoneGlyphSelected]}>
-                <Ionicons name={reached ? "checkmark-outline" : item.icon} size={18} color={opened ? "#FFFFFF" : reached ? "#B14B36" : "#7F8C91"} />
+                <Ionicons name={reached ? "checkmark-outline" : item.icon} size={18} color={opened || reached ? "#58798B" : "#70818B"} />
               </View>
               <Text style={[styles.roman, opened && styles.romanSelected]}>{level.label}</Text>
               <Text style={[styles.milestoneName, opened && styles.milestoneNameSelected]} numberOfLines={2}>{tr(item.title, item.en)}</Text>
@@ -120,7 +120,7 @@ export function WorkerCareerAtlas({
               </Text>
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel={tr("Recolher nível", "Collapse level")} onPress={() => setSelected(null)} style={styles.closeChapter}>
-              <Ionicons name="chevron-up-outline" color="#66767C" size={18} />
+              <Ionicons name="chevron-up-outline" color="#70818B" size={18} />
             </Pressable>
           </View>
           {selected === 0 ? (
@@ -133,7 +133,7 @@ export function WorkerCareerAtlas({
                     <Text style={styles.evidenceTitle}>{node.title}</Text>
                     <Text style={styles.evidenceSubtitle}>{node.subtitle}</Text>
                   </View>
-                  <Ionicons name={node.status === "verified" ? "checkmark-circle" : "add-circle-outline"} size={22} color={node.status === "verified" ? "#347B59" : "#B84A35"} />
+                  <Ionicons name={node.status === "verified" ? "checkmark-circle" : "add-circle-outline"} size={22} color={node.status === "verified" ? "#58798B" : "#58798B"} />
                 </Pressable>
               ))}
             </View>
@@ -151,13 +151,13 @@ export function WorkerCareerAtlas({
             </View>
           )}
           <Pressable accessibilityRole="button" onPress={onAddEvidence} style={({ pressed }) => [styles.addEvidence, pressed && styles.pressed]} testID="career-add-evidence">
-            <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="add-circle-outline" size={20} color="#58798B" />
             <Text style={styles.addEvidenceText}>{tr("Associar comprovativo", "Attach evidence")}</Text>
-            <Ionicons name="arrow-forward-outline" size={16} color="#FFFFFF" />
+            <Ionicons name="arrow-forward-outline" size={16} color="#58798B" />
           </Pressable>
         </View>
       ) : (
-        <View style={styles.collapsedHint}><Ionicons name="hand-left-outline" size={15} color="#69777C" /><Text style={styles.hintText}>{tr("Escolhe um nível para explorar os seus requisitos", "Select a level to explore its requirements")}</Text></View>
+        <View style={styles.collapsedHint}><Ionicons name="hand-left-outline" size={15} color="#70818B" /><Text style={styles.hintText}>{tr("Escolhe um nível para explorar os seus requisitos", "Select a level to explore its requirements")}</Text></View>
       )}
     </View>
   );
@@ -169,7 +169,7 @@ function Metric({ label, actual, required, unit }: { label: string; actual: numb
     <View style={[styles.metric, ok && styles.metricMet]}>
       <View style={styles.metricTop}>
         <Text style={styles.metricLabel}>{label}</Text>
-        <Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? "#35795C" : "#B68165"} />
+        <Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? "#58798B" : "#70818B"} />
       </View>
       <Text style={styles.metricValue}>{Math.round(actual)}<Text style={styles.metricTotal}> / {required}{unit}</Text></Text>
       <View style={styles.metricTrack}><View style={[styles.metricFill, ok && styles.metricFillMet, { width: String(required === 0 ? 100 : Math.max(0, Math.min(100, (actual / required) * 100))) + "%" }]} /></View>
@@ -178,71 +178,71 @@ function Metric({ label, actual, required, unit }: { label: string; actual: numb
 }
 
 const styles = StyleSheet.create({
-  shell: { borderWidth: 1, borderColor: "#E3DCD1", borderRadius: 24, backgroundColor: "#FFFDF8", padding: 22, gap: 22, shadowColor: "#1A2830", shadowOpacity: .07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  shell: { borderWidth: 1, borderColor: "#DDE5E8", borderRadius: 24, backgroundColor: "#FFFFFF", padding: 22, gap: 22, shadowColor: "#263844", shadowOpacity: .07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
   intro: { flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap", gap: 18 },
   introCopy: { flex: 1, minWidth: 220, gap: 8 },
   kickerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  kickerDash: { width: 21, height: 2, backgroundColor: "#BD5B42" },
-  kicker: { color: "#996851", fontSize: 10, letterSpacing: 1.7, fontWeight: "800" },
-  heading: { color: "#1D2C32", fontSize: 29, lineHeight: 36, fontWeight: "800", letterSpacing: -.7 },
+  kickerDash: { width: 21, height: 2, backgroundColor: "#58798B" },
+  kicker: { color: "#58798B", fontSize: 10, letterSpacing: 1.7, fontWeight: "800" },
+  heading: { color: "#253842", fontSize: 29, lineHeight: 36, fontWeight: "800", letterSpacing: -.7 },
   headingCompact: { fontSize: 24, lineHeight: 31 },
-  description: { color: "#617078", fontSize: 12, lineHeight: 19, maxWidth: 540 },
-  scoreModule: { width: 174, borderRadius: 17, padding: 14, gap: 5, backgroundColor: "#24343C" },
-  scoreLabel: { color: "#DABCB0", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  description: { color: "#70818B", fontSize: 12, lineHeight: 19, maxWidth: 540 },
+  scoreModule: { width: 174, borderRadius: 17, padding: 14, gap: 5, borderWidth: 1, borderColor: "#D0DFE5", backgroundColor: "#E7EFF2" },
+  scoreLabel: { color: "#58798B", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
   scoreNumbers: { flexDirection: "row", alignItems: "baseline" },
-  scoreNumber: { fontSize: 40, lineHeight: 46, fontWeight: "800", color: "#FFFFFF" },
-  scoreTotal: { color: "#AEC0C5", fontSize: 12 },
-  scoreTrack: { height: 5, borderRadius: 5, backgroundColor: "#526169", overflow: "hidden" },
-  scoreFill: { height: "100%", borderRadius: 5, backgroundColor: "#E7A47E" },
-  scoreAction: { color: "#F0D8C7", fontSize: 10, marginTop: 4 },
+  scoreNumber: { fontSize: 40, lineHeight: 46, fontWeight: "800", color: "#253842" },
+  scoreTotal: { color: "#70818B", fontSize: 12 },
+  scoreTrack: { height: 5, borderRadius: 5, backgroundColor: "#D4E0E5", overflow: "hidden" },
+  scoreFill: { height: "100%", borderRadius: 5, backgroundColor: "#58798B" },
+  scoreAction: { color: "#58798B", fontSize: 10, marginTop: 4 },
   atlas: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "stretch", justifyContent: "space-between" },
-  milestone: { flex: 1, minWidth: 108, minHeight: 151, borderWidth: 1, borderColor: "#E5DFD8", backgroundColor: "#F8F6F0", borderRadius: 15, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, paddingVertical: 11, gap: 4, position: "relative" },
+  milestone: { flex: 1, minWidth: 108, minHeight: 151, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#F2F5F6", borderRadius: 15, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, paddingVertical: 11, gap: 4, position: "relative" },
   milestoneCompact: { minWidth: 102, minHeight: 138 },
-  milestoneSelected: { borderColor: "#BD654C", backgroundColor: "#F8EDE4" },
-  connector: { position: "absolute", right: -10, top: 40, width: 11, height: 2, backgroundColor: "#D3D0C8", zIndex: 2 },
-  connectorReached: { backgroundColor: "#CA765D" },
-  milestoneGlyph: { height: 33, width: 33, borderRadius: 16.5, backgroundColor: "#E9E9E4", alignItems: "center", justifyContent: "center" },
-  milestoneGlyphReached: { backgroundColor: "#FAE6D8" },
-  milestoneGlyphSelected: { backgroundColor: "#B8523B" },
-  roman: { color: "#67777C", fontSize: 26, lineHeight: 31, fontWeight: "800", letterSpacing: 1 },
-  romanSelected: { color: "#AD4B35" },
-  milestoneName: { textAlign: "center", color: "#394B52", fontWeight: "700", fontSize: 11, lineHeight: 15 },
-  milestoneNameSelected: { color: "#1E3036" },
-  milestoneState: { color: "#829092", fontSize: 9, lineHeight: 13, textAlign: "center" },
-  milestoneStateActive: { color: "#A9513B", fontWeight: "800" },
-  selectionBar: { position: "absolute", bottom: 0, left: 22, right: 22, height: 3, backgroundColor: "#B8523B", borderTopLeftRadius: 3, borderTopRightRadius: 3 },
-  chapter: { borderWidth: 1, borderColor: "#DFD8CE", backgroundColor: "#F6F5F0", borderRadius: 18, padding: 18, gap: 18 },
+  milestoneSelected: { borderColor: "#A8BFCA", backgroundColor: "#E7EFF2" },
+  connector: { position: "absolute", right: -10, top: 40, width: 11, height: 2, backgroundColor: "#CDDADF", zIndex: 2 },
+  connectorReached: { backgroundColor: "#58798B" },
+  milestoneGlyph: { height: 33, width: 33, borderRadius: 16.5, backgroundColor: "#E5EDEF", alignItems: "center", justifyContent: "center" },
+  milestoneGlyphReached: { backgroundColor: "#E7EFF2" },
+  milestoneGlyphSelected: { backgroundColor: "#DCE9EE" },
+  roman: { color: "#70818B", fontSize: 26, lineHeight: 31, fontWeight: "800", letterSpacing: 1 },
+  romanSelected: { color: "#58798B" },
+  milestoneName: { textAlign: "center", color: "#253842", fontWeight: "700", fontSize: 11, lineHeight: 15 },
+  milestoneNameSelected: { color: "#253842" },
+  milestoneState: { color: "#70818B", fontSize: 9, lineHeight: 13, textAlign: "center" },
+  milestoneStateActive: { color: "#58798B", fontWeight: "800" },
+  selectionBar: { position: "absolute", bottom: 0, left: 22, right: 22, height: 3, backgroundColor: "#58798B", borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+  chapter: { borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#F2F5F6", borderRadius: 18, padding: 18, gap: 18 },
   chapterHead: { flexDirection: "row", alignItems: "center", gap: 13 },
-  chapterNumber: { width: 57, height: 57, borderWidth: 1, borderColor: "#DCC2B5", backgroundColor: "#F4E6DD", borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  chapterNumberText: { color: "#A84F3C", fontSize: 31, fontWeight: "800" },
+  chapterNumber: { width: 57, height: 57, borderWidth: 1, borderColor: "#C9D8DF", backgroundColor: "#E7EFF2", borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  chapterNumberText: { color: "#58798B", fontSize: 31, fontWeight: "800" },
   chapterCopy: { flex: 1, minWidth: 0, gap: 2 },
-  chapterEyebrow: { color: "#A47B69", letterSpacing: 1.1, fontWeight: "800", fontSize: 9 },
-  chapterTitle: { color: "#24363C", fontSize: 20, lineHeight: 26, fontWeight: "800" },
-  chapterStatus: { color: "#788589", fontSize: 11, lineHeight: 16 },
+  chapterEyebrow: { color: "#58798B", letterSpacing: 1.1, fontWeight: "800", fontSize: 9 },
+  chapterTitle: { color: "#253842", fontSize: 20, lineHeight: 26, fontWeight: "800" },
+  chapterStatus: { color: "#70818B", fontSize: 11, lineHeight: 16 },
   closeChapter: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   requirements: { gap: 12 },
-  requirementsTitle: { color: "#3A4D54", fontSize: 12, fontWeight: "800", letterSpacing: .2 },
+  requirementsTitle: { color: "#253842", fontSize: 12, fontWeight: "800", letterSpacing: .2 },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  metric: { minWidth: 126, flexGrow: 1, flexBasis: 130, borderWidth: 1, borderColor: "#E4DFD7", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, gap: 6 },
-  metricMet: { borderColor: "#C5DDCB" },
+  metric: { minWidth: 126, flexGrow: 1, flexBasis: 130, borderWidth: 1, borderColor: "#DDE5E8", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, gap: 6 },
+  metricMet: { borderColor: "#C6D7DE" },
   metricTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 7 },
-  metricLabel: { color: "#687B81", fontSize: 10, fontWeight: "600" },
-  metricValue: { color: "#263A40", fontSize: 23, fontWeight: "800" },
-  metricTotal: { color: "#839095", fontSize: 11, fontWeight: "600" },
-  metricTrack: { height: 4, backgroundColor: "#EAEAE6", borderRadius: 4, overflow: "hidden" },
-  metricFill: { height: "100%", backgroundColor: "#C8785E" },
-  metricFillMet: { backgroundColor: "#45916A" },
-  remaining: { color: "#9D573F", fontSize: 11, lineHeight: 19 },
+  metricLabel: { color: "#70818B", fontSize: 10, fontWeight: "600" },
+  metricValue: { color: "#253842", fontSize: 23, fontWeight: "800" },
+  metricTotal: { color: "#70818B", fontSize: 11, fontWeight: "600" },
+  metricTrack: { height: 4, backgroundColor: "#E4EBEE", borderRadius: 4, overflow: "hidden" },
+  metricFill: { height: "100%", backgroundColor: "#58798B" },
+  metricFillMet: { backgroundColor: "#58798B" },
+  remaining: { color: "#58798B", fontSize: 11, lineHeight: 19 },
   evidenceList: { gap: 10 },
-  evidenceRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 13, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E4DED4" },
-  evidenceIndex: { width: 30, height: 30, borderRadius: 9, backgroundColor: "#F3E5D9", alignItems: "center", justifyContent: "center" },
-  evidenceIndexText: { color: "#AE523B", fontSize: 13, fontWeight: "800" },
+  evidenceRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 13, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DDE5E8" },
+  evidenceIndex: { width: 30, height: 30, borderRadius: 9, backgroundColor: "#E7EFF2", alignItems: "center", justifyContent: "center" },
+  evidenceIndexText: { color: "#58798B", fontSize: 13, fontWeight: "800" },
   evidenceCopy: { flex: 1, minWidth: 0, gap: 2 },
-  evidenceTitle: { color: "#283C43", fontSize: 12, fontWeight: "700" },
-  evidenceSubtitle: { color: "#7F8D90", fontSize: 10, lineHeight: 16 },
-  addEvidence: { minHeight: 45, borderRadius: 12, backgroundColor: "#B8523B", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16 },
-  addEvidenceText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  evidenceTitle: { color: "#253842", fontSize: 12, fontWeight: "700" },
+  evidenceSubtitle: { color: "#70818B", fontSize: 10, lineHeight: 16 },
+  addEvidence: { minHeight: 45, borderRadius: 12, borderWidth: 1, borderColor: "#B7CCD6", backgroundColor: "#E7EFF2", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 16 },
+  addEvidenceText: { color: "#58798B", fontSize: 12, fontWeight: "800" },
   collapsedHint: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
-  hintText: { color: "#687B81", fontSize: 11 },
+  hintText: { color: "#70818B", fontSize: 11 },
   pressed: { opacity: .78 },
 });
