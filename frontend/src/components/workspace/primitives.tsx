@@ -17,6 +17,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
+import { copy } from "@/src/demo/i18n";
+import { useWorklyData } from "@/src/context/WorklyDataContext";
 
 export const workspaceColors = {
   background: "#06080D",
@@ -389,6 +391,7 @@ export function ModalPanel({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const { language } = useWorklyData();
   if (!visible) return null;
 
   return (
@@ -401,7 +404,7 @@ export function ModalPanel({
       <View style={styles.modalBackdrop}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={copy[language].close}
           style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
@@ -413,7 +416,7 @@ export function ModalPanel({
                 <Text style={styles.modalSubtitle}>{subtitle}</Text>
               ) : null}
             </View>
-            <IconButton icon="close" label="Close" onPress={onClose} />
+            <IconButton icon="close" label={copy[language].close} onPress={onClose} />
           </View>
           <ScrollView
             style={{ flexGrow: 0 }}

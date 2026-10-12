@@ -126,18 +126,6 @@ function geofenceFor(
   };
 }
 
-function nextShiftDate(language: import("@/src/demo/types").LanguageCode) {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return {
-    day: String(date.getDate()).padStart(2, "0"),
-    month: date
-      .toLocaleDateString(localeForLanguage(language), { month: "short" })
-      .replace(".", "")
-      .toUpperCase(),
-  };
-}
-
 export function AttendanceView() {
   const { user } = useAuth();
   const { state, language, checkIn, checkOut, notify, reload } = useWorklyData();
@@ -313,7 +301,6 @@ export function AttendanceView() {
   const readiness = worker?.professional_wallet?.site_evaluations.find(item => item.project_id === currentProject?.id);
   const blockedItems = readiness?.items.filter(item => item.status !== "verified" && item.status !== "expiring") || [];
   const checkInBlocked = Boolean(currentProject && (currentProject.status !== "active" || !readiness?.fit_for_check_in));
-  const shiftDate = nextShiftDate(language);
   const activeLocation = active
     ? geofenceFor(
         active.latitude,
@@ -412,7 +399,7 @@ export function AttendanceView() {
               <Text style={styles.attendanceTitle}>
                 {active
                   ? uiText(language, "Sessão ativa", "Active session")
-                  : uiText(language, "Pronto para validar a zona", "Ready to validate site zone")}
+                  : currentProject ? uiText(language, "Pronto para validar a zona", "Ready to validate site zone") : t.checkIn}
               </Text>
               <Text style={sharedStyles.subtitle}>
                 {currentProject?.name ??
@@ -447,7 +434,7 @@ export function AttendanceView() {
             </View>
           ) : null}
 
-          <View style={styles.locationBox}>
+          {currentProject ? <View style={styles.locationBox}>
             <Ionicons
               name={
                 visibleLocation?.within === true
@@ -528,7 +515,7 @@ export function AttendanceView() {
                       : `${projectRadius(currentProject)}M`}
               </Text>
             </View>
-          </View>
+          </View> : null}
 
           <Button
             testID="attendance-toggle"
@@ -547,26 +534,19 @@ export function AttendanceView() {
         </Card>
 
         <Card style={{ flex: 0.9, minWidth: compact ? undefined : 320 }}>
-          <SectionTitle
-            title={t.schedule}
-            subtitle={uiText(language, "Próximo turno", "Next shift")}
-          />
-          <View style={styles.scheduleCard}>
-            <View style={[styles.dayBox, { borderColor: `${accent}77` }]}>
-              <Text style={[styles.dayNumber, { color: accent }]}>{shiftDate.day}</Text>
-              <Text style={styles.dayMonth}>{shiftDate.month}</Text>
-            </View>
+          <SectionTitle title={t.schedule} />
+          {currentProject ? <View style={styles.scheduleCard}>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.scheduleTime}>
-                {currentProject?.schedule ?? worker?.schedule ?? "08:00–17:00"}
+                {currentProject.schedule || walletText(language, "noSchedule")}
               </Text>
               <Text style={styles.meta}>
-                {currentProject?.name ?? "WORKLY"}
+                {currentProject.name}
               </Text>
-              <Text style={styles.meta}>{currentProject?.location ?? "Portugal"}</Text>
+              <Text style={styles.meta}>{currentProject.location}</Text>
             </View>
-          </View>
-          <View style={styles.reminder}>
+          </View> : <EmptyState icon="calendar-outline" title={walletText(language, "noSite")} description={walletText(language, "assignedNote")} />}
+          {currentProject ? <View style={styles.reminder}>
             <Ionicons
               name="shield-checkmark-outline"
               size={18}
@@ -580,7 +560,7 @@ export function AttendanceView() {
                 { radius: projectRadius(currentProject) },
               )}
             </Text>
-          </View>
+          </View> : null}
         </Card>
       </View>
 
