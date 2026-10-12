@@ -32,12 +32,14 @@ export function WorkerEvidenceScoreCard({
           <Text style={styles.level}>
             {levelText(language, assessment.levelId, assessment.levelLabel, assessment.levelLabelEn)}
           </Text>
-          <Text style={styles.note}>
-            {text(
-              "Baseado em evidência + critérios mínimos. Não é um nível EQF oficial.",
-              "Based on evidence + minimum gates. It is not an official EQF level.",
-            )}
-          </Text>
+          {expanded ? (
+            <Text style={styles.note}>
+              {text(
+                "Baseado em evidência + critérios mínimos. Não é um nível EQF oficial.",
+                "Based on evidence + minimum gates. It is not an official EQF level.",
+              )}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.score}>
           <Text style={styles.scoreValue}>
