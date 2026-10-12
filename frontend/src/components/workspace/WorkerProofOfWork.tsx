@@ -137,7 +137,7 @@ export function WorkerProofOfWork({
                 <Ionicons
                   name={hasWorklyChain ? "shield-checkmark-outline" : "briefcase-outline"}
                   size={17}
-                  color={hasWorklyChain ? "#78D8A7" : "#86BDEB"}
+                  color={hasWorklyChain ? "#8FAE91" : "#C96954"}
                 />
               </View>
               <View style={styles.projectCopy}>
@@ -257,7 +257,7 @@ function ChainStep({
         <Ionicons
           name={icon}
           size={12}
-          color={complete ? "#78D8A7" : "#648096"}
+          color={complete ? "#8FAE91" : "#648096"}
         />
       </View>
       <Text style={styles.stepLabel}>{label}</Text>
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 10,
     borderWidth: 1,
-    borderColor: "#20394D",
+    borderColor: "#43342B",
     borderRadius: 12,
-    backgroundColor: "#07121B",
+    backgroundColor: "#11100E",
     padding: 12,
   },
   emptyCopy: { flex: 1, minWidth: 0, gap: 2 },
@@ -289,9 +289,9 @@ const styles = StyleSheet.create({
   emptyText: { color: "#728B9F", fontSize: 10, lineHeight: 16 },
   card: {
     borderWidth: 1,
-    borderColor: "#22445C",
+    borderColor: "#4A382E",
     borderRadius: 14,
-    backgroundColor: "#07131D",
+    backgroundColor: "#11100E",
     padding: 12,
     gap: 12,
   },
@@ -301,8 +301,8 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#2A506B",
-    backgroundColor: "#071B29",
+    borderColor: "#634437",
+    backgroundColor: "#19120F",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   statusPending: { borderColor: "#695A2D", backgroundColor: "#1A170B" },
   statusRecorded: { borderColor: "#304A5F", backgroundColor: "#0B1720" },
   statusText: { fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .7 },
-  statusTextVerified: { color: "#78D8A7" },
+  statusTextVerified: { color: "#8FAE91" },
   statusTextPending: { color: "#E7C76E" },
   statusTextRecorded: { color: "#89A3B8" },
   chain: { flexDirection: "row", alignItems: "flex-start" },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 16,
     borderTopWidth: 1,
-    borderTopColor: "#193247",
+    borderTopColor: "#382D27",
     paddingTop: 9,
   },
   audit: { gap: 2 },
@@ -358,5 +358,5 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     fontWeight: "700",
   },
-  auditValue: { color: "#AFC2D1", fontSize: 9, lineHeight: 14 },
+  auditValue: { color: "#BEB3A7", fontSize: 9, lineHeight: 14 },
 });
