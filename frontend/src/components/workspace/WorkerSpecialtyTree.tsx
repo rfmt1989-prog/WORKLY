@@ -129,8 +129,8 @@ export function WorkerSpecialtyTree({
 }
 
 const styles=StyleSheet.create({
-  panel:{borderWidth:1,borderColor:"#3A2E28",borderRadius:22,backgroundColor:"#0D0C0BF2",padding:16,gap:14},
-  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:14},
+  panel:{borderWidth:1,borderColor:"#3A2E28",borderRadius:6,backgroundColor:"#0D0C0BF2",padding:16,gap:14},
+  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:3},
   headerPressed:{opacity:.78},
   headerIcon:{width:40,height:40,borderRadius:14,borderWidth:1,borderColor:"#684437",backgroundColor:"#17100E",alignItems:"center",justifyContent:"center"},
   headerText:{flex:1,minWidth:0,gap:3},
@@ -142,7 +142,7 @@ const styles=StyleSheet.create({
   countLine:{flexDirection:"row",alignItems:"center",gap:6},
   countLabel:{color:"#82766B",fontSize:9,lineHeight:13},
   timeline:{paddingTop:2},
-  row:{minHeight:90,flexDirection:"row",alignItems:"stretch",borderRadius:12},
+  row:{minHeight:90,flexDirection:"row",alignItems:"stretch",borderRadius:3},
   rowLocked:{opacity:.72},
   pressed:{backgroundColor:"#4A211955",opacity:.88},
   lane:{width:62,alignItems:"center",justifyContent:"center",position:"relative"},
