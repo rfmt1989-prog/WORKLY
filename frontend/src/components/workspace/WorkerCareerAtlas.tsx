@@ -32,8 +32,8 @@ export function WorkerCareerAtlas({
   const foundation = useMemo(() => workerFormationNodes(worker, language), [worker, language]);
   const foundationVerified = foundation.filter(node => node.status === "verified").length;
   const currentIndex = Math.max(0, worklyLevelGates.findIndex(level => level.id === assessment.levelId));
-  const [selected, setSelected] = useState<number | null>(currentIndex < 4 ? currentIndex + 1 : 4);
-  useEffect(() => { setSelected(currentIndex < 4 ? currentIndex + 1 : 4); }, [assessment.professionId]);
+  const [selected, setSelected] = useState<number | null>(foundationVerified < foundation.length ? 0 : currentIndex < 4 ? currentIndex + 1 : 4);
+  useEffect(() => { setSelected(foundationVerified < foundation.length ? 0 : currentIndex < 4 ? currentIndex + 1 : 4); }, [assessment.professionId]);
   const next = worklyLevelGates[currentIndex + 1];
   const focus = selected === null ? null : worklyLevelGates[selected];
   const satisfied = (index: number) => index === 0 ? foundationVerified === foundation.length : index <= currentIndex;
