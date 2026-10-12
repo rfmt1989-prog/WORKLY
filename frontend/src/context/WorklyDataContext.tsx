@@ -27,7 +27,8 @@ import { storage } from "@/src/utils/storage";
 
 import { useAuth } from "./AuthContext";
 
-const STATE_STORAGE_KEY = "workly_demo_state:v3-project-experience";
+const STATE_STORAGE_PREFIX = "workly_account_state:v4:";
+const LEGACY_STATE_STORAGE_KEY = "workly_demo_state:v3-project-experience";
 const LANGUAGE_STORAGE_KEY = "workly_language:v1";
 const SERVER_SYNC_INTERVAL_MS = 4_000;
 
@@ -98,6 +99,7 @@ function parseStoredState(raw: string | null): WorklyState | null {
 export function WorklyDataProvider({ children }: { children: React.ReactNode }) {
   const { user, token, setUser } = useAuth();
   const userId = user?.id ?? null;
+  const stateStorageKey = userId ? STATE_STORAGE_PREFIX + userId : null;
   const [state, setState] = useState<WorklyState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +108,9 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
   const hydratedRef = useRef(false);
   const stateSnapshotRef = useRef("");
   const authSnapshotRef = useRef("");
-  const syncInFlightRef = useRef(false);
+  const syncInFlightRef = useRef<string | null>(null);
+  const activeUserIdRef = useRef(userId);
+  activeUserIdRef.current = userId;
   const toastIdRef = useRef(0);
 
   const notify = useCallback((message: string, tone: ToastTone = "success") => {
@@ -119,6 +123,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     let active = true;
+    void storage.removeItem(LEGACY_STATE_STORAGE_KEY);
     storage.getItem<string>(LANGUAGE_STORAGE_KEY, "pt").then((stored) => {
       if (active && (stored === "pt" || stored === "en" || stored === "fr" || stored === "es" || stored === "ro" || stored === "de" || stored === "nl")) {
         setLanguageState(stored);
@@ -165,18 +170,19 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
 
   const reload = useCallback(
     async (forceRemote = false) => {
-      if (!userId || !token) return;
-      if (syncInFlightRef.current) return;
+      if (!userId || !token || !stateStorageKey) return;
+      if (syncInFlightRef.current === userId) return;
 
-      syncInFlightRef.current = true;
+      syncInFlightRef.current = userId;
       const showLoading = !hydratedRef.current;
       if (showLoading) setLoading(true);
 
       try {
         if (!forceRemote && !hydratedRef.current) {
-          const stored = await storage.getItem<string>(STATE_STORAGE_KEY, "");
+          const stored = await storage.getItem<string>(stateStorageKey, "");
+          if (activeUserIdRef.current !== userId) return;
           const localState = parseStoredState(stored);
-          if (localState) {
+          if (localState?.current_user?.id === userId) {
             setState(localState);
             stateSnapshotRef.current = stored ?? "";
             hydratedRef.current = true;
@@ -187,6 +193,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         // The local snapshot only makes the first paint fast. The server always
         // reconciles it so Worker and Company never remain on different states.
         const remote = await api.get<WorklyState>("/bootstrap");
+        if (activeUserIdRef.current !== userId) return;
         if (remote.current_user) {
           const serializedUser = JSON.stringify(remote.current_user);
           if (serializedUser !== authSnapshotRef.current) {
@@ -198,11 +205,12 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
         if (serializedRemote !== stateSnapshotRef.current) {
           setState(remote);
           stateSnapshotRef.current = serializedRemote;
-          await storage.setItem(STATE_STORAGE_KEY, serializedRemote);
+          await storage.setItem(stateStorageKey, serializedRemote);
         }
         setError(null);
         hydratedRef.current = true;
       } catch (requestError) {
+        if (activeUserIdRef.current !== userId) return;
         const message =
           requestError instanceof ApiError
             ? localizeApiError(language, requestError.message)
@@ -213,12 +221,21 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
               );
         setError(message);
       } finally {
-        syncInFlightRef.current = false;
-        if (showLoading) setLoading(false);
+        if (syncInFlightRef.current === userId) syncInFlightRef.current = null;
+        if (showLoading && activeUserIdRef.current === userId) setLoading(false);
       }
     },
-    [language, setUser, token, userId],
+    [language, setUser, stateStorageKey, token, userId],
   );
+
+  useEffect(() => {
+    return () => {
+      if (stateStorageKey) void storage.removeItem(stateStorageKey);
+      hydratedRef.current = false;
+      stateSnapshotRef.current = "";
+      authSnapshotRef.current = "";
+    };
+  }, [stateStorageKey]);
 
   useEffect(() => {
     if (!userId || !token) {
@@ -251,14 +268,14 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
   }, [reload, token, userId]);
 
   useEffect(() => {
-    if (!state || !hydratedRef.current) return;
+    if (!stateStorageKey || !state || state.current_user?.id !== userId || !hydratedRef.current) return;
     const handle = setTimeout(() => {
       const serializedState = JSON.stringify(state);
       stateSnapshotRef.current = serializedState;
-      void storage.setItem(STATE_STORAGE_KEY, serializedState);
+      void storage.setItem(stateStorageKey, serializedState);
     }, 80);
     return () => clearTimeout(handle);
-  }, [state]);
+  }, [state, stateStorageKey, userId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -274,7 +291,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       setState(response.state);
       stateSnapshotRef.current = JSON.stringify(response.state);
       hydratedRef.current = true;
-      await storage.setItem(STATE_STORAGE_KEY, stateSnapshotRef.current);
+      if (stateStorageKey) await storage.setItem(stateStorageKey, stateSnapshotRef.current);
       notify(
         uiText(language, "Dados demo repostos.", "Demo data reset."),
         "success",
@@ -287,7 +304,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setLoading(false);
     }
-  }, [language, notify]);
+  }, [language, notify, stateStorageKey]);
 
   const updateWorker = useCallback(
     async (workerId: string, patch: Partial<Worker>) => {
@@ -632,7 +649,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
 
   const value = useMemo<WorklyDataValue>(
     () => ({
-      state,
+      state: state?.current_user?.id === userId ? state : null,
       loading,
       error,
       language,
@@ -670,6 +687,7 @@ export function WorklyDataProvider({ children }: { children: React.ReactNode }) 
       error,
       language,
       loading,
+      userId,
       notify,
       reload,
       removeTeamMember,

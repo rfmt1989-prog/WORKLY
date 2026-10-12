@@ -9,6 +9,8 @@ starts do not reset operational data or access-control configuration.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from typing import Any
 
@@ -27,6 +29,12 @@ DATABASE_ENV_KEYS = (
     "NEON_POSTGRES_URL",
 )
 
+STATE_TRANSACTION_LOCK = 1464816204
+
+
+class PersistenceUnavailable(RuntimeError):
+    """A configured database could not complete an authoritative operation."""
+
 
 def resolve_database_url() -> str | None:
     for key in DATABASE_ENV_KEYS:
@@ -44,6 +52,7 @@ class PersistenceStore:
         self._memory_memberships: dict[tuple[str, str], dict[str, Any]] = {}
         self._memory_invitations: dict[str, dict[str, Any]] = {}
         self._memory_files: dict[str, dict[str, Any]] = {}
+        self._request_connection: ContextVar[Any] = ContextVar("workly_database_connection", default=None)
 
     @property
     def enabled(self) -> bool:
@@ -66,7 +75,103 @@ class PersistenceStore:
             raise RuntimeError("PostgreSQL is not configured")
         if psycopg is None:
             raise RuntimeError("psycopg is not installed")
-        return psycopg.connect(self.database_url, connect_timeout=5)
+        return psycopg.connect(self.database_url, connect_timeout=5, prepare_threshold=None)
+
+    def _record_failure(self, exc: Exception) -> None:
+        self.connected = False
+        self.last_error = type(exc).__name__
+        if self._request_connection.get() is not None:
+            raise PersistenceUnavailable("Database operation failed") from exc
+
+    @contextmanager
+    def _connection(self):
+        active = self._request_connection.get()
+        if active is not None:
+            yield active
+        else:
+            with self._connect() as conn:
+                conn.execute("SET LOCAL lock_timeout = '8s'")
+                conn.execute("SELECT pg_advisory_xact_lock(%s)", (STATE_TRANSACTION_LOCK,))
+                self._ensure_schema(conn)
+                yield conn
+
+    def begin_request(self, default_state: dict[str, Any]):
+        """Load under a transaction lock before touching the shared snapshot.
+
+        Transaction-level locks work with Neon transaction pooling. Every API
+        request reloads state so independently running functions cannot overwrite
+        a newer account, attendance record or document with their old snapshot.
+        """
+        conn = None
+        try:
+            conn = self._connect()
+            conn.execute("SET LOCAL lock_timeout = '8s'")
+            conn.execute("SET LOCAL statement_timeout = '15s'")
+            conn.execute("SELECT pg_advisory_xact_lock(%s)", (STATE_TRANSACTION_LOCK,))
+            self._ensure_schema(conn)
+            state, users = self._load_snapshot(conn, default_state)
+            self.connected = True
+            self.last_error = None
+            return conn, state, users
+        except Exception as exc:
+            if conn is not None:
+                conn.close()
+            self.connected = False
+            self.last_error = type(exc).__name__
+            raise PersistenceUnavailable("Database unavailable") from exc
+
+    def bind_request(self, conn):
+        return self._request_connection.set(conn)
+
+    def unbind_request(self, token) -> None:
+        self._request_connection.reset(token)
+
+    def finish_request(self, conn, state, users, *, commit: bool, changed: bool) -> None:
+        try:
+            if commit:
+                if changed:
+                    self._save_snapshot(conn, state, users)
+                conn.commit()
+                self.connected = True
+                self.last_error = None
+            else:
+                conn.rollback()
+        except Exception as exc:
+            self.connected = False
+            self.last_error = type(exc).__name__
+            raise PersistenceUnavailable("Database commit failed") from exc
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _load_snapshot(conn, default_state):
+        row = conn.execute("SELECT payload FROM workly_runtime_state WHERE id = 1").fetchone()
+        if row is None:
+            state = deepcopy(default_state)
+            conn.execute("INSERT INTO workly_runtime_state (id, payload) VALUES (1, %s)", (Jsonb(state),))
+        else:
+            state = row[0]
+        user_rows = conn.execute("SELECT email, payload FROM workly_registered_users").fetchall()
+        return deepcopy(state), {str(email): deepcopy(payload) for email, payload in user_rows}
+
+    @staticmethod
+    def _save_snapshot(conn, state, registered_users):
+        conn.execute(
+            """INSERT INTO workly_runtime_state (id, payload, updated_at)
+               VALUES (1, %s, NOW()) ON CONFLICT (id) DO UPDATE
+               SET payload = EXCLUDED.payload, updated_at = NOW()""",
+            (Jsonb(state),),
+        )
+        # Existing identities survive upgrades and independently running clients.
+        # Account deletion is a separate explicit operation, never a snapshot save.
+        if registered_users:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """INSERT INTO workly_registered_users (email, payload, updated_at)
+                       VALUES (%s, %s, NOW()) ON CONFLICT (email) DO UPDATE
+                       SET payload = EXCLUDED.payload, updated_at = NOW()""",
+                    [(email, Jsonb(payload)) for email, payload in registered_users.items()],
+                )
 
     @staticmethod
     def _ensure_schema(conn) -> None:
@@ -165,31 +270,13 @@ class PersistenceStore:
         if not self.enabled:
             return fallback, {}
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
-                row = conn.execute(
-                    "SELECT payload FROM workly_runtime_state WHERE id = 1"
-                ).fetchone()
-                if row is None:
-                    conn.execute(
-                        "INSERT INTO workly_runtime_state (id, payload) VALUES (1, %s)",
-                        (Jsonb(fallback),),
-                    )
-                    state = fallback
-                else:
-                    state = row[0]
-                user_rows = conn.execute(
-                    "SELECT email, payload FROM workly_registered_users"
-                ).fetchall()
-                conn.commit()
+            with self._connection() as conn:
+                state, users = self._load_snapshot(conn, fallback)
             self.connected = True
             self.last_error = None
-            return deepcopy(state), {
-                str(email): deepcopy(payload) for email, payload in user_rows
-            }
+            return state, users
         except Exception as exc:  # keep the public demo available if storage is degraded
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return fallback, {}
 
     def save(
@@ -200,36 +287,13 @@ class PersistenceStore:
         if not self.enabled:
             return False
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
-                conn.execute(
-                    """
-                    INSERT INTO workly_runtime_state (id, payload, updated_at)
-                    VALUES (1, %s, NOW())
-                    ON CONFLICT (id) DO UPDATE
-                    SET payload = EXCLUDED.payload, updated_at = NOW()
-                    """,
-                    (Jsonb(state),),
-                )
-                conn.execute("DELETE FROM workly_registered_users")
-                if registered_users:
-                    conn.executemany(
-                        """
-                        INSERT INTO workly_registered_users (email, payload, updated_at)
-                        VALUES (%s, %s, NOW())
-                        """,
-                        [
-                            (email, Jsonb(payload))
-                            for email, payload in registered_users.items()
-                        ],
-                    )
-                conn.commit()
+            with self._connection() as conn:
+                self._save_snapshot(conn, state, registered_users)
             self.connected = True
             self.last_error = None
             return True
         except Exception as exc:  # preserve availability and expose degraded state in /health
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return False
 
     def reset_access_cache(self) -> None:
@@ -245,8 +309,7 @@ class PersistenceStore:
         if not self.enabled:
             return True
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute(
                     """
                     INSERT INTO workly_files
@@ -275,13 +338,11 @@ class PersistenceStore:
                         record["created_by"],
                     ),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
             return True
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return False
 
     def get_file(self, file_id: str) -> dict[str, Any] | None:
@@ -289,8 +350,7 @@ class PersistenceStore:
             value = self._memory_files.get(file_id)
             return deepcopy(value) if value else None
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 row = conn.execute(
                     """
                     SELECT id, company_id, owner_type, owner_id, file_name, content_type,
@@ -312,8 +372,7 @@ class PersistenceStore:
             self._memory_files[file_id] = deepcopy(value)
             return value
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             value = self._memory_files.get(file_id)
             return deepcopy(value) if value else None
 
@@ -322,16 +381,13 @@ class PersistenceStore:
         if not self.enabled:
             return True
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute("DELETE FROM workly_files WHERE id = %s", (file_id,))
-                conn.commit()
             self.connected = True
             self.last_error = None
             return True
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return False
 
     def upsert_membership(self, membership: dict[str, Any]) -> dict[str, Any]:
@@ -341,8 +397,7 @@ class PersistenceStore:
         if not self.enabled:
             return deepcopy(record)
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute(
                     """
                     INSERT INTO workly_company_memberships
@@ -365,12 +420,10 @@ class PersistenceStore:
                         record.get("status", "active"),
                     ),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
         return deepcopy(record)
 
     def get_membership(self, company_id: str, user_id: str) -> dict[str, Any] | None:
@@ -379,8 +432,7 @@ class PersistenceStore:
             value = self._memory_memberships.get(key)
             return deepcopy(value) if value else None
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 row = conn.execute(
                     """
                     SELECT id, company_id, user_id, email, name, access_role, status
@@ -397,8 +449,7 @@ class PersistenceStore:
             self._memory_memberships[key] = value
             return deepcopy(value)
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             value = self._memory_memberships.get(key)
             return deepcopy(value) if value else None
 
@@ -410,8 +461,7 @@ class PersistenceStore:
                 if stored_company == company_id
             ]
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 rows = conn.execute(
                     """
                     SELECT id, company_id, user_id, email, name, access_role, status
@@ -429,8 +479,7 @@ class PersistenceStore:
                 self._memory_memberships[(company_id, str(value["user_id"]))] = value
             return deepcopy(values)
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return [
                 deepcopy(value)
                 for (stored_company, _), value in self._memory_memberships.items()
@@ -442,19 +491,16 @@ class PersistenceStore:
         if not self.enabled:
             return True
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute(
                     "DELETE FROM workly_company_memberships WHERE company_id = %s AND user_id = %s",
                     (company_id, user_id),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
             return True
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return False
 
     def create_invitation(self, invitation: dict[str, Any]) -> dict[str, Any]:
@@ -463,8 +509,7 @@ class PersistenceStore:
         if not self.enabled:
             return deepcopy(record)
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute(
                     """
                     INSERT INTO workly_company_invitations
@@ -487,12 +532,10 @@ class PersistenceStore:
                         record["expires_at"],
                     ),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
         return deepcopy(record)
 
     def get_invitation(self, token: str) -> dict[str, Any] | None:
@@ -500,8 +543,7 @@ class PersistenceStore:
             value = self._memory_invitations.get(token)
             return deepcopy(value) if value else None
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 row = conn.execute(
                     """
                     SELECT token, company_id, email, name, access_role, status,
@@ -521,8 +563,7 @@ class PersistenceStore:
             self._memory_invitations[token] = value
             return deepcopy(value)
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             value = self._memory_invitations.get(token)
             return deepcopy(value) if value else None
 
@@ -534,8 +575,7 @@ class PersistenceStore:
                 if value.get("company_id") == company_id and value.get("status") == "pending"
             ]
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 rows = conn.execute(
                     """
                     SELECT token, company_id, email, name, access_role, status,
@@ -557,8 +597,7 @@ class PersistenceStore:
                 values.append(value)
             return deepcopy(values)
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return [
                 deepcopy(value)
                 for value in self._memory_invitations.values()
@@ -573,8 +612,7 @@ class PersistenceStore:
         if not self.enabled:
             return bool(value)
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 result = conn.execute(
                     """
                     UPDATE workly_company_invitations
@@ -583,13 +621,11 @@ class PersistenceStore:
                     """,
                     (user_id, token),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
             return result.rowcount > 0
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return bool(value)
 
     def delete_invitation(self, company_id: str, token: str) -> bool:
@@ -599,17 +635,14 @@ class PersistenceStore:
         if not self.enabled:
             return True
         try:
-            with self._connect() as conn:
-                self._ensure_schema(conn)
+            with self._connection() as conn:
                 conn.execute(
                     "DELETE FROM workly_company_invitations WHERE company_id = %s AND token = %s",
                     (company_id, token),
                 )
-                conn.commit()
             self.connected = True
             self.last_error = None
             return True
         except Exception as exc:
-            self.connected = False
-            self.last_error = type(exc).__name__
+            self._record_failure(exc)
             return False

@@ -329,6 +329,7 @@ export type NotificationItem = {
 
 export type WorklyState = {
   current_user?: AuthUser;
+  demo?: { persistence: "memory" | "postgres" };
   version: number;
   generated_at: string;
   workers: Worker[];

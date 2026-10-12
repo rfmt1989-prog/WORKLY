@@ -337,7 +337,7 @@ export function ImmersiveWorkspaceShell() {
             accent={accent}
             onChange={setLanguage}
           />
-          {!compact ? (
+          {!compact && state?.demo?.persistence === "memory" && user.email.endsWith(".demo@workly.app") ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t.resetDemo}

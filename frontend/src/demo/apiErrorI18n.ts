@@ -3,6 +3,9 @@ import type { LanguageCode } from "./types";
 type Row = Record<LanguageCode, string>;
 
 const rows: Record<string, Row> = {
+  "Não foi possível guardar ou consultar os dados. Tente novamente.": {
+    pt: "Não foi possível guardar ou consultar os dados. Tente novamente.", en: "Could not save or retrieve the data. Try again.", fr: "Impossible d’enregistrer ou de consulter les données. Réessayez.", es: "No se pudieron guardar o consultar los datos. Inténtalo de nuevo.", ro: "Datele nu au putut fi salvate sau consultate. Încearcă din nou.", de: "Die Daten konnten nicht gespeichert oder abgerufen werden. Versuche es erneut.", nl: "De gegevens konden niet worden opgeslagen of opgehaald. Probeer opnieuw."
+  },
   "Sessão inválida ou expirada.": {
     pt: "Sessão inválida ou expirada.", en: "Invalid or expired session.", fr: "Session invalide ou expirée.", es: "Sesión no válida o caducada.", ro: "Sesiune invalidă sau expirată.", de: "Ungültige oder abgelaufene Sitzung.", nl: "Ongeldige of verlopen sessie."
   },

@@ -1,14 +1,13 @@
-"""WORKLY demonstration API.
+"""WORKLY API: professional identities, site access and private documents.
 
-The API is intentionally self-contained: it runs locally with Uvicorn and as a
-Vercel FastAPI function. Demo mutations live for the lifetime of the process;
-the Expo client also keeps a versioned local snapshot so browser refreshes keep
-the demonstration state.
+Configured PostgreSQL is authoritative across Vercel function instances. Offline
+development uses an in-memory demo; the client keeps an account-scoped snapshot.
 """
 
 from __future__ import annotations
 
 import base64
+import asyncio
 import binascii
 import hashlib
 import hmac
@@ -24,8 +23,9 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
+from starlette.concurrency import run_in_threadpool
 
 from .demo_data import (
     COMPANY_DEMO_EMAIL,
@@ -42,7 +42,7 @@ from .access_control import (
     role_has_permission,
 )
 from .compliance import evaluate_worker_compliance
-from .persistence import PersistenceStore
+from .persistence import PersistenceStore, PersistenceUnavailable
 from .professional_identity import professional_identity, profession_id
 from .professional_wallet import professional_wallet, wallet_project_compliance
 
@@ -94,38 +94,82 @@ app.add_middleware(
 )
 
 _state_lock = threading.RLock()
+_request_lock = asyncio.Lock()
 _persistence = PersistenceStore()
 _state, _registered_users = _persistence.load(fresh_demo_state())
-if _state.get("demo_generation") != DEMO_GENERATION:
-    _state = fresh_demo_state()
-    _registered_users = {}
-    _persistence.save(_state, _registered_users)
-for _project in _state.get("projects", []):
-    _project.setdefault("tasks", [])
-    _project.setdefault("safety_items", [])
-    _project.setdefault(
-        "costs",
-        {"budget": 0.0, "committed": 0.0, "labour": 0.0, "materials": 0.0},
-    )
+
+
+def _prepare_runtime_state(state, users) -> None:
+    """Add compatible defaults without clearing identities or existing work."""
+    state.setdefault("version", 1)
+    state.setdefault("demo_generation", DEMO_GENERATION)
+    for collection in ("workers", "companies", "projects", "teams", "attendance", "contracts", "notifications"):
+        state.setdefault(collection, [])
+    for worker in state["workers"]:
+        account = users.get(str(worker.get("email") or "").lower(), {})
+        if account.get("registered_at"):
+            worker.setdefault("registered_at", account["registered_at"])
+        for key in ("workly_id", "identity_document_type", "identity_verification_status"):
+            if account.get(key):
+                worker.setdefault(key, account[key])
+    for project in state["projects"]:
+        project.setdefault("tasks", [])
+        project.setdefault("safety_items", [])
+        project.setdefault("costs", {"budget": 0.0, "committed": 0.0, "labour": 0.0, "materials": 0.0})
+
+
+_prepare_runtime_state(_state, _registered_users)
 
 
 @app.middleware("http")
-async def persist_successful_mutations(request, call_next):
-    """Persist successful API mutations without changing endpoint contracts."""
-    response = await call_next(request)
-    if (
-        request.url.path.startswith(API_PREFIX)
-        and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
-        and response.status_code < 400
-    ):
-        with _state_lock:
-            _persistence.save(_state, _registered_users)
-    return response
+async def authoritative_api_request(request, call_next):
+    """Reload, authorize and commit each API request as one durable transaction."""
+    global _state, _registered_users
+    if not (request.url.path == API_PREFIX or request.url.path.startswith(API_PREFIX + "/")):
+        return await call_next(request)
+    await _request_lock.acquire()
+    conn = binding = None
+    original_state = original_users = None
+    try:
+        if _persistence.enabled:
+            conn, state, users = await run_in_threadpool(_persistence.begin_request, fresh_demo_state())
+            binding = _persistence.bind_request(conn)
+            with _state_lock:
+                _state, _registered_users = state, users
+        original_state, original_users = deepcopy(_state), deepcopy(_registered_users)
+        _prepare_runtime_state(_state, _registered_users)
+        denied = _company_permission_error(request)
+        response = denied if denied is not None else await call_next(request)
+        success = response.status_code < 400
+        if conn is not None:
+            active_conn, conn = conn, None
+            await run_in_threadpool(
+                _persistence.finish_request, active_conn, _state, _registered_users,
+                commit=success, changed=_state != original_state or _registered_users != original_users,
+            )
+        if not success:
+            with _state_lock:
+                _state, _registered_users = original_state, original_users
+        return response
+    except PersistenceUnavailable:
+        if original_state is not None:
+            with _state_lock:
+                _state, _registered_users = original_state, original_users
+        return JSONResponse(status_code=503, content={"detail": "Não foi possível guardar ou consultar os dados. Tente novamente."})
+    except BaseException:
+        if original_state is not None:
+            with _state_lock:
+                _state, _registered_users = original_state, original_users
+        raise
+    finally:
+        if binding is not None:
+            _persistence.unbind_request(binding)
+        if conn is not None:
+            await run_in_threadpool(conn.close)
+        _request_lock.release()
 
 
-
-@app.middleware("http")
-async def enforce_company_permissions(request, call_next):
+def _company_permission_error(request):
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith("bearer "):
         try:
@@ -138,9 +182,8 @@ async def enforce_company_permissions(request, call_next):
                 try:
                     _require_company_permission(payload, permission)
                 except HTTPException as exc:
-                    from fastapi.responses import JSONResponse
                     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-    return await call_next(request)
+    return None
 
 
 class LoginInput(BaseModel):
@@ -953,8 +996,39 @@ def bootstrap(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
     with _state_lock:
-        payload = deepcopy(_state)
-        payload["workers"] = [_worker_payload(item) for item in _state["workers"]]
+        if user["role"] == "worker":
+            worker_ids = {str(user["sub"])}
+            company_ids = _company_ids_for_worker(str(user["sub"]))
+            projects = [item for item in _state["projects"] if user["sub"] in item.get("worker_ids", [])]
+            teams = [item for item in _state["teams"] if user["sub"] in item.get("member_ids", [])]
+            attendance = [item for item in _state["attendance"] if item.get("worker_id") == user["sub"]]
+            contracts = [item for item in _state["contracts"] if item.get("worker_id") == user["sub"]]
+            notification_target = user["sub"]
+        else:
+            _require_company_permission(user, "workers.read")
+            company_id = str(user.get("company_id") or "")
+            worker_ids = _company_worker_ids(company_id)
+            company_ids = {company_id}
+            projects = [item for item in _state["projects"] if item.get("company_id") == company_id]
+            teams = [item for item in _state["teams"] if item.get("company_id") == company_id]
+            attendance = [item for item in _state["attendance"] if item.get("company_id") == company_id]
+            contracts = [item for item in _state["contracts"] if item.get("company_id") == company_id]
+            notification_target = company_id
+        companies = deepcopy([item for item in _state["companies"] if item["id"] in company_ids])
+        if user["role"] == "worker":
+            for company in companies:
+                company["documents"] = []
+        payload = {
+            "version": _state["version"],
+            "generated_at": _state.get("generated_at"),
+            "workers": [_worker_payload(item) for item in _state["workers"] if item["id"] in worker_ids],
+            "companies": companies,
+            "projects": deepcopy(projects),
+            "teams": deepcopy(teams),
+            "attendance": deepcopy(attendance),
+            "contracts": deepcopy(contracts),
+            "notifications": deepcopy([item for item in _state.get("notifications", []) if item.get("target_id") == notification_target]),
+        }
     current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user
     payload["current_user"] = _enrich_auth_user(current)
     payload["demo"] = {
@@ -971,7 +1045,10 @@ def bootstrap(
 def reset_demo(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    del user
+    if _persistence.enabled:
+        raise HTTPException(status_code=403, detail="A reposição demo está desativada para proteger os dados permanentes.")
+    if user.get("email") not in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL}:
+        raise HTTPException(status_code=403, detail="Acesso reservado à conta demo.")
     global _state
     with _state_lock:
         _state = fresh_demo_state()
