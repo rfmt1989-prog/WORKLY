@@ -113,7 +113,7 @@ export function WorkerCompetencyTree({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerMark}>
-          <Ionicons name="git-branch-outline" size={20} color="#8BC7FF" />
+          <Ionicons name="git-branch-outline" size={20} color="#D57A60" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
@@ -135,7 +135,7 @@ export function WorkerCompetencyTree({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#7EA9CB"
+              color="#A88F7B"
             />
           </View>
         </View>
@@ -222,7 +222,7 @@ function CompetencySection({
           <Ionicons
             name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
             size={14}
-            color="#7EA9CB"
+            color="#A88F7B"
           />
         </View>
       </Pressable>
@@ -278,7 +278,7 @@ function CompetencySection({
                   <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
                   {item.evidence.some((evidence) => Boolean(evidence.project_id)) ? (
                     <View style={styles.powChip}>
-                      <Ionicons name="link-outline" size={10} color="#78D8A7" />
+                      <Ionicons name="link-outline" size={10} color="#8FAE91" />
                       <Text style={styles.powText}>
                         POW {item.evidence.filter((evidence) => Boolean(evidence.project_id)).length}
                       </Text>
@@ -306,9 +306,9 @@ function LegendItem({ value, label }: { value: string; label: string }) {
 const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
-    borderColor: "#183247",
+    borderColor: "#3A2E28",
     borderRadius: 22,
-    backgroundColor: "#050B11F2",
+    backgroundColor: "#0D0C0BF2",
     padding: 16,
     gap: 18,
   },
@@ -324,40 +324,40 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2D5878",
-    backgroundColor: "#071725",
+    borderColor: "#6A4538",
+    backgroundColor: "#17100E",
     alignItems: "center",
     justifyContent: "center",
   },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
-    color: "#6F90AA",
+    color: "#918275",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   title: {
-    color: "#E6EFF7",
+    color: "#EEE8DE",
     fontSize: 19,
     lineHeight: 25,
     fontWeight: "700",
   },
-  subtitle: { color: "#7E96A9", fontSize: 10, lineHeight: 16 },
-  powChip: { marginLeft: 5, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#2A5B45", backgroundColor: "#091813", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
-  powText: { color: "#78D8A7", fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .4 },
+  subtitle: { color: "#97897D", fontSize: 10, lineHeight: 16 },
+  powChip: { marginLeft: 5, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#536A54", backgroundColor: "#11140F", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  powText: { color: "#8FAE91", fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .4 },
   coverage: { alignItems: "flex-end" },
   coverageValue: {
-    color: "#8BC7FF",
+    color: "#D57A60",
     fontSize: 23,
     lineHeight: 27,
     fontWeight: "700",
   },
   coverageLine: { flexDirection: "row", alignItems: "center", gap: 6 },
-  coverageLabel: { color: "#68849A", fontSize: 9, lineHeight: 13 },
+  coverageLabel: { color: "#82766B", fontSize: 9, lineHeight: 13 },
   section: {
     borderTopWidth: 1,
-    borderTopColor: "#162B3B",
+    borderTopColor: "#302822",
     paddingTop: 14,
     gap: 8,
   },
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     maxWidth: 620,
   },
   sectionCount: {
-    color: "#739AB9",
+    color: "#A28774",
     fontSize: 10,
     lineHeight: 15,
     fontWeight: "700",
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 12,
   },
-  rowPressed: { backgroundColor: "#0C223455" },
+  rowPressed: { backgroundColor: "#4A211955" },
   lane: {
     width: 64,
     alignItems: "center",
@@ -412,9 +412,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#1B3345",
+    backgroundColor: "#392E27",
   },
-  railVerified: { backgroundColor: "#2F6F9B" },
+  railVerified: { backgroundColor: "#9A4A3A" },
   railFirst: { top: 46 },
   railLast: { bottom: 46 },
   rowCopy: {
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   levelLabel: { color: "#6E879C", fontSize: 8, lineHeight: 12 },
   legend: {
     borderTopWidth: 1,
-    borderTopColor: "#162B3B",
+    borderTopColor: "#302822",
     paddingTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
