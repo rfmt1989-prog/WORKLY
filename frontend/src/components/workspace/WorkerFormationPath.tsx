@@ -167,11 +167,9 @@ export function WorkerFormationPath({
 
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
-            I
+            {text("NÍVEL WORKLY", "WORKLY LEVEL")}
           </Text>
-          <Text style={styles.title}>
-            I
-          </Text>
+          <Text style={styles.title}>I</Text>
           <Text style={styles.subtitle}>
             {text(
               "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível I.",
