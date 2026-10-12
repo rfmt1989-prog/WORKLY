@@ -176,12 +176,14 @@ export function WorkerFormationPath({
             {text("NÍVEL WORKLY", "WORKLY LEVEL")}
           </Text>
           <Text style={styles.title}>I</Text>
-          <Text style={styles.subtitle}>
-            {text(
-              "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível I.",
-              "Professional/technological course + internship. Both requirements form level I.",
-            )}
-          </Text>
+          {expanded ? (
+            <Text style={styles.subtitle}>
+              {text(
+                "Curso Profissional/Tecnológico + Estágio. Os dois requisitos formam o nível I.",
+                "Professional/technological course + internship. Both requirements form level I.",
+              )}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.progress}>
