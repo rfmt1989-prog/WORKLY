@@ -28,7 +28,7 @@ export function WorkerCompliancePanel({
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerIcon}>
-          <Ionicons name="shield-checkmark-outline" size={18} color="#D9A184" />
+          <Ionicons name="shield-checkmark-outline" size={18} color="#58798B" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
@@ -48,7 +48,7 @@ export function WorkerCompliancePanel({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#A88F7B"
+              color="#70818B"
             />
           </View>
         </View>
@@ -100,25 +100,25 @@ export function WorkerCompliancePanel({
 }
 
 const styles=StyleSheet.create({
-  panel:{borderWidth:1,borderColor:"#E3DCD2",borderRadius:20,backgroundColor:"#FFFEFC",padding:16,gap:14},
+  panel:{borderWidth:1,borderColor: "#DDE5E8",borderRadius:20,backgroundColor: "#FFFFFF",padding:16,gap:14},
   header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:12},
   headerPressed:{opacity:.78},
-  headerIcon:{width:40,height:40,borderRadius:12,borderWidth:1,borderColor:"#E1C9BB",backgroundColor:"#F8EEE7",alignItems:"center",justifyContent:"center"},
+  headerIcon:{width:40,height:40,borderRadius:12,borderWidth:1,borderColor: "#DDE5E8",backgroundColor: "#E7EFF2",alignItems:"center",justifyContent:"center"},
   headerCopy:{flex:1,minWidth:0,gap:3},
-  eyebrow:{color:"#9B715E",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
-  title:{color:"#293C44",fontSize:17,lineHeight:22,fontWeight:"700"},
-  description:{color:"#738288",fontSize:10,lineHeight:16},
+  eyebrow:{color: "#58798B",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
+  title:{color: "#253842",fontSize:17,lineHeight:22,fontWeight:"700"},
+  description:{color: "#70818B",fontSize:10,lineHeight:16},
   counter:{alignItems:"flex-end"},
-  counterValue:{color:"#B55C43",fontSize:20,lineHeight:24,fontWeight:"700"},
+  counterValue:{color: "#253842",fontSize:20,lineHeight:24,fontWeight:"700"},
   counterLine:{flexDirection:"row",alignItems:"center",gap:6},
-  counterLabel:{color:"#738288",fontSize:8,lineHeight:12},
+  counterLabel:{color: "#70818B",fontSize:8,lineHeight:12},
   grid:{flexDirection:"row",flexWrap:"wrap",gap:8},
-  item:{width:"100%",minHeight:76,flexDirection:"row",alignItems:"center",gap:11,borderWidth:1,borderColor:"#E3DDD3",borderRadius:13,backgroundColor:"#FBFAF6",padding:10},
-  itemVerified:{borderColor:"#B9DCC6",backgroundColor:"#F1F8F1"},
+  item:{width:"100%",minHeight:76,flexDirection:"row",alignItems:"center",gap:11,borderWidth:1,borderColor: "#DDE5E8",borderRadius:13,backgroundColor: "#FFFFFF",padding:10},
+  itemVerified:{borderColor: "#B8CDD7",backgroundColor: "#E7EFF2"},
   itemPressed:{opacity:.75},
   itemCopy:{flex:1,minWidth:0,gap:3},
-  itemTitle:{color:"#2B4149",fontSize:11,lineHeight:16,fontWeight:"600"},
-  itemScope:{color:"#647C83",fontSize:8,lineHeight:12},
-  note:{flexDirection:"row",gap:8,borderTopWidth:1,borderTopColor:"#E4DDD4",paddingTop:12},
-  noteText:{flex:1,color:"#738288",fontSize:9,lineHeight:14},
+  itemTitle:{color: "#253842",fontSize:11,lineHeight:16,fontWeight:"600"},
+  itemScope:{color: "#70818B",fontSize:8,lineHeight:12},
+  note:{flexDirection:"row",gap:8,borderTopWidth:1,borderTopColor: "#DDE5E8",paddingTop:12},
+  noteText:{flex:1,color: "#70818B",fontSize:9,lineHeight:14},
 });
