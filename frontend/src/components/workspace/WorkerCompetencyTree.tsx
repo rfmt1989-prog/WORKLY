@@ -276,6 +276,14 @@ function CompetencySection({
                   <Text style={styles.summaryDot}>·</Text>
                   <Text style={styles.evidenceCount}>{item.evidenceCount}</Text>
                   <Text style={styles.evidenceLabel}>{text("provas", "evidence")}</Text>
+                  {item.evidence.some((evidence) => Boolean(evidence.project_id)) ? (
+                    <View style={styles.powChip}>
+                      <Ionicons name="link-outline" size={10} color="#78D8A7" />
+                      <Text style={styles.powText}>
+                        POW {item.evidence.filter((evidence) => Boolean(evidence.project_id)).length}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             </Pressable>
@@ -336,6 +344,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   subtitle: { color: "#7E96A9", fontSize: 10, lineHeight: 16 },
+  powChip: { marginLeft: 5, flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#2A5B45", backgroundColor: "#091813", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  powText: { color: "#78D8A7", fontSize: 7, lineHeight: 10, fontWeight: "800", letterSpacing: .4 },
   coverage: { alignItems: "flex-end" },
   coverageValue: {
     color: "#8BC7FF",
