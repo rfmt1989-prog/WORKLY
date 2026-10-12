@@ -18,6 +18,8 @@ import unicodedata
 from datetime import date, datetime
 from typing import Any
 
+from .professional_wallet import wallet_attendance
+
 
 PROFESSION_MATCHES = {
     "electromechanics": (
@@ -438,7 +440,7 @@ def professional_identity(
 
     today = today or date.today()
     area = profession_id(str(worker.get("profession", "")))
-    attendance = attendance or []
+    attendance = wallet_attendance(worker, attendance or [])
     verified_projects = _verified_projects(worker, projects, attendance, area)
     verified_experience_hours = _approved_attendance_hours(worker["id"], attendance)
 

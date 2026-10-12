@@ -44,6 +44,7 @@ from .access_control import (
 from .compliance import evaluate_worker_compliance
 from .persistence import PersistenceStore
 from .professional_identity import professional_identity, profession_id
+from .professional_wallet import professional_wallet, wallet_project_compliance
 
 
 API_PREFIX = "/api"
@@ -57,7 +58,7 @@ ALLOWED_DOCUMENT_CONTENT_TYPES = {
 }
 ALLOWED_DOCUMENT_CATEGORIES = {
     "identity", "insurance", "medical", "safety", "technical",
-    "planning", "legal", "license", "other"
+    "planning", "legal", "license", "work_permit", "employment", "other"
 }
 _configured_token_secret = os.getenv("WORKLY_TOKEN_SECRET", "").strip()
 if os.getenv("VERCEL_ENV") == "production" and len(_configured_token_secret) < 32:
@@ -242,6 +243,11 @@ class FileUploadInput(BaseModel):
     content_base64: str = Field(min_length=1, max_length=3_000_000)
 
 
+class DocumentVerificationInput(BaseModel):
+    status: str = Field(max_length=20)
+    fitness_decision: str | None = Field(default=None, max_length=20)
+
+
 def _b64encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
@@ -332,7 +338,11 @@ def _public_auth_user(user: dict[str, Any]) -> dict[str, Any]:
 
 def _worker_payload(worker: dict[str, Any]) -> dict[str, Any]:
     payload = deepcopy(worker)
+    compact_id = "".join(char for char in worker["id"] if char.isalnum()).upper()
+    payload["workly_id"] = worker.get("workly_id") or ("WLY-W-000001" if worker["id"] == "worker-1" else "WLY-W-" + compact_id[-8:].zfill(8))
     payload["professional_identity"] = professional_identity(worker, _state["projects"], _state["attendance"])
+    payload["professional_wallet"] = professional_wallet(worker, _state["projects"], _state["attendance"])
+    payload["work_eligibility_status"] = payload["professional_wallet"]["eligibility_status"]
     return payload
 
 
@@ -758,6 +768,7 @@ def register(data: RegisterInput) -> dict[str, Any]:
         "title": "" if role == "worker" else "Utilizador da empresa",
         "trust_score": 0.0 if role == "worker" else 5.0,
         "productivity_score": 0.0 if role == "worker" else 5.0,
+        "registered_at": _now_iso(),
         "password_record": _password_record(data.password),
     }
     if role == "worker":
@@ -1016,7 +1027,7 @@ def update_worker(
             raise HTTPException(status_code=403, detail="Só pode editar o seu perfil.")
     else:
         _assert_worker_visible(user, worker_id)
-    if {"professional_identity", "professional_score", "level", "level_progress"} & patch.data.keys():
+    if {"professional_identity", "professional_wallet", "professional_score", "level", "level_progress", "work_eligibility_status", "registered_at", "workly_id"} & patch.data.keys():
         raise HTTPException(status_code=422, detail="O nível e a pontuação são calculados pela Workly.")
     if user["role"] == "worker" and {"trust_score", "productivity_score", "rating"} & patch.data.keys():
         raise HTTPException(status_code=403, detail="As avaliações profissionais não podem ser atribuídas pelo próprio worker.")
@@ -1613,7 +1624,7 @@ def compliance_center(
                 )
                 if not worker:
                     continue
-                evaluation = evaluate_worker_compliance(worker, project)
+                evaluation = wallet_project_compliance(worker, project)
                 rows.append(
                     {
                         **evaluation,
@@ -1681,7 +1692,9 @@ def check_in(
         project = _find("projects", project_id)
         if user["sub"] not in project.get("worker_ids", []):
             raise HTTPException(status_code=403, detail="Trabalhador não atribuído a esta obra.")
-        compliance = evaluate_worker_compliance(worker, project)
+        if project.get("status") != "active":
+            raise HTTPException(status_code=422, detail="A obra tem de estar ativa para fazer check-in.")
+        compliance = wallet_project_compliance(worker, project)
         if not compliance["fit_for_check_in"]:
             issue = next(
                 (item for item in compliance["issues"] if item["severity"] == "blocked"),
@@ -1904,7 +1917,7 @@ def upload_document_file(
         "title": data.title.strip(),
         "category": category,
         "file_name": safe_name,
-        "status": "valid",
+        "status": "pending" if owner_type == "worker" else "valid",
         "updated_at": _now_iso(),
         "demo_content": "Ficheiro real armazenado de forma autenticada na WORKLY.",
         "file_id": file_id,
@@ -1916,6 +1929,33 @@ def upload_document_file(
     with _state_lock:
         _owner_document_list(owner_type, owner_id).insert(0, document)
     return {"document": deepcopy(document)}
+
+
+@app.patch(f"{API_PREFIX}/files/{{file_id}}/verification", tags=["Documents"])
+def verify_document_file(
+    file_id: str,
+    data: DocumentVerificationInput,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    _require_role(user, "company")
+    _require_company_permission(user, "documents.manage")
+    if data.status not in {"verified", "rejected"}:
+        raise HTTPException(status_code=422, detail="Estado de validação inválido.")
+    stored = _persistence.get_file(file_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
+    _authorize_file_owner(user, str(stored["owner_type"]), str(stored["owner_id"]), manage=True)
+    with _state_lock:
+        found = _find_document_by_file_id(file_id)
+        if not found:
+            raise HTTPException(status_code=404, detail="Documento não encontrado.")
+        document = found[1]
+        if document.get("category") == "medical" and data.status == "verified":
+            if data.fitness_decision not in {"fit", "conditional", "unfit"}:
+                raise HTTPException(status_code=422, detail="Indique o resultado da ficha de aptidão emitida pelo médico do trabalho.")
+            document["fitness_decision"] = data.fitness_decision
+        document.update({"status": data.status, "verified_by": user["sub"], "verified_at": _now_iso(), "updated_at": _now_iso()})
+        return {"document": deepcopy(document)}
 
 
 @app.get(f"{API_PREFIX}/files/{{file_id}}/content", tags=["Documents"])

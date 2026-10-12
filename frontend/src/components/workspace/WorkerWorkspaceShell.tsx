@@ -29,6 +29,7 @@ type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type WorkerNavLabels = {
   profile: string;
   journey: string;
+  attendance: string;
   projects: string;
   documents: string;
   worker: string;
@@ -39,6 +40,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   pt: {
     profile: "Perfil",
     journey: "Percurso",
+    attendance: "Check-in",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABALHADOR",
@@ -47,6 +49,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   en: {
     profile: "Profile",
     journey: "Journey",
+    attendance: "Check-in",
     projects: "Projects",
     documents: "Documents",
     worker: "WORKER",
@@ -55,6 +58,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   fr: {
     profile: "Profil",
     journey: "Parcours",
+    attendance: "Pointage",
     projects: "Chantiers",
     documents: "Documents",
     worker: "TRAVAILLEUR",
@@ -63,6 +67,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   es: {
     profile: "Perfil",
     journey: "Trayectoria",
+    attendance: "Fichaje",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABAJADOR",
@@ -71,6 +76,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   ro: {
     profile: "Profil",
     journey: "Parcurs",
+    attendance: "Pontaj",
     projects: "Șantiere",
     documents: "Documente",
     worker: "LUCRĂTOR",
@@ -79,6 +85,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   de: {
     profile: "Profil",
     journey: "Laufbahn",
+    attendance: "Zeiterfassung",
     projects: "Baustellen",
     documents: "Dokumente",
     worker: "MITARBEITER",
@@ -87,6 +94,7 @@ const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   nl: {
     profile: "Profiel",
     journey: "Traject",
+    attendance: "Registratie",
     projects: "Projecten",
     documents: "Documenten",
     worker: "WERKNEMER",
@@ -127,6 +135,7 @@ export function WorkerWorkspaceShell() {
   }[] = [
     { id: "profile", label: labels.profile, icon: "person-outline" },
     { id: "journey", label: labels.journey, icon: "git-branch-outline" },
+    { id: "attendance", label: labels.attendance, icon: "location-outline" },
     { id: "projects", label: labels.projects, icon: "business-outline" },
     { id: "documents", label: labels.documents, icon: "folder-open-outline" },
   ];
@@ -147,6 +156,8 @@ export function WorkerWorkspaceShell() {
             mode="profile"
             onOpenJourney={() => setActiveSection("journey")}
             onOpenAttendance={() => setActiveSection("attendance")}
+            onOpenProjects={() => setActiveSection("projects")}
+            onOpenDocuments={() => setActiveSection("documents")}
           />
         );
     }

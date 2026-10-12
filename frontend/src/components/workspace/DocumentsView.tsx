@@ -19,6 +19,8 @@ import { uiFormat, uiText } from "@/src/demo/localizedUi";
 import type { DemoDocument, Project } from "@/src/demo/types";
 
 import { DocumentUploadButton } from "./DocumentUploadButton";
+import { WorkerDocumentVerification } from "./WorkerDocumentVerification";
+import { walletText } from "./walletI18n";
 
 import {
   Button,
@@ -44,6 +46,7 @@ type ViewerItem = {
   meta: string[];
   fileId?: string;
   realFile?: boolean;
+  document?: DemoDocument;
 };
 
 function projectFallbackDocuments(
@@ -138,6 +141,8 @@ function categoryLabel(category: string, language: import("@/src/demo/types").La
     license: ["Licença", "License"],
   };
   const item = labels[category];
+  if (category === "work_permit") return walletText(language, "permitDoc");
+  if (category === "employment") return walletText(language, "employmentDoc");
   return item ? uiText(language, item[0], item[1]) : category;
 }
 
@@ -357,6 +362,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
       ],
       fileId: document.file_id,
       realFile: Boolean(document.file_id),
+      document,
     });
   };
 
@@ -1011,6 +1017,7 @@ export function DocumentsView({ mode = "archive" }: { mode?: DocumentsMode }) {
               </View>
             ))}
           </View>
+          {viewer?.document ? <WorkerDocumentVerification document={viewer.document} language={language} onSaved={() => setViewer(null)} /> : null}
           <View style={styles.demoNotice}>
             <Ionicons
               name={viewer?.realFile ? "shield-checkmark-outline" : "information-circle-outline"}

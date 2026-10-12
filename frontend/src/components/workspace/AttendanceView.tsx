@@ -28,6 +28,7 @@ import {
   workspaceColors,
 } from "./primitives";
 import { TimesheetStatus, timesheetStatus } from "./TimesheetStatus";
+import { requirementTitle, walletText } from "./walletI18n";
 
 const DEFAULT_GEOFENCE_RADIUS_M = 250;
 
@@ -305,9 +306,13 @@ export function AttendanceView() {
     (item) => item.worker_id === user.id && item.check_out === null,
   );
   const currentProject =
+    relevantProjects.find((project) => project.id === active?.project_id) ??
     relevantProjects.find((project) => project.id === selectedProjectId) ??
     relevantProjects.find((project) => project.id === worker?.current_project_id) ??
     relevantProjects[0];
+  const readiness = worker?.professional_wallet?.site_evaluations.find(item => item.project_id === currentProject?.id);
+  const blockedItems = readiness?.items.filter(item => item.status !== "verified" && item.status !== "expiring") || [];
+  const checkInBlocked = Boolean(currentProject && (currentProject.status !== "active" || !readiness?.fit_for_check_in));
   const shiftDate = nextShiftDate(language);
   const activeLocation = active
     ? geofenceFor(
@@ -534,10 +539,11 @@ export function AttendanceView() {
             }
             icon={active ? "exit-outline" : "shield-checkmark-outline"}
             accent={active ? workspaceColors.green : accent}
-            disabled={!active && !currentProject}
+            disabled={!active && (!currentProject || checkInBlocked)}
             loading={busy}
             onPress={toggle}
           />
+          {!active && currentProject && checkInBlocked ? <View testID="attendance-document-blockers" style={{ gap: 5 }}><Text style={{ color: workspaceColors.yellow, fontSize: 12, lineHeight: 18 }}>{walletText(language, currentProject.status !== "active" ? "siteInactive" : "pending")}</Text>{blockedItems.map(item => <Text key={`${item.kind}:${item.requirement}`} style={sharedStyles.subtitle}>· {requirementTitle(language, item)}</Text>)}</View> : null}
         </Card>
 
         <Card style={{ flex: 0.9, minWidth: compact ? undefined : 320 }}>

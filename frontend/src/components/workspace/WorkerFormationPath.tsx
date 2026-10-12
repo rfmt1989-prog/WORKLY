@@ -90,6 +90,8 @@ function evidenceFor(
 
 function statusFor(evidence?: Certificate): AchievementStatus {
   if (!evidence) return "available";
+  const today = new Date().toISOString().slice(0, 10);
+  if (evidence.status === "expired" || evidence.status === "rejected" || (evidence.expires_at && evidence.expires_at < today) || (evidence.issued_at && evidence.issued_at > today)) return "pending";
   if (evidence.status === "verified") return "verified";
   if (evidence.status === "pending") return "pending";
   return "recorded";

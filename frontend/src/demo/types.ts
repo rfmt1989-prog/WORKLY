@@ -75,6 +75,40 @@ export type DemoDocument = {
   content_type?: string;
   size_bytes?: number;
   expires_at?: string;
+  verified_by?: string;
+  verified_at?: string;
+  fitness_decision?: "fit" | "conditional" | "unfit";
+};
+
+export type WalletRequirement = {
+  kind: "document" | "certificate";
+  requirement: string;
+  label: string;
+  status: "missing" | "pending" | "verified" | "expiring" | "expired" | "rejected" | "invalid" | "conditional" | "unfit";
+  document_id: string | null;
+  file_id: string | null;
+  file_name: string | null;
+  expires_at: string | null;
+  days_remaining: number | null;
+};
+
+export type ProfessionalWallet = {
+  status: "pending" | "ready" | "fit" | "blocked";
+  eligibility_status: WorkEligibilityStatus;
+  scope: "base" | "project";
+  project_id: string | null;
+  fit_for_check_in: boolean;
+  requirements: WalletRequirement[];
+  valid_count: number;
+  total_count: number;
+  registered_at: string | null;
+  verified_hours: number;
+  pending_hours: number;
+  check_in_count: number;
+  completed_projects: number;
+  active_attendance_id: string | null;
+  check_in_at: string | null;
+  site_evaluations: { project_id: string; fit_for_check_in: boolean; status: string; items: WalletRequirement[] }[];
 };
 
 export type BestProject = {
@@ -156,6 +190,8 @@ export type Worker = {
   current_project_id: string | null;
   schedule: string;
   professional_identity?: ProfessionalIdentity;
+  professional_wallet?: ProfessionalWallet;
+  registered_at?: string;
 };
 
 export type Company = {

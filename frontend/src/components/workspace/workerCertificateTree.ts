@@ -435,7 +435,7 @@ export function buildSpecialtyTree(
       subtitle: specialty.description,
       icon: specialty.icon,
       status,
-      stage: specialty.minScore >= 60 ? "master" : "responsibility",
+      stage: specialty.minScore >= 60 ? "master" as const : "responsibility" as const,
       family: "extra-specialty",
       scope: "Especialização técnica adicional",
       certificate: evidence,

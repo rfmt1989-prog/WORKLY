@@ -17,6 +17,8 @@ import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
 import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
 import { WorkerFormationPath } from "./WorkerFormationPath";
 import { WorkerEvidenceScoreCard } from "./WorkerEvidenceScoreCard";
+import { WorkerWalletOverview } from "./WorkerWalletOverview";
+import { walletText } from "./walletI18n";
 import { exportWorkerProfilePdf } from "./workerProfilePdf";
 import { assessWorkerCompetence } from "./workerCompetencyEngine";
 import { evidenceTypeDefinition } from "./competencyEvidenceModel";
@@ -30,10 +32,14 @@ export function WorkerProfileView({
   mode = "combined",
   onOpenJourney,
   onOpenAttendance,
+  onOpenProjects,
+  onOpenDocuments,
 }: {
   mode?: "combined" | "profile" | "journey";
   onOpenJourney?: () => void;
   onOpenAttendance?: () => void;
+  onOpenProjects?: () => void;
+  onOpenDocuments?: () => void;
 }) {
   const { user } = useAuth();
   const { state, language, error, notify } = useWorklyData();
@@ -57,18 +63,8 @@ export function WorkerProfileView({
   const primaryTree = trees[0];
   const professionDefinition = findProfessionDefinition(worker.profession);
   const worklyId = worker.workly_id || formatWorklyId(worker.id);
-  const eligibilityStatus =
-    worker.work_eligibility_status ||
-    (worker.id === "worker-1" ? "eligible" : "pending");
-  const eligibilityLabel =
-    eligibilityStatus === "eligible"
-      ? text("Apto para trabalhar", "Eligible to work")
-      : eligibilityStatus === "not_eligible"
-        ? text("Não apto para trabalhar", "Not eligible to work")
-        : text(
-            "Aptidão a aguardar validação",
-            "Eligibility pending verification",
-          );
+  const eligibilityStatus = worker.professional_wallet?.eligibility_status || "pending";
+  const eligibilityLabel = walletText(language, worker.professional_wallet?.status || "pending");
 
   const exportPdf = async () => {
     if (exportingPdf) return;
@@ -98,18 +94,19 @@ export function WorkerProfileView({
             <View
               style={[
                 styles.identity,
+                mode === "profile" && !compact && styles.identityProfile,
                 compact && styles.identityCompact,
-                mode === "profile" && styles.identityProfile,
               ]}
               testID="worker-identification"
             >
               <View style={styles.identityHeading}>
                 <Text style={styles.eyebrow}>
-                  {text("Identidade profissional", "Professional identity")}
+                  {walletText(language, "wallet")}
                 </Text>
                 <Text style={[styles.name, compact && styles.nameCompact]}>
                   {worker.name || text("Nome por definir", "Name not set")}
                 </Text>
+                <Text style={styles.walletSubtitle}>{walletText(language, "identity")}</Text>
               </View>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -176,19 +173,6 @@ export function WorkerProfileView({
               {mode === "profile" ? (
                 <View style={styles.profileActions}>
                   <Button
-                    label={text("Abrir percurso", "Open journey")}
-                    icon="git-branch-outline"
-                    onPress={onOpenJourney || (() => {})}
-                    style={styles.profileActionButton}
-                  />
-                  <Button
-                    label={text("Check-in / Pontos", "Check-in")}
-                    icon="location-outline"
-                    variant="secondary"
-                    onPress={onOpenAttendance || (() => {})}
-                    style={styles.profileActionButton}
-                  />
-                  <Button
                     label={text("Exportar PDF", "Export PDF")}
                     icon="document-text-outline"
                     variant="secondary"
@@ -198,8 +182,10 @@ export function WorkerProfileView({
                   />
                 </View>
               ) : null}
+              {worker.registered_at ? <Text style={styles.walletSubtitle}>{walletText(language, "enrolled")} {new Date(worker.registered_at).toLocaleDateString(language === "pt" ? "pt-PT" : language)}</Text> : null}
             </View>
           ) : null}
+          {mode === "profile" ? <WorkerWalletOverview worker={worker} assessment={competencyAssessment} language={language} onOpenJourney={onOpenJourney} onOpenAttendance={onOpenAttendance} onOpenProjects={onOpenProjects} onOpenDocuments={onOpenDocuments} onFormationNode={setSelected} /> : null}
           {mode !== "profile" ? <View style={styles.main}>
             <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
               <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
@@ -557,7 +543,8 @@ const styles = StyleSheet.create({
   layout: { width: "100%", maxWidth: 1600, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 28 },
   layoutCompact: { flexDirection: "column", gap: 24 },
   layoutJourney: { maxWidth: 1180 },
-  identityProfile: { width: "100%", maxWidth: 720, alignSelf: "center" },
+  identityProfile: { width: 320, maxWidth: "100%" },
+  walletSubtitle: { color: "#849EB3", fontSize: 11, lineHeight: 18, marginTop: 9 },
   profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
   profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   profileActionButton: { minWidth: 170, flexGrow: 1 },

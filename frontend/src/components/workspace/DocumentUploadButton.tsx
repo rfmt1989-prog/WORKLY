@@ -12,6 +12,7 @@ import { useWorklyData } from "@/src/context/WorklyDataContext";
 import type { LanguageCode } from "@/src/demo/types";
 
 import { Button, Field, ModalPanel, workspaceColors } from "./primitives";
+import { walletText } from "./walletI18n";
 
 const CATEGORIES = [
   "identity",
@@ -22,6 +23,8 @@ const CATEGORIES = [
   "planning",
   "legal",
   "license",
+  "work_permit",
+  "employment",
   "other",
 ] as const;
 
@@ -41,18 +44,26 @@ export function DocumentUploadButton({
   language,
   accent,
   disabled = false,
+  initialCategory,
+  initialTitle,
+  label,
+  onSaved,
 }: {
   ownerType: "worker" | "company" | "project";
   ownerId: string;
   language: LanguageCode;
   accent: string;
   disabled?: boolean;
+  initialCategory?: string;
+  initialTitle?: string;
+  label?: string;
+  onSaved?: () => void;
 }) {
   const { reload, notify } = useWorklyData();
   const text = LABELS[language];
   const [file, setFile] = useState<PickedWorklyFile | null>(null);
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<string>(ownerType === "project" ? "technical" : "other");
+  const [category, setCategory] = useState<string>(initialCategory || (ownerType === "project" ? "technical" : "other"));
   const [expiresAt, setExpiresAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +75,8 @@ export function DocumentUploadButton({
       const picked = await pickWorklyFile();
       if (!picked) return;
       setFile(picked);
-      setTitle(picked.name.replace(/\.[^.]+$/, ""));
+      setTitle(initialTitle || picked.name.replace(/\.[^.]+$/, ""));
+      setCategory(initialCategory || (ownerType === "project" ? "technical" : "other"));
     } catch (caught) {
       const message = caught instanceof Error && caught.message === "WORKLY_FILE_TOO_LARGE" ? text.tooLarge : text.failed;
       setError(message);
@@ -99,7 +111,10 @@ export function DocumentUploadButton({
       });
       await reload(true);
       notify(text.upload, "success");
-      close();
+      setFile(null);
+      setTitle("");
+      setExpiresAt("");
+      onSaved?.();
     } catch {
       setError(text.failed);
       notify(text.failed, "error");
@@ -110,7 +125,7 @@ export function DocumentUploadButton({
 
   return (
     <>
-      <Button compact label={text.add} icon="cloud-upload-outline" accent={accent} disabled={disabled} onPress={() => void choose()} />
+      <Button compact label={label || text.add} icon="cloud-upload-outline" accent={accent} disabled={disabled} onPress={() => void choose()} />
       <ModalPanel
         visible={Boolean(file)}
         onClose={close}
@@ -137,7 +152,7 @@ export function DocumentUploadButton({
                 ]}
               >
                 <Ionicons name={item === "safety" ? "shield-checkmark-outline" : item === "medical" ? "medkit-outline" : "document-outline"} size={14} color={category === item ? accent : workspaceColors.muted} />
-                <Text style={[styles.categoryText, category === item ? { color: accent } : null]}>{text[item]}</Text>
+                <Text style={[styles.categoryText, category === item ? { color: accent } : null]}>{item === "work_permit" ? walletText(language, "permitDoc") : item === "employment" ? walletText(language, "employmentDoc") : text[item]}</Text>
               </Pressable>
             ))}
           </View>

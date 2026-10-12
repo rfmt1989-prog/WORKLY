@@ -193,6 +193,10 @@ export function assessWorkerCompetence(
   projects: Project[],
   attendance: Attendance[] = [],
 ): WorkerCompetencyAssessment | null {
+  if (worker.registered_at) {
+    const enrolled = Date.parse(worker.registered_at);
+    attendance = attendance.filter(item => Date.parse(item.check_in) >= enrolled);
+  }
   const profession = findProfessionDefinition(worker.profession);
   if (!profession) return null;
   const profile = competencyProfileFor(profession.id);
@@ -337,7 +341,7 @@ export function assessWorkerCompetence(
       confidencePoints,
   );
 
-  let achieved = worklyLevelGates[0];
+  let achieved: (typeof worklyLevelGates)[number] = worklyLevelGates[0];
   for (const gate of worklyLevelGates) {
     const eligible =
       score >= gate.minimum &&
