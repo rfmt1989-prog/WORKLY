@@ -33,9 +33,11 @@ export function WorkerSpecialtyTree({
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>{text("DESENVOLVIMENTO TÉCNICO", "TECHNICAL DEVELOPMENT")}</Text>
           <Text style={styles.title}>{text(tree.title, tree.titleEn)}</Text>
-          <Text style={styles.description}>
-            {text(tree.description, tree.descriptionEn)}
-          </Text>
+          {expanded ? (
+            <Text style={styles.description}>
+              {text(tree.description, tree.descriptionEn)}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.count}>
           <Text style={styles.countValue}>{tree.unlockedCount}</Text>
