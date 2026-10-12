@@ -450,6 +450,8 @@ function WorkerDetails({
   const canVerify = user?.permissions?.includes("workers.manage") === true;
   const [confirmation, setConfirmation] = useState<{ kind: "certificate" | "project"; id: string; title: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const projectForEvidence = (projectId?: string) =>
+    projectId ? projects.find((project) => project.id === projectId) : undefined;
   const openEvidence = async (fileId: string) => {
     try { await openWorklyFile(fileId); }
     catch { notify(uiText(language, "Não foi possível abrir o comprovativo.", "Could not open evidence."), "error"); }
@@ -541,14 +543,37 @@ function WorkerDetails({
                 <View style={{ flex: 1 }}>
                   <Text style={styles.detailLabel}>{localizeDemoText(language, certificate.name)}</Text>
                   <Text style={styles.workerLocation}>
-                    {certificate.issuer} · {certificate.expires_at}
+                    {certificate.issuer || "—"}{certificate.expires_at ? ` · ${certificate.expires_at}` : ""}
                   </Text>
-                  <Text style={styles.workerLocation}>{certificate.status === "verified" ? uiText(language, "Verificado", "Verified") : uiText(language, "A validar", "Pending verification")}</Text>
+                  {certificate.project_id ? (
+                    <View style={styles.proofRow}>
+                      <Ionicons name="link-outline" size={12} color={workspaceColors.green} />
+                      <Text style={styles.proofText}>
+                        PROOF OF WORK · {projectForEvidence(certificate.project_id)?.name || certificate.project_id}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.workerLocation}>
+                    {certificate.status === "verified"
+                      ? uiText(language, "Validado pela empresa", "Employer verified")
+                      : uiText(language, "A validar", "Pending verification")}
+                  </Text>
                 </View>
-                {certificate.file_id ? <View style={{ gap: 8 }}>
-                  <Button compact variant="ghost" label={uiText(language, "Consultar", "Open")} onPress={() => { if (certificate.file_id) void openEvidence(certificate.file_id); }} />
-                  {canVerify && certificate.status !== "verified" ? <Button compact variant="secondary" label={uiText(language, "Confirmar", "Confirm")} onPress={() => setConfirmation({ kind: "certificate", id: certificate.id, title: certificate.name })} /> : null}
-                </View> : null}
+                {certificate.file_id || certificate.project_id ? (
+                  <View style={{ gap: 8 }}>
+                    {certificate.file_id ? (
+                      <Button compact variant="ghost" label={uiText(language, "Consultar", "Open")} onPress={() => { if (certificate.file_id) void openEvidence(certificate.file_id); }} />
+                    ) : null}
+                    {canVerify && certificate.status !== "verified" ? (
+                      <Button
+                        compact
+                        variant="secondary"
+                        label={certificate.project_id ? uiText(language, "Validar Proof of Work", "Verify Proof of Work") : uiText(language, "Confirmar", "Confirm")}
+                        onPress={() => setConfirmation({ kind: "certificate", id: certificate.id, title: certificate.name })}
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
@@ -852,6 +877,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: "600",
   },
+  proofRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  proofText: { color: workspaceColors.green, fontSize: 9, lineHeight: 13, fontWeight: "700", letterSpacing: .4 },
   workerLocation: {
     color: workspaceColors.muted,
     fontSize: 10,
