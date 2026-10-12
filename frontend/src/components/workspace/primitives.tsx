@@ -19,24 +19,24 @@ import { Image } from "expo-image";
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
 
 export const workspaceColors = {
-  background: "#090908",
-  backgroundElevated: "#0D0D0C",
-  panel: "#12110F",
-  panelStrong: "#181613",
-  panelSoft: "#0E0D0C",
-  line: "#2A2722",
-  lineStrong: "#484038",
-  text: "#EEE8DE",
-  textSoft: "#C8C0B4",
-  muted: "#827A70",
-  blue: "#B84A3A",
-  blueSoft: "#D57A60",
-  red: "#7E2D27",
-  redSoft: "#D66D5E",
-  green: "#79A98B",
-  yellow: "#C9A15E",
-  orange: "#B96B43",
-  shadow: "#000000",
+  background: "#F6F7F8",
+  backgroundElevated: "#FFFFFF",
+  panel: "#FFFFFF",
+  panelStrong: "#F1F4F5",
+  panelSoft: "#F8FAFA",
+  line: "#DEE5E7",
+  lineStrong: "#CBD7DC",
+  text: "#253842",
+  textSoft: "#536872",
+  muted: "#71838C",
+  blue: "#58798B",
+  blueSoft: "#7090A0",
+  red: "#A96E6E",
+  redSoft: "#A96E6E",
+  green: "#587C71",
+  yellow: "#9B8966",
+  orange: "#A08772",
+  shadow: "#263844",
 };
 
 export function roleAccent(role: UserRole) {
@@ -115,26 +115,20 @@ export function Button({
   testID?: string;
   style?: ViewStyle | ViewStyle[];
 }) {
+  // Neutral, high-contrast actions. Primary actions never use filled dark surfaces.
   const backgroundColor =
-    variant === "primary"
-      ? accent
-      : variant === "danger"
-        ? `${workspaceColors.red}22`
-        : variant === "secondary"
-          ? workspaceColors.panelStrong
-          : "transparent";
+    variant === "primary" ? `${accent}16`
+      : variant === "danger" ? "#FAF3F3"
+      : variant === "secondary" ? "#FFFFFF"
+      : "transparent";
   const borderColor =
-    variant === "danger"
-      ? `${workspaceColors.red}88`
-      : variant === "primary"
-        ? accent
-        : workspaceColors.lineStrong;
+    variant === "primary" ? `${accent}65`
+      : variant === "danger" ? "#E7D5D5"
+      : workspaceColors.lineStrong;
   const color =
-    variant === "danger"
-      ? workspaceColors.redSoft
-      : variant === "primary"
-        ? "#FFFFFF"
-        : workspaceColors.textSoft;
+    variant === "primary" ? accent
+      : variant === "danger" ? workspaceColors.red
+      : workspaceColors.text;
 
   return (
     <Pressable
@@ -546,7 +540,7 @@ const styles = StyleSheet.create({
     backgroundColor: workspaceColors.panel,
     borderWidth: 1,
     borderColor: workspaceColors.line,
-    borderRadius: 6,
+    borderRadius: 16,
     padding: 18,
     shadowColor: workspaceColors.shadow,
     shadowOpacity: Platform.OS === "web" ? 0.16 : 0.1,
@@ -572,7 +566,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 44,
-    borderRadius: 4,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 15,
     paddingVertical: 10,
@@ -580,8 +574,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
   },
   buttonCompact: {
