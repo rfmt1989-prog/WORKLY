@@ -56,6 +56,15 @@ export function WorkerProfileView({
   if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
   const primaryTree = trees[0];
   const professionDefinition = findProfessionDefinition(worker.profession);
+  const displayProfession =
+    worker.profession && professionDefinition
+      ? professionTitle(
+          language,
+          professionDefinition.id,
+          professionDefinition.title,
+          professionDefinition.titleEn,
+        )
+      : worker.profession || text("Profissão por definir", "Profession not set");
   const worklyId = worker.workly_id || formatWorklyId(worker.id);
   const eligibilityStatus =
     worker.work_eligibility_status ||
@@ -110,60 +119,101 @@ export function WorkerProfileView({
                 <Text style={[styles.name, compact && styles.nameCompact]}>
                   {worker.name || text("Nome por definir", "Name not set")}
                 </Text>
+                <View style={styles.professionLine}>
+                  <Ionicons name="briefcase-outline" size={14} color="#82BDF0" />
+                  <Text style={styles.profession}>{displayProfession}</Text>
+                </View>
               </View>
+
+              <View style={styles.identityBadges}>
+                <View style={styles.worklyBadge}>
+                  <Ionicons name="finger-print-outline" size={15} color="#8BC7FF" />
+                  <View style={styles.badgeCopy}>
+                    <Text style={styles.badgeLabel}>{text("WORKLY ID", "WORKLY ID")}</Text>
+                    <Text style={styles.badgeValue}>{worklyId}</Text>
+                  </View>
+                </View>
+                <View
+                  style={[
+                    styles.fitBadge,
+                    eligibilityStatus === "eligible"
+                      ? styles.fitBadgePositive
+                      : eligibilityStatus === "not_eligible"
+                        ? styles.fitBadgeNegative
+                        : styles.fitBadgePending,
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      eligibilityStatus === "eligible"
+                        ? "shield-checkmark-outline"
+                        : eligibilityStatus === "not_eligible"
+                          ? "close-circle-outline"
+                          : "time-outline"
+                    }
+                    size={15}
+                    color={
+                      eligibilityStatus === "eligible"
+                        ? "#78D8A7"
+                        : eligibilityStatus === "not_eligible"
+                          ? "#FF8F8F"
+                          : "#E7C76E"
+                    }
+                  />
+                  <View style={styles.badgeCopy}>
+                    <Text style={styles.badgeLabel}>
+                      {text("Apto para trabalhar", "Fit to work")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.badgeValue,
+                        eligibilityStatus === "eligible"
+                          ? styles.fitTextPositive
+                          : eligibilityStatus === "not_eligible"
+                            ? styles.fitTextNegative
+                            : styles.fitTextPending,
+                      ]}
+                    >
+                      {eligibilityLabel}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <View style={styles.dividerDiamond} />
                 <View style={styles.dividerLine} />
               </View>
-              <View style={[styles.identityRows, compact && styles.identityRowsCompact]}>
-                <IdentityRow
-                  icon="finger-print-outline"
-                  label={text("WORKLY ID", "WORKLY ID")}
-                  value={worklyId}
-                />
-                <IdentityRow
-                  icon="flag-outline"
-                  label={text("Nacionalidade", "Nationality")}
-                  value={localizeDemoText(language, worker.nationality || worker.country || "—")}
-                />
-                <IdentityRow
-                  icon="language-outline"
-                  label={text("Idiomas", "Languages")}
-                  value={worker.languages.map((item) => localizeDemoText(language, item)).join(" · ") || "—"}
-                />
-                <IdentityRow
-                  icon="briefcase-outline"
-                  label={text("Profissão", "Profession")}
-                  value={
-                    worker.profession && professionDefinition
-                      ? professionTitle(
-                          language,
-                          professionDefinition.id,
-                          professionDefinition.title,
-                          professionDefinition.titleEn,
-                        )
-                      : worker.profession || text("Profissão por definir", "Profession not set")
-                  }
-                />
-                <IdentityRow
-                  icon={
-                    eligibilityStatus === "eligible"
-                      ? "shield-checkmark-outline"
-                      : eligibilityStatus === "not_eligible"
-                        ? "close-circle-outline"
-                        : "time-outline"
-                  }
-                  label={text("Apto para trabalhar", "Fit to work")}
-                  value={eligibilityLabel}
-                  tone={
-                    eligibilityStatus === "eligible"
-                      ? "positive"
-                      : eligibilityStatus === "not_eligible"
-                        ? "negative"
-                        : "pending"
-                  }
-                />
+
+              <View style={styles.identityFacts}>
+                <View style={styles.identityFact}>
+                  <Ionicons name="flag-outline" size={15} color="#80B2E5" />
+                  <View style={styles.identityField}>
+                    <Text style={styles.identityLabel}>
+                      {text("Nacionalidade", "Nationality")}
+                    </Text>
+                    <Text style={styles.identityValue}>
+                      {localizeDemoText(
+                        language,
+                        worker.nationality || worker.country || "—",
+                      )}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.identityFact}>
+                  <Ionicons name="language-outline" size={15} color="#80B2E5" />
+                  <View style={styles.identityField}>
+                    <Text style={styles.identityLabel}>
+                      {text("Idiomas", "Languages")}
+                    </Text>
+                    <Text style={styles.identityValue}>
+                      {worker.languages
+                        .map((item) => localizeDemoText(language, item))
+                        .join(" · ") || "—"}
+                    </Text>
+                  </View>
+                </View>
               </View>
               <Button
                 label={text("Editar dados profissionais", "Professional data")}
@@ -565,16 +615,31 @@ const styles = StyleSheet.create({
   identityCompact: { width: "100%", padding: 18, borderRadius: 16 },
   identityHero: { alignItems: "center", gap: 18 },
   heroCompact: { flexDirection: "row", alignItems: "center", gap: 18 },
-  identityHeading: { width: "100%", alignItems: "center", gap: 8 },
+  identityHeading: { width: "100%", alignItems: "center", gap: 7 },
+  professionLine: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, maxWidth: "100%" },
   headingCompact: { flex: 1, minWidth: 0, alignItems: "flex-start" },
   eyebrow: { color: "#78A9D8", fontSize: 10, lineHeight: 16, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "600" },
   name: { color: "#ECE8DF", fontFamily: serif, fontSize: 26, lineHeight: 34, textAlign: "center" },
   nameCompact: { fontSize: 23, lineHeight: 30, textAlign: "left" },
-  profession: { color: "#B1C2D2", fontSize: 12, lineHeight: 19, textAlign: "center", flexShrink: 1 },
+  profession: { color: "#BFD1E0", fontSize: 13, lineHeight: 19, textAlign: "center", flexShrink: 1, fontWeight: "600" },
   professionCompact: { textAlign: "left" },
-  divider: { marginVertical: 22, flexDirection: "row", gap: 8, alignItems: "center" },
+  identityBadges: { marginTop: 20, flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  worklyBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#2B587A", backgroundColor: "#071826", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9 },
+  fitBadge: { flex: 1, minWidth: 190, minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9 },
+  fitBadgePositive: { borderColor: "#2B654B", backgroundColor: "#091B15" },
+  fitBadgePending: { borderColor: "#665A2D", backgroundColor: "#1A170B" },
+  fitBadgeNegative: { borderColor: "#6E3838", backgroundColor: "#1C0D0D" },
+  badgeCopy: { flex: 1, minWidth: 0, gap: 2 },
+  badgeLabel: { color: "#708CA4", fontSize: 8, lineHeight: 12, letterSpacing: .8, textTransform: "uppercase", fontWeight: "700" },
+  badgeValue: { color: "#D7E6F1", fontSize: 11, lineHeight: 16, fontWeight: "700", flexShrink: 1 },
+  fitTextPositive: { color: "#78D8A7" },
+  fitTextPending: { color: "#E7C76E" },
+  fitTextNegative: { color: "#FF8F8F" },
+  divider: { marginVertical: 18, flexDirection: "row", gap: 8, alignItems: "center" },
   dividerLine: { flex: 1, height: 1, backgroundColor: "#20394E" },
   dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#7998B5", transform: [{ rotate: "45deg" }] },
+  identityFacts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  identityFact: { flex: 1, minWidth: 190, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#172F42", backgroundColor: "#07111A", borderRadius: 12, padding: 11 },
   identityRows: { gap: 18 },
   identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
   identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flexShrink: 1, minWidth: 100 },
