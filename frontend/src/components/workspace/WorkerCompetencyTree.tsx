@@ -197,20 +197,36 @@ function CompetencySection({
   optional?: boolean;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={[styles.section, optional && styles.sectionOptional]}>
-      <View style={styles.sectionHeader}>
-        <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [
+          styles.sectionHeader,
+          pressed && styles.sectionHeaderPressed,
+        ]}
+      >
+        <View style={styles.sectionHeaderCopy}>
           <Text style={styles.sectionTitle}>{title}</Text>
-          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+          {expanded ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Text style={styles.sectionCount}>
-          {items.filter((item) => item.evidenceState === "verified").length}/
-          {items.length}
-        </Text>
-      </View>
-      <View style={styles.timeline}>
+        <View style={styles.sectionHeaderMeta}>
+          <Text style={styles.sectionCount}>
+            {items.filter((item) => item.evidenceState === "verified").length}/
+            {items.length}
+          </Text>
+          <Ionicons
+            name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+            size={14}
+            color="#7EA9CB"
+          />
+        </View>
+      </Pressable>
+      {expanded ? <View style={styles.timeline}>
         {items.map((item, index) => {
           const node = toAchievement(item, language);
           return (
@@ -265,7 +281,7 @@ function CompetencySection({
             </Pressable>
           );
         })}
-      </View>
+      </View> : null}
     </View>
   );
 }
@@ -337,11 +353,17 @@ const styles = StyleSheet.create({
   },
   sectionOptional: { opacity: 0.9 },
   sectionHeader: {
+    minHeight: 42,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 12,
+    borderRadius: 12,
+    paddingHorizontal: 4,
   },
+  sectionHeaderPressed: { opacity: 0.76 },
+  sectionHeaderCopy: { flex: 1, minWidth: 0 },
+  sectionHeaderMeta: { flexDirection: "row", alignItems: "center", gap: 7 },
   sectionTitle: {
     color: "#C8D8E5",
     fontSize: 12,
