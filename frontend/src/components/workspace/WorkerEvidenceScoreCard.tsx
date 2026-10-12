@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { levelText, professionalText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
@@ -15,10 +15,16 @@ export function WorkerEvidenceScoreCard({
   onDetails: () => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={styles.card} testID="worker-evidence-score">
-      <View style={styles.top}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.top, pressed && styles.topPressed]}
+      >
         <View style={styles.levelBlock}>
           <Text style={styles.eyebrow}>
             {text("NÍVEL PROFISSIONAL WORKLY", "WORKLY PROFESSIONAL LEVEL")}
@@ -38,12 +44,21 @@ export function WorkerEvidenceScoreCard({
             {assessment.score}
             <Text style={styles.scoreMax}>/100</Text>
           </Text>
-          <Text style={styles.scoreLabel}>
-            {text("WORKLY VALUE", "WORKLY VALUE")}
-          </Text>
+          <View style={styles.scoreLabelRow}>
+            <Text style={styles.scoreLabel}>
+              {text("WORKLY VALUE", "WORKLY VALUE")}
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={14}
+              color="#7EA9CB"
+            />
+          </View>
         </View>
-      </View>
+      </Pressable>
 
+      {expanded ? (
+        <>
       <View style={styles.metrics}>
         <Metric
           icon="git-branch-outline"
@@ -118,6 +133,8 @@ export function WorkerEvidenceScoreCard({
         </Text>
         <Ionicons name="arrow-forward-outline" size={13} color="#7EA9CB" />
       </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -155,7 +172,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: 14,
+    borderRadius: 14,
   },
+  topPressed: { opacity: 0.78 },
   levelBlock: { flex: 1, minWidth: 220, gap: 4 },
   eyebrow: {
     color: "#7192AD",
@@ -172,6 +191,7 @@ const styles = StyleSheet.create({
   },
   note: { color: "#72889B", fontSize: 9, lineHeight: 14, maxWidth: 520 },
   score: { alignItems: "flex-end" },
+  scoreLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   scoreValue: {
     color: "#8FCBFF",
     fontSize: 31,
