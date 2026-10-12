@@ -167,7 +167,7 @@ export function WorkerFormationPath({
           <Ionicons
             name={complete ? "checkmark-done-outline" : "school-outline"}
             size={20}
-            color="#8BC7FF"
+            color="#D57A60"
           />
         </View>
 
@@ -195,7 +195,7 @@ export function WorkerFormationPath({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#7EA9CB"
+              color="#A88F7B"
             />
           </View>
         </View>
@@ -212,7 +212,7 @@ export function WorkerFormationPath({
         <Ionicons
           name={complete ? "shield-checkmark-outline" : "time-outline"}
           size={14}
-          color={complete ? "#78D8A7" : "#E7C76E"}
+          color={complete ? "#8FAE91" : "#E7C76E"}
         />
         <Text
           style={[
@@ -287,9 +287,9 @@ export function WorkerFormationPath({
 const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
-    borderColor: "#183247",
+    borderColor: "#3A2E28",
     borderRadius: 22,
-    backgroundColor: "#050B11F2",
+    backgroundColor: "#0D0C0BF2",
     padding: 16,
     gap: 12,
   },
@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2D5878",
-    backgroundColor: "#071725",
+    borderColor: "#6A4538",
+    backgroundColor: "#17100E",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -316,20 +316,20 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
-    color: "#6F90AA",
+    color: "#918275",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   title: {
-    color: "#E6EFF7",
+    color: "#EEE8DE",
     fontSize: 19,
     lineHeight: 25,
     fontWeight: "700",
   },
   subtitle: {
-    color: "#7E96A9",
+    color: "#97897D",
     fontSize: 10,
     lineHeight: 16,
     maxWidth: 620,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   count: {
-    color: "#8BC7FF",
+    color: "#D57A60",
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "700",
@@ -371,11 +371,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   levelStateTextComplete: {
-    color: "#78D8A7",
+    color: "#8FAE91",
   },
   timeline: {
     borderTopWidth: 1,
-    borderTopColor: "#162B3B",
+    borderTopColor: "#302822",
     paddingTop: 5,
   },
   row: {
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 12,
   },
-  rowPressed: { backgroundColor: "#0C223455" },
+  rowPressed: { backgroundColor: "#4A211955" },
   lane: {
     width: 64,
     alignItems: "center",
@@ -396,11 +396,11 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#1B3345",
+    backgroundColor: "#392E27",
   },
   railFirst: { top: 47 },
   railLast: { bottom: 47 },
-  railVerified: { backgroundColor: "#2F6F9B" },
+  railVerified: { backgroundColor: "#9A4A3A" },
   copy: {
     flex: 1,
     minWidth: 0,
