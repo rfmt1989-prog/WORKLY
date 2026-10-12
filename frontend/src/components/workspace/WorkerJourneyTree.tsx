@@ -95,7 +95,7 @@ export function JourneySymbol({
   const inactive = node.status === "locked";
   const size = large ? 68 : 50;
   const core = large ? 40 : 30;
-  const tone = inactive ? "#536273" : color;
+  const tone = inactive ? "#819199" : color;
 
   return (
     <View
@@ -103,10 +103,10 @@ export function JourneySymbol({
         styles.symbolFrame,
         { width: size, height: size, borderRadius: size / 2 },
         node.status === "verified" && styles.symbolVerified,
-        { borderColor: inactive ? "#243341" : `${color}5C`, shadowColor: color },
+        { borderColor: inactive ? "#CBD7DC" : "#BED0D9", shadowColor: color },
       ]}
     >
-      <View style={[styles.crosshairH, { backgroundColor: inactive ? "#1E2A35" : `${color}30` }]} />
+      <View style={[styles.crosshairH, { backgroundColor: inactive ? "#E2E8EA" : "#D1DFE5" }]} />
       <View style={[styles.crosshairV, { backgroundColor: inactive ? "#1E2A35" : `${color}30` }]} />
       {node.status === "verified" ? <View style={styles.verifiedHalo} /> : null}
       <View
@@ -115,14 +115,14 @@ export function JourneySymbol({
           {
             width: core,
             height: core,
-            borderColor: inactive ? "#344352" : tone,
-            backgroundColor: isCompleted(node.status) ? "#0A2032" : "#08121B",
+            borderColor: inactive ? "#CBD7DC" : tone,
+            backgroundColor: isCompleted(node.status) ? "#E7EFF2" : "#FFFFFF",
           },
         ]}
       >
         <View style={styles.icon}>
           {inactive ? (
-            <Ionicons name="lock-closed-outline" size={large ? 18 : 14} color="#627184" />
+            <Ionicons name="lock-closed-outline" size={large ? 18 : 14} color="#70818B" />
           ) : (
             <TechGlyph node={node} size={large ? 24 : 18} color={tone} />
           )}
@@ -417,9 +417,9 @@ function NodeLabel({
 const styles = StyleSheet.create({
   board: {
     borderWidth: 1,
-    borderColor: "#183247",
+    borderColor: "#DDE5E8",
     borderRadius: 22,
-    backgroundColor: "#050B11F2",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 18,
@@ -440,8 +440,8 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: 38,
     borderWidth: 1,
-    borderColor: "#2388FF2E",
-    backgroundColor: "#2388FF08",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#E7EFF2",
   },
   originSymbol: {
     marginTop: 15,
@@ -449,8 +449,8 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     borderWidth: 1,
-    borderColor: "#3E76A6",
-    backgroundColor: "#071724",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#F3F6F7",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2388FF",
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   },
   originCaption: {
     marginTop: 7,
-    color: "#7895AF",
+    color: "#70818B",
     fontSize: 9,
     lineHeight: 13,
     letterSpacing: 2.1,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     width: 1,
     height: 25,
     marginTop: 5,
-    backgroundColor: "#355976",
+    backgroundColor: "#F3F6F7",
   },
   section: {
     width: "100%",
@@ -484,13 +484,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#1E4058",
-    backgroundColor: "#07131D",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#FFFFFF",
     zIndex: 2,
   },
   sectionHeadingPressed: { opacity: 0.76 },
   sectionTitle: {
-    color: "#B9CDDE",
+    color: "#253842",
     fontSize: 10,
     lineHeight: 15,
     fontWeight: "700",
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   sectionCount: {
-    color: "#6F8DA8",
+    color: "#70818B",
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "700",
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#214157",
+    backgroundColor: "#F3F6F7",
   },
   railFirst: {
     top: 43,
@@ -571,16 +571,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   nodeTitle: {
-    color: "#D6E2EC",
+    color: "#253842",
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
   },
   nodeTitleLocked: {
-    color: "#7A8999",
+    color: "#70818B",
   },
   nodeSubtitle: {
-    color: "#7890A5",
+    color: "#70818B",
     fontSize: 10,
     lineHeight: 15,
   },
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#050D14",
+    backgroundColor: "#FFFFFF",
     shadowOpacity: 0.16,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -622,11 +622,11 @@ const styles = StyleSheet.create({
     height: "124%",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#6DBBFF38",
+    borderColor: "#B8CDD7",
   },
   crosshairH: { position: "absolute", width: "124%", height: 1 },
   crosshairV: { position: "absolute", height: "124%", width: 1 },
-  verifyDot: { position: "absolute", right: 2, top: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: "#A8D8FF", shadowColor: "#2388FF", shadowOpacity: .65, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
+  verifyDot: { position: "absolute", right: 2, top: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: "#F3F6F7", shadowColor: "#2388FF", shadowOpacity: .65, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
   diamond: {
     alignItems: "center",
     justifyContent: "center",
@@ -650,18 +650,18 @@ const styles = StyleSheet.create({
   gatewayLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#223B50",
+    backgroundColor: "#F3F6F7",
   },
   gatewayDiamond: {
     width: 7,
     height: 7,
     borderWidth: 1,
-    borderColor: "#4B7DA8",
-    backgroundColor: "#0A1722",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#E7EFF2",
     transform: [{ rotate: "45deg" }],
   },
   gatewayLabel: {
-    color: "#6F8BA3",
+    color: "#70818B",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.6,
@@ -679,31 +679,31 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   expandPressed: {
-    backgroundColor: "#17314A66",
+    backgroundColor: "#E7EFF2",
   },
   expandDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#4B84B6",
+    backgroundColor: "#F3F6F7",
   },
   expandText: {
-    color: "#8BA7C1",
+    color: "#253842",
     fontSize: 10,
     lineHeight: 16,
   },
   instruction: {
-    color: "#6F879C",
+    color: "#70818B",
     fontSize: 10,
     lineHeight: 17,
     textAlign: "center",
     marginTop: 13,
     paddingTop: 13,
     borderTopWidth: 1,
-    borderColor: "#192D3E",
+    borderColor: "#DDE5E8",
   },
   pressed: {
     opacity: 0.72,
-    backgroundColor: "#12304A2B",
+    backgroundColor: "#E7EFF2",
   },
 });
