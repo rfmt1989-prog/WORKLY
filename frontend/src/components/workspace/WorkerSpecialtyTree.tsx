@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { professionalText, specialtyCopy, specialtyRequirementText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
@@ -17,10 +17,16 @@ export function WorkerSpecialtyTree({
   onNode: (node: AchievementNode) => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={styles.panel} testID="worker-specialty-tree">
-      <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
+      >
         <View style={styles.headerIcon}>
           <Ionicons name="git-network-outline" size={18} color="#8BC7FF" />
         </View>
@@ -33,10 +39,19 @@ export function WorkerSpecialtyTree({
         </View>
         <View style={styles.count}>
           <Text style={styles.countValue}>{tree.unlockedCount}</Text>
-          <Text style={styles.countLabel}>{text("disponíveis", "available")}</Text>
+          <View style={styles.countLine}>
+            <Text style={styles.countLabel}>{text("disponíveis", "available")}</Text>
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={14}
+              color="#7EA9CB"
+            />
+          </View>
         </View>
-      </View>
+      </Pressable>
 
+      {expanded ? (
+        <>
       <View style={styles.timeline}>
         {tree.nodes.map((node, index) => {
           const locked = node.status === "locked";
@@ -105,13 +120,16 @@ export function WorkerSpecialtyTree({
           )}
         </Text>
       </View>
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles=StyleSheet.create({
   panel:{borderWidth:1,borderColor:"#183247",borderRadius:22,backgroundColor:"#050B11F2",padding:16,gap:14},
-  header:{flexDirection:"row",alignItems:"flex-start",gap:12},
+  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:14},
+  headerPressed:{opacity:.78},
   headerIcon:{width:40,height:40,borderRadius:14,borderWidth:1,borderColor:"#2C5776",backgroundColor:"#071725",alignItems:"center",justifyContent:"center"},
   headerText:{flex:1,minWidth:0,gap:3},
   eyebrow:{color:"#6E8BA4",fontSize:8,lineHeight:12,letterSpacing:1.8,fontWeight:"700"},
@@ -119,6 +137,7 @@ const styles=StyleSheet.create({
   description:{color:"#8098AD",fontSize:11,lineHeight:17},
   count:{alignItems:"flex-end"},
   countValue:{color:"#8BC7FF",fontSize:21,lineHeight:25,fontWeight:"700"},
+  countLine:{flexDirection:"row",alignItems:"center",gap:6},
   countLabel:{color:"#6F879C",fontSize:9,lineHeight:13},
   timeline:{paddingTop:2},
   row:{minHeight:90,flexDirection:"row",alignItems:"stretch",borderRadius:12},
