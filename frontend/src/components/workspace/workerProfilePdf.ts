@@ -17,6 +17,7 @@ import {
   findProfessionDefinition,
   specialtyCatalog,
 } from "./professionCatalog";
+import { workerFormationNodes } from "./WorkerFormationPath";
 import type { WorkerCompetencyAssessment } from "./workerCompetencyEngine";
 import type { SpecialtyTree, ComplianceTree } from "./workerCertificateTree";
 import { verifiedAttendanceHours } from "./workerExperience";
@@ -29,13 +30,20 @@ function esc(value: unknown) {
     .replace(/"/g, "&quot;");
 }
 
+function formatWorklyId(worker: Worker) {
+  if (worker.workly_id) return worker.workly_id;
+  if (worker.id === "worker-1") return "WLY-W-000001";
+  const compact = worker.id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return `WLY-W-${compact.slice(-8).padStart(8, "0")}`;
+}
+
 function statusLabel(status: string, language: LanguageCode) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
   if (status === "verified") return text("Verificado", "Verified");
   if (status === "pending") return text("A validar", "Pending");
   if (status === "recorded") return text("Registado", "Recorded");
   if (status === "locked") return text("Bloqueado", "Next step");
-  return text("Disponível", "Available");
+  return text("Por adicionar", "To add");
 }
 
 function buildHtml(
@@ -48,7 +56,6 @@ function buildHtml(
   language: LanguageCode,
 ) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
-  const title = text("Perfil Profissional WORKLY", "WORKLY Professional Profile");
   const professionDefinition = findProfessionDefinition(worker.profession);
   const professionLabel = professionDefinition
     ? professionTitle(
@@ -66,25 +73,84 @@ function buildHtml(
         assessment.levelLabel,
         assessment.levelLabelEn,
       )
-    : text("Não avaliada", "Not assessed");
+    : "—";
 
-  const workHistory = projects
+  const worklyId = formatWorklyId(worker);
+  const eligibilityStatus =
+    worker.work_eligibility_status ||
+    (worker.id === "worker-1" ? "eligible" : "pending");
+  const eligibilityLabel =
+    eligibilityStatus === "eligible"
+      ? text("Apto para trabalhar", "Eligible to work")
+      : eligibilityStatus === "not_eligible"
+        ? text("Não apto para trabalhar", "Not eligible to work")
+        : text(
+            "Aptidão a aguardar validação",
+            "Eligibility pending verification",
+          );
+
+  const formation = workerFormationNodes(worker, language);
+  const formationComplete =
+    formation.length > 0 &&
+    formation.every((node) => node.status === "verified");
+
+  const formationRows = formation
+    .map(
+      (node) => `
+        <tr>
+          <td><strong>${esc(node.title)}</strong><div class="tiny">${esc(node.subtitle)}</div></td>
+          <td class="right">${esc(statusLabel(node.status, language))}</td>
+        </tr>`,
+    )
+    .join("");
+
+  const workerProjects = projects
     .filter((project) => project.worker_ids.includes(worker.id))
     .sort((a, b) => b.start_date.localeCompare(a.start_date));
 
-  const componentRows =
-    assessment?.components
-      .map(
-        (item) => `
-        <tr>
-          <td>${esc(text(item.label, item.labelEn))}</td>
-          <td style="text-align:right;font-weight:700">${item.points}/${item.maximum}</td>
-        </tr>`,
-      )
-      .join("") || "";
+  const verifiedProjects = assessment?.verifiedProjects ?? 0;
+  const verifiedHours = Math.round(assessment?.verifiedExperienceHours ?? 0);
+
+  const projectRows = workerProjects.length
+    ? workerProjects
+        .map((project) => {
+          const hours = verifiedAttendanceHours(
+            worker.id,
+            attendance,
+            project.id,
+          );
+          const status =
+            project.status === "completed"
+              ? text("Concluída", "Completed")
+              : text("Em curso", "In progress");
+          return `
+          <tr>
+            <td>
+              <strong>${esc(project.name)}</strong>
+              <div class="tiny">${esc(project.client || "—")}</div>
+            </td>
+            <td>${esc(project.start_date)} → ${esc(project.end_date || "—")}</td>
+            <td class="right">${hours} h</td>
+            <td class="right">${esc(status)}</td>
+          </tr>`;
+        })
+        .join("")
+    : `<tr><td colspan="4" class="muted">${esc(
+        text("Sem Obras WORKLY registadas.", "No WORKLY projects recorded."),
+      )}</td></tr>`;
 
   const competenceRows =
     assessment?.competencies
+      .filter(
+        (item) =>
+          item.competency.relation === "essential" &&
+          item.proficiency > 0,
+      )
+      .sort((a, b) => {
+        if (a.competency.critical !== b.competency.critical)
+          return a.competency.critical ? -1 : 1;
+        return b.proficiency - a.proficiency;
+      })
       .map(
         (item) => `
         <tr>
@@ -95,66 +161,40 @@ function buildHtml(
               item.competency.title,
               item.competency.titleEn,
             ),
-          )}</td>
-          <td>${item.proficiency}/4 · ${esc(
+          )}${item.competency.critical ? ' <span class="core">CORE</span>' : ""}</td>
+          <td class="right">${item.proficiency}/4 · ${esc(
             text(item.proficiencyLabel, item.proficiencyLabelEn),
           )}</td>
-          <td>${item.evidenceCount}</td>
+          <td class="right">${item.evidenceCount}</td>
         </tr>`,
       )
       .join("") || "";
 
-  const experienceRows = workHistory.length
-    ? workHistory
-        .map((project) => {
-          const hours = verifiedAttendanceHours(
-            worker.id,
-            attendance,
-            project.id,
-          );
-          const projectStatus =
-            project.status === "completed"
-              ? text("Concluída", "Completed")
-              : text("Em curso", "In progress");
-          return `
-            <div class="experience">
-              <div class="experience-head">
-                <strong>${esc(project.name)}</strong>
-                <span class="badge">${esc(projectStatus)}</span>
-              </div>
-              <div class="muted">${esc(project.client || "—")} · ${esc(
-                project.location || "—",
-              )}</div>
-              <div class="muted">${esc(project.start_date)} → ${esc(
-                project.end_date || "—",
-              )} · ${hours} h WORKLY</div>
-              ${project.description ? `<p>${esc(project.description)}</p>` : ""}
-            </div>`;
-        })
-        .join("")
-    : `<p class="muted">${esc(
-        text("Sem Obras WORKLY registadas.", "No WORKLY projects recorded."),
-      )}</p>`;
-
   const qualificationRows = worker.certificates
     .filter(
       (item) =>
-        item.evidence_type === "qualification" ||
-        (!item.evidence_type && item.kind !== "skill"),
+        item.status === "verified" &&
+        (item.evidence_type === "qualification" ||
+          (!item.evidence_type && item.kind !== "skill")),
     )
     .map(
       (item) => `
         <tr>
-          <td>${esc(item.name)}</td>
-          <td>${esc(item.issuer)}</td>
-          <td>${esc(statusLabel(item.status, language))}</td>
+          <td><strong>${esc(item.name)}</strong></td>
+          <td>${esc(item.issuer || "—")}</td>
+          <td class="right">${esc(statusLabel(item.status, language))}</td>
         </tr>`,
     )
     .join("");
 
   const specialtyRows =
     specialties?.nodes
-      .filter((item) => item.status !== "locked")
+      .filter(
+        (item) =>
+          item.status === "verified" ||
+          item.status === "recorded" ||
+          item.status === "pending",
+      )
       .map((item) => {
         const definition = specialtyCatalog.find(
           (candidate) => candidate.id === item.id,
@@ -170,13 +210,19 @@ function buildHtml(
         return `
         <tr>
           <td>${esc(display)}</td>
-          <td>${esc(statusLabel(item.status, language))}</td>
+          <td class="right">${esc(statusLabel(item.status, language))}</td>
         </tr>`;
       })
       .join("") || "";
 
   const complianceRows =
     compliance?.nodes
+      .filter(
+        (item) =>
+          item.status === "verified" ||
+          item.status === "recorded" ||
+          item.status === "pending",
+      )
       .map((item) => {
         const definition = complianceCatalog.find(
           (candidate) => candidate.id === item.id,
@@ -193,10 +239,26 @@ function buildHtml(
         <tr>
           <td>${esc(display)}</td>
           <td>${esc(scopeText(language, item.scope))}</td>
-          <td>${esc(statusLabel(item.status, language))}</td>
+          <td class="right">${esc(statusLabel(item.status, language))}</td>
         </tr>`;
       })
       .join("") || "";
+
+  const componentCards =
+    assessment?.components
+      .map(
+        (item) => `
+        <div class="component">
+          <div class="component-name">${esc(text(item.label, item.labelEn))}</div>
+          <div class="component-value">${item.points}/${item.maximum}</div>
+        </div>`,
+      )
+      .join("") || "";
+
+  const languages =
+    worker.languages
+      .map((item) => localizeDemoText(language, item))
+      .join(" · ") || "—";
 
   return `<!doctype html>
 <html>
@@ -204,86 +266,184 @@ function buildHtml(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
-  @page { margin: 28px; }
-  body { font-family: Arial, Helvetica, sans-serif; color:#17212b; margin:0; font-size:11px; line-height:1.45; }
-  h1 { font-size:26px; margin:0 0 4px; }
-  h2 { font-size:15px; margin:22px 0 8px; padding-bottom:5px; border-bottom:1px solid #dbe3ea; }
-  .brand { font-size:11px; font-weight:700; letter-spacing:2px; color:#256da8; }
-  .header { display:flex; justify-content:space-between; gap:18px; padding-bottom:16px; border-bottom:2px solid #256da8; }
-  .value { text-align:right; }
-  .value strong { font-size:28px; color:#256da8; }
-  .level { font-size:13px; font-weight:700; }
-  .muted { color:#607080; }
-  .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 18px; margin-top:10px; }
-  .item-label { font-size:9px; text-transform:uppercase; letter-spacing:.6px; color:#748494; }
-  .item-value { font-weight:600; }
-  table { width:100%; border-collapse:collapse; }
-  th { text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.5px; color:#748494; border-bottom:1px solid #cfd9e2; padding:5px 4px; }
+  @page { margin: 24px; }
+  * { box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color:#17212b; margin:0; font-size:10.5px; line-height:1.4; }
+  h1 { font-size:25px; margin:0 0 3px; }
+  h2 { font-size:13px; margin:18px 0 7px; padding-bottom:5px; border-bottom:1px solid #dbe3ea; break-after:avoid; }
+  .brand { font-size:10px; font-weight:800; letter-spacing:2.2px; color:#256da8; }
+  .header { display:flex; justify-content:space-between; gap:18px; padding-bottom:14px; border-bottom:2px solid #256da8; }
+  .header-main { min-width:0; flex:1; }
+  .profession { font-size:13px; font-weight:700; }
+  .workly-id { margin-top:4px; color:#607080; font-size:9px; letter-spacing:.5px; }
+  .hero { text-align:right; min-width:135px; }
+  .hero-level { font-size:28px; line-height:30px; color:#256da8; font-weight:800; }
+  .hero-score { font-size:12px; font-weight:700; margin-top:2px; }
+  .fit { display:inline-block; margin-top:6px; padding:3px 7px; border-radius:999px; border:1px solid #a9c7dc; color:#225f8d; font-size:8px; font-weight:700; }
+  .identity-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 14px; margin:12px 0 0; }
+  .item { min-width:0; }
+  .item-label { font-size:7.5px; text-transform:uppercase; letter-spacing:.7px; color:#748494; }
+  .item-value { margin-top:2px; font-weight:700; }
+  .snapshot { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-top:10px; }
+  .snapshot-card { border:1px solid #d9e4ec; border-radius:8px; padding:8px; background:#f8fbfd; }
+  .snapshot-value { font-size:17px; color:#256da8; font-weight:800; }
+  .snapshot-label { margin-top:2px; font-size:7.5px; color:#657787; text-transform:uppercase; letter-spacing:.4px; }
+  .components { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:8px; }
+  .component { border:1px solid #e0e8ee; border-radius:7px; padding:7px; }
+  .component-name { font-size:8px; color:#607080; }
+  .component-value { margin-top:3px; font-size:13px; font-weight:800; }
+  .section-status { float:right; font-size:8px; color:#607080; font-weight:700; }
+  table { width:100%; border-collapse:collapse; break-inside:auto; }
+  tr { break-inside:avoid; }
+  th { text-align:left; font-size:7.5px; text-transform:uppercase; letter-spacing:.5px; color:#748494; border-bottom:1px solid #cfd9e2; padding:5px 4px; }
   td { border-bottom:1px solid #e7edf2; padding:6px 4px; vertical-align:top; }
-  .experience { border-left:3px solid #8eb7d8; padding:7px 10px; margin-bottom:8px; background:#f7fafc; }
-  .experience-head { display:flex; justify-content:space-between; gap:12px; }
-  .badge { font-size:9px; color:#256da8; font-weight:700; }
-  .footer { margin-top:24px; padding-top:8px; border-top:1px solid #dbe3ea; color:#71808d; font-size:8px; }
+  .right { text-align:right; white-space:nowrap; }
+  .tiny { color:#71808d; font-size:8px; margin-top:1px; }
+  .muted { color:#71808d; }
+  .core { display:inline-block; margin-left:4px; padding:1px 4px; border-radius:999px; border:1px solid #b7d0e2; color:#256da8; font-size:6px; font-weight:800; vertical-align:middle; }
+  .footer { margin-top:20px; padding-top:8px; border-top:1px solid #dbe3ea; color:#71808d; font-size:7.5px; }
 </style>
 </head>
 <body>
   <div class="header">
-    <div>
+    <div class="header-main">
       <div class="brand">WORKLY</div>
       <h1>${esc(worker.name || text("Perfil Worker", "Worker Profile"))}</h1>
-      <div class="level">${esc(professionLabel)}</div>
-      <div class="muted">${esc(title)}</div>
+      <div class="profession">${esc(professionLabel)}</div>
+      <div class="workly-id">${esc(text("WORKLY ID", "WORKLY ID"))}: ${esc(worklyId)}</div>
     </div>
-    <div class="value">
-      <div class="muted">WORKLY VALUE</div>
-      <strong>${assessment?.score ?? 0}/100</strong>
-      <div class="level">${esc(levelLabel)}</div>
+    <div class="hero">
+      <div class="item-label">${esc(text("Nível", "Level"))}</div>
+      <div class="hero-level">${esc(levelLabel)}</div>
+      <div class="hero-score">WORKLY VALUE · ${assessment?.score ?? 0}/100</div>
+      <div class="fit">${esc(eligibilityLabel)}</div>
     </div>
   </div>
 
-  <div class="grid">
-    <div><div class="item-label">${esc(text("País", "Country"))}</div><div class="item-value">${esc(worker.country || "—")}</div></div>
-    <div><div class="item-label">${esc(text("Localização", "Location"))}</div><div class="item-value">${esc(worker.location || "—")}</div></div>
-    <div><div class="item-label">${esc(text("Experiência WORKLY", "WORKLY experience"))}</div><div class="item-value">${esc(assessment?.verifiedExperienceHours || 0)} h</div></div>
-    <div><div class="item-label">${esc(text("Idiomas", "Languages"))}</div><div class="item-value">${esc(worker.languages.map((item) => localizeDemoText(language, item)).join(" · ") || "—")}</div></div>
-    <div><div class="item-label">${esc(text("Telefone", "Phone"))}</div><div class="item-value">${esc(worker.phone || "—")}</div></div>
-    <div><div class="item-label">Email</div><div class="item-value">${esc(worker.email || "—")}</div></div>
+  <div class="identity-grid">
+    <div class="item">
+      <div class="item-label">${esc(text("Nacionalidade", "Nationality"))}</div>
+      <div class="item-value">${esc(localizeDemoText(language, worker.nationality || worker.country || "—"))}</div>
+    </div>
+    <div class="item">
+      <div class="item-label">${esc(text("Idiomas", "Languages"))}</div>
+      <div class="item-value">${esc(languages)}</div>
+    </div>
+    <div class="item">
+      <div class="item-label">${esc(text("Apto para trabalhar", "Fit to work"))}</div>
+      <div class="item-value">${esc(eligibilityLabel)}</div>
+    </div>
   </div>
 
-  ${worker.bio ? `<h2>${esc(text("Apresentação", "About"))}</h2><p>${esc(worker.bio)}</p>` : ""}
+  <div class="snapshot">
+    <div class="snapshot-card">
+      <div class="snapshot-value">${assessment?.score ?? 0}</div>
+      <div class="snapshot-label">WORKLY VALUE / 100</div>
+    </div>
+    <div class="snapshot-card">
+      <div class="snapshot-value">${verifiedHours} h</div>
+      <div class="snapshot-label">${esc(text("Experiência WORKLY", "WORKLY experience"))}</div>
+    </div>
+    <div class="snapshot-card">
+      <div class="snapshot-value">${verifiedProjects}</div>
+      <div class="snapshot-label">${esc(text("Obras verificadas", "Verified projects"))}</div>
+    </div>
+    <div class="snapshot-card">
+      <div class="snapshot-value">${assessment?.coreCoverage ?? 0}%</div>
+      <div class="snapshot-label">${esc(text("Cobertura essencial", "Essential coverage"))}</div>
+    </div>
+  </div>
 
-  <h2>WORKLY VALUE</h2>
-  <table><tbody>${componentRows || `<tr><td class="muted">${esc(text("Sem avaliação disponível.", "No assessment available."))}</td></tr>`}</tbody></table>
+  <h2>
+    ${esc(text("Formação de base", "Foundation education"))}
+    <span class="section-status">${esc(
+      formationComplete
+        ? text("Nível I concluído", "Level I completed")
+        : text("Nível I em progresso", "Level I in progress"),
+    )}</span>
+  </h2>
+  <table><tbody>${formationRows}</tbody></table>
+
+  <h2>${esc(text("Avaliação profissional", "Professional overview"))}</h2>
+  <div class="components">${componentCards}</div>
 
   <h2>${esc(text("Histórico WORKLY em Obras", "WORKLY project history"))}</h2>
-  ${experienceRows}
-
-  <h2>${esc(text("Competências", "Competences"))}</h2>
   <table>
-    <thead><tr><th>${esc(text("Competência", "Competence"))}</th><th>${esc(text("Nível", "Level"))}</th><th>${esc(text("Provas", "Evidence"))}</th></tr></thead>
-    <tbody>${competenceRows || `<tr><td colspan="3" class="muted">${esc(text("Sem competências avaliadas.", "No assessed competences."))}</td></tr>`}</tbody>
+    <thead>
+      <tr>
+        <th>${esc(text("Obra", "Project"))}</th>
+        <th>${esc(text("Período", "Period"))}</th>
+        <th class="right">${esc(text("Horas", "Hours"))}</th>
+        <th class="right">${esc(text("Estado", "Status"))}</th>
+      </tr>
+    </thead>
+    <tbody>${projectRows}</tbody>
+  </table>
+
+  <h2>${esc(text("Competências essenciais", "Essential competences"))}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>${esc(text("Competência", "Competence"))}</th>
+        <th class="right">${esc(text("Nível", "Level"))}</th>
+        <th class="right">${esc(text("Provas", "Evidence"))}</th>
+      </tr>
+    </thead>
+    <tbody>${
+      competenceRows ||
+      `<tr><td colspan="3" class="muted">${esc(
+        text("Sem competências avaliadas.", "No assessed competences."),
+      )}</td></tr>`
+    }</tbody>
   </table>
 
   <h2>${esc(text("Qualificações", "Qualifications"))}</h2>
   <table>
-    <thead><tr><th>${esc(text("Qualificação", "Qualification"))}</th><th>${esc(text("Entidade", "Issuer"))}</th><th>${esc(text("Estado", "Status"))}</th></tr></thead>
-    <tbody>${qualificationRows || `<tr><td colspan="3" class="muted">${esc(text("Sem qualificações registadas.", "No qualifications recorded."))}</td></tr>`}</tbody>
+    <thead>
+      <tr>
+        <th>${esc(text("Qualificação", "Qualification"))}</th>
+        <th>${esc(text("Entidade", "Issuer"))}</th>
+        <th class="right">${esc(text("Estado", "Status"))}</th>
+      </tr>
+    </thead>
+    <tbody>${
+      qualificationRows ||
+      `<tr><td colspan="3" class="muted">${esc(
+        text("Sem qualificações verificadas.", "No verified qualifications."),
+      )}</td></tr>`
+    }</tbody>
   </table>
 
   <h2>${esc(text("Especializações", "Specialisations"))}</h2>
-  <table><tbody>${specialtyRows || `<tr><td class="muted">${esc(text("Sem especializações desbloqueadas.", "No unlocked specialisations."))}</td></tr>`}</tbody></table>
+  <table><tbody>${
+    specialtyRows ||
+    `<tr><td class="muted">${esc(
+      text("Sem especializações ativas.", "No active specialisations."),
+    )}</td></tr>`
+  }</tbody></table>
 
-  <h2>${esc(text("Conformidade e autorizações", "Compliance and authorisations"))}</h2>
+  <h2>${esc(text("Certificações extra", "Compliance and authorisations"))}</h2>
   <table>
-    <thead><tr><th>${esc(text("Requisito", "Requirement"))}</th><th>${esc(text("Âmbito", "Scope"))}</th><th>${esc(text("Estado", "Status"))}</th></tr></thead>
-    <tbody>${complianceRows || `<tr><td colspan="3" class="muted">${esc(text("Sem registos de conformidade.", "No compliance records."))}</td></tr>`}</tbody>
+    <thead>
+      <tr>
+        <th>${esc(text("Certificação", "Requirement"))}</th>
+        <th>${esc(text("Âmbito", "Scope"))}</th>
+        <th class="right">${esc(text("Estado", "Status"))}</th>
+      </tr>
+    </thead>
+    <tbody>${
+      complianceRows ||
+      `<tr><td colspan="3" class="muted">${esc(
+        text("Sem certificações extra registadas.", "No compliance records."),
+      )}</td></tr>`
+    }</tbody>
   </table>
 
   <div class="footer">
     ${esc(
       text(
-        "Documento gerado pela WORKLY. O WORKLY VALUE e os níveis são classificações internas e não substituem qualificações, licenças ou autorizações legais.",
-        "Generated by WORKLY. WORKLY VALUE and levels are internal classifications and do not replace legal qualifications, licences or authorisations.",
+        "Documento gerado pela WORKLY. O WORKLY VALUE e os níveis I–V são classificações internas baseadas em evidência e não substituem qualificações, licenças ou autorizações legais.",
+        "Generated by WORKLY. WORKLY VALUE and levels I–V are internal evidence-based classifications and do not replace legal qualifications, licences or authorisations.",
       ),
     )}
   </div>
