@@ -113,7 +113,7 @@ export function WorkerProfileView({
               testID="worker-identification"
             >
 
-              <View style={styles.passportTop}>
+              <View style={[styles.passportTop, compact && styles.passportTopCompact]}>
                 <View style={styles.passportEmblem}><Text style={styles.passportEmblemText}>W</Text></View>
                 <View style={styles.passportTopCopy}>
                   <Text style={styles.passportKicker}>{text("WORKLY · IDENTIDADE PROFISSIONAL", "WORKLY · PROFESSIONAL IDENTITY")}</Text>
@@ -804,6 +804,7 @@ const styles = StyleSheet.create({
   emptyStepTitle: { color: "#263C45", fontSize: 12, lineHeight: 17, fontWeight: "700" },
   emptyStepDescription: { color: "#82766B", fontSize: 10, lineHeight: 16 },
   passportTop: { marginHorizontal: -26, marginTop: -26, paddingHorizontal: 26, paddingVertical: 16, minHeight: 71, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#253741", borderTopLeftRadius: 23, borderTopRightRadius: 23 },
+  passportTopCompact: { marginHorizontal: -18, marginTop: -18, borderTopLeftRadius: 17, borderTopRightRadius: 17, paddingHorizontal: 18 },
   passportEmblem: { width: 37, height: 37, borderWidth: 1, borderColor: "#96715C", backgroundColor: "#354B54", borderRadius: 11, alignItems: "center", justifyContent: "center" },
   passportEmblemText: { color: "#E4A88D", fontSize: 22, fontWeight: "900" },
   passportTopCopy: { flex: 1, minWidth: 0, gap: 2 },
