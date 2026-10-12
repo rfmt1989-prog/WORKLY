@@ -175,8 +175,8 @@ TECHNICAL_EVIDENCE_TYPES = {
 LEVELS = (
     {
         "id": "apprentice",
-        "label": "Aprendiz",
-        "label_en": "Apprentice",
+        "label": "I",
+        "label_en": "I",
         "minimum": 0,
         "core_coverage": 0,
         "verified_projects": 0,
@@ -185,8 +185,8 @@ LEVELS = (
     },
     {
         "id": "junior",
-        "label": "Júnior",
-        "label_en": "Junior",
+        "label": "II",
+        "label_en": "II",
         "minimum": 20,
         "core_coverage": 25,
         "verified_projects": 0,
@@ -195,8 +195,8 @@ LEVELS = (
     },
     {
         "id": "professional",
-        "label": "Profissional",
-        "label_en": "Professional",
+        "label": "III",
+        "label_en": "III",
         "minimum": 45,
         "core_coverage": 60,
         "verified_projects": 2,
@@ -205,8 +205,8 @@ LEVELS = (
     },
     {
         "id": "specialist",
-        "label": "Especialista",
-        "label_en": "Specialist",
+        "label": "IV",
+        "label_en": "IV",
         "minimum": 70,
         "core_coverage": 75,
         "verified_projects": 5,
@@ -215,8 +215,8 @@ LEVELS = (
     },
     {
         "id": "master",
-        "label": "Master",
-        "label_en": "Master",
+        "label": "V",
+        "label_en": "V",
         "minimum": 85,
         "core_coverage": 90,
         "verified_projects": 8,
