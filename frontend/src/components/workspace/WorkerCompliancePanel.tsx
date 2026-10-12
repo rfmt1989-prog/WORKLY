@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { complianceTitle, professionalText, scopeText } from "@/src/demo/professionalI18n";
 import type { LanguageCode } from "@/src/demo/types";
@@ -17,10 +17,16 @@ export function WorkerCompliancePanel({
   onNode: (node: AchievementNode) => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={styles.panel} testID="worker-compliance-panel">
-      <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
+      >
         <View style={styles.headerIcon}>
           <Ionicons name="shield-checkmark-outline" size={18} color="#91C7F5" />
         </View>
@@ -35,10 +41,19 @@ export function WorkerCompliancePanel({
         </View>
         <View style={styles.counter}>
           <Text style={styles.counterValue}>{tree.validCount}</Text>
-          <Text style={styles.counterLabel}>{text("válidas", "valid")}</Text>
+          <View style={styles.counterLine}>
+            <Text style={styles.counterLabel}>{text("válidas", "valid")}</Text>
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={14}
+              color="#7EA9CB"
+            />
+          </View>
         </View>
-      </View>
+      </Pressable>
 
+      {expanded ? (
+        <>
       <View style={styles.grid}>
         {tree.nodes.map((node) => {
           const verified = node.status === "verified";
@@ -76,13 +91,16 @@ export function WorkerCompliancePanel({
           )}
         </Text>
       </View>
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles=StyleSheet.create({
   panel:{borderWidth:1,borderColor:"#19354A",borderRadius:20,backgroundColor:"#060D14E8",padding:16,gap:14},
-  header:{flexDirection:"row",alignItems:"flex-start",gap:12},
+  header:{flexDirection:"row",alignItems:"flex-start",gap:12,borderRadius:14},
+  headerPressed:{opacity:.78},
   headerIcon:{width:40,height:40,borderRadius:13,borderWidth:1,borderColor:"#315C7C",backgroundColor:"#071725",alignItems:"center",justifyContent:"center"},
   headerCopy:{flex:1,minWidth:0,gap:3},
   eyebrow:{color:"#6D8BA3",fontSize:8,lineHeight:12,letterSpacing:1.6,fontWeight:"700"},
@@ -90,6 +108,7 @@ const styles=StyleSheet.create({
   description:{color:"#748CA0",fontSize:10,lineHeight:16},
   counter:{alignItems:"flex-end"},
   counterValue:{color:"#9BCDF6",fontSize:20,lineHeight:24,fontWeight:"700"},
+  counterLine:{flexDirection:"row",alignItems:"center",gap:6},
   counterLabel:{color:"#6B8295",fontSize:8,lineHeight:12},
   grid:{flexDirection:"row",flexWrap:"wrap",gap:8},
   item:{width:"100%",minHeight:76,flexDirection:"row",alignItems:"center",gap:11,borderWidth:1,borderColor:"#1A3040",borderRadius:13,backgroundColor:"#050B11",padding:10},
