@@ -167,7 +167,7 @@ export function WorkerFormationPath({
           <Ionicons
             name={complete ? "checkmark-done-outline" : "school-outline"}
             size={20}
-            color="#D57A60"
+            color="#58798B"
           />
         </View>
 
@@ -195,7 +195,7 @@ export function WorkerFormationPath({
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
-              color="#A88F7B"
+              color="#70818B"
             />
           </View>
         </View>
@@ -287,9 +287,9 @@ export function WorkerFormationPath({
 const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
-    borderColor: "#3A2E28",
+    borderColor: "#DDE5E8",
     borderRadius: 6,
-    backgroundColor: "#0D0C0BF2",
+    backgroundColor: "#FFFFFF",
     padding: 16,
     gap: 12,
   },
@@ -305,32 +305,32 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 3,
     borderWidth: 1,
-    borderColor: "#6A4538",
-    backgroundColor: "#17100E",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#E7EFF2",
     alignItems: "center",
     justifyContent: "center",
   },
   headerMarkComplete: {
-    borderColor: "#39795B",
-    backgroundColor: "#0A1C17",
+    borderColor: "#B8CDD7",
+    backgroundColor: "#E7EFF2",
   },
   headerCopy: { flex: 1, minWidth: 0, gap: 3 },
   eyebrow: {
-    color: "#918275",
+    color: "#58798B",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.7,
     fontWeight: "700",
   },
   title: {
-    color: "#EEE8DE",
+    color: "#253842",
     fontSize: 29,
     lineHeight: 34,
     fontWeight: "500",
     letterSpacing: 2,
   },
   subtitle: {
-    color: "#97897D",
+    color: "#70818B",
     fontSize: 10,
     lineHeight: 16,
     maxWidth: 620,
@@ -339,14 +339,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   count: {
-    color: "#D57A60",
+    color: "#70818B",
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "700",
   },
   countLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   countLabel: {
-    color: "#647E93",
+    color: "#70818B",
     fontSize: 8,
     lineHeight: 12,
   },
@@ -356,27 +356,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     borderWidth: 1,
-    borderColor: "#574E2D",
-    backgroundColor: "#17150C",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#F3F6F7",
     borderRadius: 10,
     paddingHorizontal: 10,
   },
   levelStateComplete: {
-    borderColor: "#285C45",
-    backgroundColor: "#0A1713",
+    borderColor: "#B8CDD7",
+    backgroundColor: "#E7EFF2",
   },
   levelStateText: {
-    color: "#D9C16F",
+    color: "#253842",
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "700",
   },
   levelStateTextComplete: {
-    color: "#8FAE91",
+    color: "#253842",
   },
   timeline: {
     borderTopWidth: 1,
-    borderTopColor: "#302822",
+    borderTopColor: "#DDE5E8",
     paddingTop: 5,
   },
   row: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 2,
   },
-  rowPressed: { backgroundColor: "#4A211955" },
+  rowPressed: { backgroundColor: "#E7EFF2" },
   lane: {
     width: 64,
     alignItems: "center",
@@ -397,11 +397,11 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: "#392E27",
+    backgroundColor: "#F3F6F7",
   },
   railFirst: { top: 47 },
   railLast: { bottom: 47 },
-  railVerified: { backgroundColor: "#9A4A3A" },
+  railVerified: { backgroundColor: "#E7EFF2" },
   copy: {
     flex: 1,
     minWidth: 0,
@@ -416,20 +416,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   step: {
-    color: "#547895",
+    color: "#70818B",
     fontSize: 9,
     lineHeight: 13,
     fontWeight: "800",
     letterSpacing: 1,
   },
   nodeTitle: {
-    color: "#D7E4EE",
+    color: "#253842",
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "700",
   },
   nodeSubtitle: {
-    color: "#6F879B",
+    color: "#70818B",
     fontSize: 9,
     lineHeight: 14,
   },
@@ -443,18 +443,18 @@ const styles = StyleSheet.create({
   gatewayLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#223B50",
+    backgroundColor: "#F3F6F7",
   },
   gatewayDiamond: {
     width: 7,
     height: 7,
     borderWidth: 1,
-    borderColor: "#4B7DA8",
-    backgroundColor: "#0A1722",
+    borderColor: "#DDE5E8",
+    backgroundColor: "#E7EFF2",
     transform: [{ rotate: "45deg" }],
   },
   gatewayText: {
-    color: "#6F8BA3",
+    color: "#253842",
     fontSize: 8,
     lineHeight: 12,
     letterSpacing: 1.2,
