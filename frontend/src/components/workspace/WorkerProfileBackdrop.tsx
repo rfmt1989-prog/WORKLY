@@ -1,43 +1,16 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 
-// A light, local vector backdrop keeps the same atmosphere on web and mobile.
+// Clean, low-contrast architectural guide lines — never a dark overlay on content.
 export function WorkerProfileBackdrop() {
   return (
-    <View
-      pointerEvents="none"
-      accessibilityElementsHidden
-      style={StyleSheet.absoluteFill}
-    >
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 1440 1000"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        <Defs>
-          <LinearGradient id="workerMist" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#221713" stopOpacity="0.1" />
-            <Stop offset="1" stopColor="#120D0B" stopOpacity="0.45" />
-          </LinearGradient>
-        </Defs>
-        <Rect width="1440" height="1000" fill="url(#workerMist)" />
-        <Path
-          d="M0 780 L220 430 L310 535 L450 315 L590 575 L730 395 L890 620 L1060 390 L1210 565 L1440 365 L1440 1000 L0 1000Z"
-          fill="#4A2A22"
-          opacity="0.12"
-        />
-        <Path
-          d="M0 870 L250 640 L440 800 L620 550 L830 825 L1100 610 L1440 810 L1440 1000 L0 1000Z"
-          fill="#2E1C18"
-          opacity="0.1"
-        />
-        <Path
-          d="M45 1000V670M45 675L8 740H28L0 790H30L5 840H65L40 790H78L52 740H70Z M1380 1000V560M1380 565L1340 640H1360L1320 720H1362L1318 800H1440L1399 720H1440L1400 640H1423Z M120 1000V760M120 765L82 830H100L63 900H170L140 830H158Z"
-          fill="#070605"
-          opacity="0.6"
-        />
+    <View pointerEvents="none" accessibilityElementsHidden style={StyleSheet.absoluteFill}>
+      <Svg width="100%" height="100%" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
+        <Rect width="1440" height="1000" fill="#F5F3EE" />
+        <Path d="M0 90 H1440 M0 260 H1440 M0 430 H1440 M0 600 H1440 M0 770 H1440 M0 940 H1440 M180 0 V1000 M420 0 V1000 M660 0 V1000 M900 0 V1000 M1140 0 V1000 M1380 0 V1000" stroke="#E4DFD7" strokeWidth="1" opacity=".34" fill="none" />
+        <Path d="M0 765 L275 590 L450 665 L725 450 L910 540 L1175 350 L1440 480" stroke="#D9B49F" strokeWidth="1.5" opacity=".16" fill="none" />
+        <Path d="M1320 0 L1440 0 L1440 190 Z" fill="#E9DCD0" opacity=".25" />
       </Svg>
     </View>
   );
