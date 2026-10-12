@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   shell: {
     borderWidth: 1,
     borderColor: "#3A2E28",
-    borderRadius: 22,
+    borderRadius: 6,
     backgroundColor: "#0D0C0BF2",
     padding: 16,
     gap: 12,
@@ -297,13 +297,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    borderRadius: 14,
+    borderRadius: 3,
   },
   headerPressed: { opacity: 0.78 },
   headerMark: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: 3,
     borderWidth: 1,
     borderColor: "#6A4538",
     backgroundColor: "#17100E",
@@ -324,9 +324,10 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#EEE8DE",
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "700",
+    fontSize: 29,
+    lineHeight: 34,
+    fontWeight: "500",
+    letterSpacing: 2,
   },
   subtitle: {
     color: "#97897D",
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
     minHeight: 94,
     flexDirection: "row",
     alignItems: "stretch",
-    borderRadius: 12,
+    borderRadius: 2,
   },
   rowPressed: { backgroundColor: "#4A211955" },
   lane: {
