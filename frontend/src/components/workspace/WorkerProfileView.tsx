@@ -159,6 +159,7 @@ export function WorkerProfileView({
                     <Ionicons name="briefcase-outline" size={16} color="#91C9DD" />
                     <Text style={styles.profession}>{displayProfession}</Text>
                   </View>
+                  {worker.title && worker.title !== worker.profession && worker.title !== displayProfession ? <Text style={styles.professionalHeadline} numberOfLines={2}>{worker.title}</Text> : null}
                   {worker.location ? <View style={styles.locationLine}><Ionicons name="location-outline" size={13} color="#A7BEC8" /><Text style={styles.locationText}>{worker.location}</Text></View> : null}
                 </View>
               </View>
@@ -219,6 +220,53 @@ export function WorkerProfileView({
               </View>
 
 
+              {mode === "profile" && (worker.bio?.trim() || (worker.specialties || []).length > 0) ? (
+                <View style={styles.professionalOverview} testID="worker-specialty-overview">
+                  <View style={styles.overviewHead}>
+                    <Ionicons name="hardware-chip-outline" size={18} color="#4B7E91" />
+                    <Text style={styles.overviewTitle}>{text("Áreas técnicas", "Technical areas")}</Text>
+                  </View>
+                  {worker.bio?.trim() ? <Text style={styles.overviewDescription}>{worker.bio}</Text> : null}
+                  {(worker.specialties || []).length ? (
+                    <View style={styles.specialtyTags}>
+                      {(worker.specialties || []).map((area, index) => (
+                        <View key={index + "-" + area} style={styles.specialtyTag}><Text style={styles.specialtyTagText}>{area}</Text></View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              {mode === "profile" && worker.certificates.length > 0 ? (
+                <View style={styles.professionalOverview} testID="worker-certificate-overview">
+                  <View style={styles.overviewHead}>
+                    <Ionicons name="ribbon-outline" size={18} color="#4B7E91" />
+                    <Text style={styles.overviewTitle}>{text("Certificações", "Certifications")}</Text>
+                    <Text style={styles.overviewCount}>{worker.certificates.length}</Text>
+                  </View>
+                  {worker.certificates.slice(0, 6).map((certificate) => {
+                    const verified = certificate.status === "verified";
+                    const pending = certificate.status === "pending";
+                    const label = verified ? text("Verificada", "Verified") : pending ? text("Em análise", "Under review") : text("Declarada", "Declared");
+                    return (
+                      <Pressable key={certificate.id} accessibilityRole="button" onPress={() => setSelected({
+                        id: "profile-" + certificate.id, title: certificate.name,
+                        subtitle: text("Certificação profissional", "Professional certification"),
+                        icon: certificate.evidence_type === "authorisation" ? "shield-checkmark-outline" : "ribbon-outline",
+                        status: verified ? "verified" : pending ? "pending" : "recorded",
+                        stage: "industrial-access", family: "certification", scope: text("Qualificação adicional", "Additional qualification"),
+                        certificate, kind: "certification",
+                      })} style={({ pressed }) => [styles.certificationRow, pressed && styles.pressed]}>
+                        <View style={styles.certificationSymbol}><Ionicons name={certificate.evidence_type === "authorisation" ? "shield-checkmark-outline" : "ribbon-outline"} size={18} color="#4B7E91" /></View>
+                        <View style={styles.certificationCopy}>
+                          <Text style={styles.certificationName}>{certificate.name}</Text>
+                          <Text style={styles.certificationStatus}>{label}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={17} color="#728791" />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
               {mode === "profile" && competencyAssessment ? (
                 <View style={styles.snapshot} testID="worker-career-snapshot">
                   <View style={styles.snapshotMain}>
@@ -695,6 +743,21 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  professionalHeadline: { fontSize: 12, lineHeight: 17, fontWeight: "600", color: "#607986", flexShrink: 1 },
+  professionalOverview: { borderWidth: 1, borderColor: "#DDE7EA", borderRadius: 15, backgroundColor: "#FFFFFF", padding: 14, gap: 12, marginTop: 12 },
+  overviewHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  overviewTitle: { flex: 1, color: "#233844", fontSize: 13, fontWeight: "800" },
+  overviewCount: { fontSize: 11, color: "#607986", fontWeight: "800" },
+  overviewDescription: { fontSize: 11, lineHeight: 18, color: "#536D78" },
+  specialtyTags: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  specialtyTag: { borderWidth: 1, borderColor: "#C8DCE3", backgroundColor: "#EDF4F6", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7 },
+  specialtyTagText: { color: "#416E80", fontSize: 10, fontWeight: "700" },
+  certificationRow: { minHeight: 51, flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: 1, borderTopColor: "#EDF1F2", paddingVertical: 10 },
+  certificationSymbol: { width: 34, height: 34, backgroundColor: "#EDF4F6", borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  certificationCopy: { flex: 1, gap: 4 },
+  certificationName: { color: "#233844", fontSize: 11, lineHeight: 15, fontWeight: "700" },
+  certificationStatus: { color: "#728791", fontSize: 10 },
+
   root: { flex: 1, minHeight: 0, backgroundColor: "#080C14" },
   journeyRoot: { backgroundColor: "#F4F7F8" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
