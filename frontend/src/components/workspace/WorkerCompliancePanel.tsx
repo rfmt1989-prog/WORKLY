@@ -11,20 +11,26 @@ export function WorkerCompliancePanel({
   tree,
   language,
   onNode,
+  expanded: controlledExpanded,
+  onToggle,
 }: {
   tree: ComplianceTree;
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = controlledExpanded ?? internalExpanded;
+  const toggle = () => onToggle ? onToggle() : setInternalExpanded(value => !value);
 
   return (
     <View style={styles.panel} testID="worker-compliance-panel">
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
+        onPress={toggle}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerIcon}>
@@ -34,7 +40,7 @@ export function WorkerCompliancePanel({
           <Text style={styles.eyebrow}>
             {text("CONFORMIDADE CONTEXTUAL", "CONTEXTUAL COMPLIANCE")}
           </Text>
-          <Text style={styles.title}>{text(tree.title, tree.titleEn)}</Text>
+          <Text style={styles.title}>{text("Requisitos", "Requirements")}</Text>
           {expanded ? (
             <Text style={styles.description}>
               {text(tree.description, tree.descriptionEn)}
