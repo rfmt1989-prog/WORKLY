@@ -67,8 +67,7 @@ function Requirement({ label, actual, required, unit, icon }: { label: string; a
 
 export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddEvidence, onRules, onReveal }: AtlasProps) {
   const tr = (pt: string, en: string) => professionalText(language, pt, en);
-  const { width, height } = useWindowDimensions();
-  const small = width < 700;
+  const { height } = useWindowDimensions();
   const foundation = useMemo(() => workerFormationNodes(worker, language), [worker, language]);
   const foundationVerified = foundation.filter(node => node.status === "verified").length;
   const currentIndex = Math.max(0, worklyLevelGates.findIndex(level => level.id === assessment.levelId));
@@ -158,7 +157,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
               style={({ pressed }) => [styles.levelButton, open && styles.levelButtonOpen, pressed && styles.pressed]}
               testID={"career-level-" + level.label}
             >
-              <RankBadge numeral={level.label} current={currentStage || open} completed={achieved} />
+              <RankBadge numeral={level.label} current={currentStage && achieved} completed={achieved} />
               <Text style={[styles.levelName, (open || currentStage) && styles.levelNameCurrent]} numberOfLines={1}>{tr(LEVELS[idx].pt, LEVELS[idx].en)}</Text>
               {open ? <View style={styles.activeTick} /> : null}
             </Pressable>
@@ -178,7 +177,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
           testID="career-expanded-level"
         >
           <View style={styles.detailHeader}>
-            <RankBadge numeral={detail.label} current completed={reached(selected)} />
+            <RankBadge numeral={detail.label} current={reached(selected)} completed={reached(selected)} />
             <View style={styles.detailCopy}>
               <Text style={styles.detailKicker}>{tr("NÍVEL", "LEVEL")} {detail.label} / V</Text>
               <Text style={styles.detailTitle}>{tr(LEVELS[selected].pt, LEVELS[selected].en)}</Text>
