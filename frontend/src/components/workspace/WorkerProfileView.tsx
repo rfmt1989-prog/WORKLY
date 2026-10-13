@@ -126,8 +126,8 @@ export function WorkerProfileView({
   };
 
   return (
-    <View style={styles.root} testID="worker-profile">
-      <WorkerProfileBackdrop />
+    <View style={[styles.root, mode === "journey" && styles.journeyRoot]} testID="worker-profile">
+      {mode !== "journey" ? <WorkerProfileBackdrop /> : null}
       <ScrollView ref={careerScroll} onScroll={event => { scrollPosition.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
         <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
           {mode !== "journey" ? (
@@ -695,6 +695,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0, backgroundColor: "#080C14" },
+  journeyRoot: { backgroundColor: "#F4F7F8" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   content: { padding: 32, paddingBottom: 54 },
   contentCompact: { padding: 16, paddingBottom: 38 },
