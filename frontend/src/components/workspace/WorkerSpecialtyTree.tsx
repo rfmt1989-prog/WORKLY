@@ -11,20 +11,26 @@ export function WorkerSpecialtyTree({
   tree,
   language,
   onNode,
+  expanded: controlledExpanded,
+  onToggle,
 }: {
   tree: SpecialtyTree;
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = controlledExpanded ?? internalExpanded;
+  const toggle = () => onToggle ? onToggle() : setInternalExpanded(value => !value);
 
   return (
     <View style={styles.panel} testID="worker-specialty-tree">
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
+        onPress={toggle}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerIcon}>
@@ -32,7 +38,7 @@ export function WorkerSpecialtyTree({
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>{text("DESENVOLVIMENTO TÉCNICO", "TECHNICAL DEVELOPMENT")}</Text>
-          <Text style={styles.title}>{text(tree.title, tree.titleEn)}</Text>
+          <Text style={styles.title}>{text("Extras", "Extras")}</Text>
           {expanded ? (
             <Text style={styles.description}>
               {text(tree.description, tree.descriptionEn)}
