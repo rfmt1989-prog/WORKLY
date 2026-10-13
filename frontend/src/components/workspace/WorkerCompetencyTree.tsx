@@ -87,13 +87,19 @@ export function WorkerCompetencyTree({
   assessment,
   language,
   onNode,
+  expanded: controlledExpanded,
+  onToggle,
 }: {
   assessment: WorkerCompetencyAssessment;
   language: LanguageCode;
   onNode: (node: AchievementNode) => void;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const text = (pt: string, en: string) => professionalText(language, pt, en);
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = controlledExpanded ?? internalExpanded;
+  const toggle = () => onToggle ? onToggle() : setInternalExpanded(value => !value);
   const profile = competencyProfileFor(assessment.professionId);
   if (!profile) return null;
 
@@ -109,7 +115,7 @@ export function WorkerCompetencyTree({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
+        onPress={toggle}
         style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
       >
         <View style={styles.headerMark}>
@@ -117,9 +123,9 @@ export function WorkerCompetencyTree({
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.eyebrow}>
-            {text("MAPA DE COMPETÊNCIAS", "COMPETENCY MAP")}
+            {text("TÉCNICAS", "TECHNICAL")}
           </Text>
-          <Text style={styles.title}>{professionTitle(language, profile.professionId, profile.title, profile.titleEn)}</Text>
+          <Text style={styles.title}>{text("Competências", "Skills")}</Text>
           {expanded ? (
             <Text style={styles.subtitle}>
               {text("Competências essenciais e opcionais são avaliadas separadamente de qualificações e autorizações.", "Essential and optional competences are assessed separately from qualifications and authorisations.")}
