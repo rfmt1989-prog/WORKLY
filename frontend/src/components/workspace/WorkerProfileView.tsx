@@ -325,7 +325,8 @@ export function WorkerProfileView({
               {competencyAssessment ? (
                 <WorkerCareerAtlas worker={worker} assessment={competencyAssessment} language={language} onNode={setSelected}
                   onAddEvidence={() => setCertificateTarget({ professionId: primaryTree?.id || "professional" })}
-                  onRules={() => setRules(true)} onReveal={focusCareerDetail} />
+                  onRules={() => setRules(true)} onReveal={focusCareerDetail}
+                  collapseKey={openedSection} onLevelChange={() => setOpenedSection(null)} />
               ) : null}
               {competencyAssessment ? (
                 <View ref={sectionRefs.skills} onLayout={() => onPanelLayout("skills")}>
