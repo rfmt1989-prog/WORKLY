@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { openWorklyFile } from "@/src/api/documentFiles";
 import { useAuth } from "@/src/context/AuthContext";
@@ -40,6 +40,16 @@ export function WorkerProfileView({
   const { width } = useWindowDimensions();
   const compact = width < 960;
   const narrow = width < 600;
+  const careerScroll = useRef<ScrollView>(null);
+  const scrollPosition = useRef(0);
+  const focusCareerDetail = (y: number, _height: number) => {
+    careerScroll.current?.measureInWindow((_x, viewportY) => {
+      const delta = y - viewportY - 12;
+      if (Math.abs(delta) > 24) {
+        careerScroll.current?.scrollTo({ y: Math.max(0, scrollPosition.current + delta), animated: true });
+      }
+    });
+  };
   const [selected, setSelected] = useState<AchievementNode | null>(null);
   const [editing, setEditing] = useState(false);
   const [rules, setRules] = useState(false);
@@ -101,7 +111,7 @@ export function WorkerProfileView({
   return (
     <View style={styles.root} testID="worker-profile">
       <WorkerProfileBackdrop />
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
+      <ScrollView ref={careerScroll} onScroll={event => { scrollPosition.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
         <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
           {mode !== "journey" ? (
             <View
@@ -292,37 +302,14 @@ export function WorkerProfileView({
             </View>
           ) : null}
           {mode !== "profile" ? <View style={styles.main}>
-            <View style={[styles.mainHeader, narrow && styles.mainHeaderNarrow]}>
-              <View style={styles.headingWrap}><Text style={styles.eyebrow}>{text("A tua evolução", "Your progression")}</Text><Text style={[styles.title, narrow && styles.titleCompact]}>{text("Percurso profissional", "Professional journey")}</Text></View>
-            </View>
             {!primaryTree ? (
               <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
             ) : <View style={styles.journey}>
               {competencyAssessment ? (
                 <WorkerCareerAtlas worker={worker} assessment={competencyAssessment} language={language} onNode={setSelected}
                   onAddEvidence={() => setCertificateTarget({ professionId: primaryTree?.id || "professional" })}
-                  onRules={() => setRules(true)} />
+                  onRules={() => setRules(true)} onReveal={focusCareerDetail} />
               ) : null}
-              <View style={styles.actionRow}>
-                <Text style={styles.journeyHint}>
-                  {text(
-                    "Toca numa competência para ver provas e critérios de progressão.",
-                    "Tap a competence to view evidence and progression criteria.",
-                  )}
-                </Text>
-                <Button
-                  label={text("Adicionar comprovativo", "Add evidence")}
-                  icon="add-outline"
-                  variant="secondary"
-                  onPress={() =>
-                    setCertificateTarget({
-                      professionId: primaryTree?.id || "professional",
-                    })
-                  }
-                  style={styles.addButton}
-                  testID="add-worker-certificate"
-                />
-              </View>
               {competencyAssessment ? (
                 <WorkerCompetencyTree
                   assessment={competencyAssessment}
