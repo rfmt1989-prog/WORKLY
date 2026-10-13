@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   pickWorklyFile,
