@@ -51,6 +51,22 @@ export function WorkerProfileView({
     });
   };
   const [selected, setSelected] = useState<AchievementNode | null>(null);
+  const [openedSection, setOpenedSection] = useState<"skills" | "extras" | "requirements" | null>(null);
+  const sectionRefs = {
+    skills: useRef<View>(null),
+    extras: useRef<View>(null),
+    requirements: useRef<View>(null),
+  };
+  const lastPanelFocus = useRef<string | null>(null);
+  const toggleSection = (section: "skills" | "extras" | "requirements") => {
+    lastPanelFocus.current = null;
+    setOpenedSection(previous => previous === section ? null : section);
+  };
+  const onPanelLayout = (section: "skills" | "extras" | "requirements") => {
+    if (openedSection !== section || lastPanelFocus.current === section) return;
+    lastPanelFocus.current = section;
+    requestAnimationFrame(() => sectionRefs[section].current?.measureInWindow((_x, y, _w, h) => focusCareerDetail(y, h)));
+  };
   const [editing, setEditing] = useState(false);
   const [rules, setRules] = useState(false);
   const [certificateTarget, setCertificateTarget] = useState<{ professionId: string; node?: AchievementNode } | null>(null);
@@ -311,25 +327,22 @@ export function WorkerProfileView({
                   onRules={() => setRules(true)} onReveal={focusCareerDetail} />
               ) : null}
               {competencyAssessment ? (
-                <WorkerCompetencyTree
-                  assessment={competencyAssessment}
-                  language={language}
-                  onNode={setSelected}
-                />
+                <View ref={sectionRefs.skills} onLayout={() => onPanelLayout("skills")}>
+                  <WorkerCompetencyTree assessment={competencyAssessment} language={language} onNode={setSelected}
+                    expanded={openedSection === "skills"} onToggle={() => toggleSection("skills")} />
+                </View>
               ) : null}
               {specialtyTree ? (
-                <WorkerSpecialtyTree
-                  tree={specialtyTree}
-                  language={language}
-                  onNode={setSelected}
-                />
+                <View ref={sectionRefs.extras} onLayout={() => onPanelLayout("extras")}>
+                  <WorkerSpecialtyTree tree={specialtyTree} language={language} onNode={setSelected}
+                    expanded={openedSection === "extras"} onToggle={() => toggleSection("extras")} />
+                </View>
               ) : null}
               {complianceTree ? (
-                <WorkerCompliancePanel
-                  tree={complianceTree}
-                  language={language}
-                  onNode={setSelected}
-                />
+                <View ref={sectionRefs.requirements} onLayout={() => onPanelLayout("requirements")}>
+                  <WorkerCompliancePanel tree={complianceTree} language={language} onNode={setSelected}
+                    expanded={openedSection === "requirements"} onToggle={() => toggleSection("requirements")} />
+                </View>
               ) : null}
             </View>}
           </View> : null}
