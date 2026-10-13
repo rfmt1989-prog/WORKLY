@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Animated, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, useWindowDimensions, View } from "react-native";
 import { professionalText } from "@/src/demo/professionalI18n";
 import type { LanguageCode, Worker } from "@/src/demo/types";
 import { worklyLevelGates } from "./competencyFramework";
@@ -76,6 +76,10 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
   // Details are deliberately closed by default. Only one level can open at a time.
   const [selected, setSelected] = useState<number | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true);
+  }, []);
+  const animateLayout = () => { if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); };
   const revealKey = useRef<string | null>(null);
   const openAnimation = useRef(new Animated.Value(0)).current;
   const detailRef = useRef<View>(null);
@@ -93,6 +97,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
   const reached = (idx: number) => idx === 0 ? foundationVerified === foundation.length : idx <= currentIndex;
   const documentedFunctions = assessment.competencies.filter(item => (item.evidenceByType.work_record || 0) > 0).length;
   const openLevel = (idx: number) => {
+    animateLayout();
     revealKey.current = null;
     setShowEvidence(false);
     setSelected(value => value === idx ? null : idx);
@@ -179,7 +184,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
               <Text style={styles.detailTitle}>{tr(LEVELS[selected].pt, LEVELS[selected].en)}</Text>
               <Text style={styles.detailCaption}>{reached(selected) ? tr("Requisitos verificados", "Requirements verified") : tr("Provas necessárias para avançar", "Evidence needed to progress")}</Text>
             </View>
-            <Pressable onPress={() => setSelected(null)} accessibilityRole="button" accessibilityLabel={tr("Fechar", "Close")} style={styles.close}>
+            <Pressable onPress={() => { animateLayout(); setSelected(null); }} accessibilityRole="button" accessibilityLabel={tr("Fechar", "Close")} style={styles.close}>
               <Ionicons name="close" size={19} color={INK} />
             </Pressable>
           </View>
@@ -206,7 +211,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
                 {detail.responsibilityEvidence > 0 ? <Requirement label={tr("Autonomia", "Autonomy")} icon="shield-checkmark-outline" actual={assessment.responsibilityEvidence} required={detail.responsibilityEvidence} unit="" /> : null}
               </View>
             )}
-            <Pressable accessibilityRole="button" accessibilityState={{ expanded: showEvidence }} onPress={() => setShowEvidence(value => !value)} style={({ pressed }) => [styles.evidenceToggle, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: showEvidence }} onPress={() => { animateLayout(); setShowEvidence(value => !value); }} style={({ pressed }) => [styles.evidenceToggle, pressed && styles.pressed]}>
               <Text style={styles.evidenceToggleText}>{tr("Provas", "Evidence")}</Text>
               <Ionicons name={showEvidence ? "chevron-up" : "chevron-down"} size={16} color={ACCENT} />
             </Pressable>
