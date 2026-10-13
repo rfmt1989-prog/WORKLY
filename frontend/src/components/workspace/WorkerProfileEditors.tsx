@@ -19,6 +19,7 @@ import { type AchievementNode } from "./workerCertificateTree";
 import { findProfessionDefinition, professionCatalog } from "./professionCatalog";
 import { evidenceTypes, type EvidenceType } from "./competencyEvidenceModel";
 import { verifiedAttendanceHours } from "./workerExperience";
+import { electromechanicsProfilePreset, electromechanicsCertificates, addDeclaredProfileCertificates } from "./electromechanicsProfilePreset";
 
 export function WorkerIdentityEditor({
   worker,
@@ -31,9 +32,25 @@ export function WorkerIdentityEditor({
   const text = (pt: string, en: string) => professionalText(language, pt, en);
   const [form, setForm] = useState(() => ({
     profession: findProfessionDefinition(worker.profession)?.title || worker.profession,
+    title: worker.title || "",
+    bio: worker.bio || "",
+    specialties: (worker.specialties || []).join(", "),
     languages: worker.languages.join(", "),
   }));
   const [busy, setBusy] = useState(false);
+  const [presetChosen, setPresetChosen] = useState(false);
+  const [pendingCertificates, setPendingCertificates] = useState<string[]>([]);
+  const applyPreset = () => {
+    setForm(current => ({
+      ...current,
+      profession: electromechanicsProfilePreset.profession,
+      title: electromechanicsProfilePreset.title,
+      bio: electromechanicsProfilePreset.bio,
+      specialties: Array.from(new Set([...(worker.specialties || []), ...electromechanicsProfilePreset.specialties])).join(", "),
+    }));
+    setPresetChosen(true);
+    setPendingCertificates(electromechanicsCertificates.map(cert => cert.key));
+  };
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   const save = async () => {
@@ -42,7 +59,10 @@ export function WorkerIdentityEditor({
     try {
       await updateWorker(worker.id, {
         profession: form.profession.trim(),
-        title: form.profession.trim(),
+        title: form.title.trim() || form.profession.trim(),
+        bio: form.bio.trim(),
+        specialties: form.specialties.split(",").map(s => s.trim()).filter(Boolean),
+        ...(presetChosen ? { certificates: addDeclaredProfileCertificates(worker, pendingCertificates) } : {}),
         languages: form.languages
           .split(",")
           .map((item) => item.trim())
@@ -92,6 +112,40 @@ export function WorkerIdentityEditor({
             )}
           </Text>
         </View>
+        <View style={styles.presetCard} testID="worker-electromechanics-profile-starter">
+          <View style={styles.presetHeading}>
+            <View style={styles.presetIcon}><Text style={styles.presetIconLetter}>W</Text></View>
+            <View style={styles.presetCopy}>
+              <Text style={styles.presetTitle}>{text("Perfil técnico", "Technical profile")}</Text>
+              <Text style={styles.presetDescription}>{text("Eletromecânica · Refrigeração · Climatização", "Electromechanics · Refrigeration · HVAC")}</Text>
+            </View>
+          </View>
+          <Button
+            label={text("Preencher o meu perfil", "Pre-fill my profile")}
+            icon="hardware-chip-outline"
+            disabled={busy}
+            variant="secondary"
+            onPress={applyPreset}
+            testID="apply-electromechanics-profile"
+          />
+          {presetChosen ? (
+            <View style={styles.presetEvidence}>
+              <Text style={styles.presetDisclosure}>{text("Seleciona os registos que declaras possuir. Nenhum será considerado verificado sem comprovativo.", "Select the records you declare you hold. None will be verified without evidence.")}</Text>
+              {electromechanicsCertificates.map(item => {
+                const checked = pendingCertificates.includes(item.key);
+                return (
+                  <Pressable key={item.key} accessibilityRole="checkbox" accessibilityState={{ checked }}
+                    onPress={() => setPendingCertificates(prev => checked ? prev.filter(key => key !== item.key) : [...prev, item.key])}
+                    style={styles.presetEvidenceRow}>
+                    <Ionicons name={checked ? "checkbox-outline" : "square-outline"} size={21} color="#4B7E91" />
+                    <Text style={styles.presetEvidenceText}>{item.name}</Text>
+                  </Pressable>
+                );
+              })}
+              <Text style={styles.presetDisclosure}>{text("Podes alterar os campos antes de guardar. Os documentos e os dados de validação serão adicionados separadamente.", "You can edit the fields before saving. Documents and verification details are added separately.")}</Text>
+            </View>
+          ) : null}
+        </View>
         <View style={styles.professionSection}>
           <Text style={styles.sectionLabel}>{text("Profissão principal", "Main profession")}</Text>
           <Text style={styles.hint}>
@@ -132,6 +186,9 @@ export function WorkerIdentityEditor({
             })}
           </View>
         </View>
+        <Field label={text("Título profissional", "Professional title")} value={form.title} editable={!busy} onChangeText={value => update("title", value)} />
+        <Field label={text("Especializações (separadas por vírgulas)", "Specialties (comma separated)")} value={form.specialties} editable={!busy} onChangeText={value => update("specialties", value)} />
+        <Field label={text("Resumo profissional", "Professional summary")} multiline value={form.bio} editable={!busy} onChangeText={value => update("bio", value)} />
         <Field
           label={text(
             "Idiomas (separados por vírgulas)",
@@ -484,6 +541,18 @@ export function WorkerCertificateEditor({
   );
 }
 const styles = StyleSheet.create({
+  presetCard: { gap: 13, borderWidth: 1, borderColor: "#DCE6EB", borderRadius: 15, backgroundColor: "#F7FAFB", padding: 14 },
+  presetHeading: { flexDirection: "row", gap: 11, alignItems: "center" },
+  presetIcon: { width: 41, height: 41, borderRadius: 11, backgroundColor: "#E4EEF2", borderWidth: 1, borderColor: "#BFD1D9", alignItems: "center", justifyContent: "center" },
+  presetIconLetter: { fontSize: 22, fontWeight: "900", color: "#4B7E91" },
+  presetCopy: { flex: 1, gap: 4 },
+  presetTitle: { fontSize: 15, fontWeight: "800", color: "#263B45" },
+  presetDescription: { fontSize: 11, color: "#647984" },
+  presetEvidence: { gap: 8 },
+  presetDisclosure: { color: "#607781", fontSize: 11, lineHeight: 17 },
+  presetEvidenceRow: { flexDirection: "row", alignItems: "center", gap: 9, padding: 10, borderWidth: 1, borderColor: "#DCE6EB", borderRadius: 10, backgroundColor: "#FFFFFF" },
+  presetEvidenceText: { flex: 1, color: "#263B45", fontSize: 11, fontWeight: "600" },
+
   evidenceSection: { gap: 9 },
   projectSection: { gap: 9 },
   projectGrid: { gap: 7 },
