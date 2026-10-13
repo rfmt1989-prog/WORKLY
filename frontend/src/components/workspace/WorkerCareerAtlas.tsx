@@ -31,6 +31,8 @@ type AtlasProps = {
   onAddEvidence: () => void;
   onRules: () => void;
   onReveal?: (y: number, height: number) => void;
+  collapseKey?: string | null;
+  onLevelChange?: () => void;
 };
 
 function Glyph({ icon, size = 20 }: { icon: React.ComponentProps<typeof Ionicons>["name"]; size?: number }) {
@@ -65,7 +67,7 @@ function Requirement({ label, actual, required, unit, icon }: { label: string; a
   );
 }
 
-export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddEvidence, onRules, onReveal }: AtlasProps) {
+export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddEvidence, onRules, onReveal, collapseKey, onLevelChange }: AtlasProps) {
   const tr = (pt: string, en: string) => professionalText(language, pt, en);
   const { height } = useWindowDimensions();
   const foundation = useMemo(() => workerFormationNodes(worker, language), [worker, language]);
@@ -86,6 +88,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
     setSelected(null);
     setShowEvidence(false);
   }, [assessment.professionId]);
+  useEffect(() => { if (collapseKey) { setSelected(null); setShowEvidence(false); } }, [collapseKey]);
   useEffect(() => {
     openAnimation.setValue(0);
     if (selected !== null) {
@@ -96,6 +99,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
   const reached = (idx: number) => idx === 0 ? foundationVerified === foundation.length : idx <= currentIndex;
   const documentedFunctions = assessment.competencies.filter(item => (item.evidenceByType.work_record || 0) > 0).length;
   const openLevel = (idx: number) => {
+    onLevelChange?.();
     animateLayout();
     revealKey.current = null;
     setShowEvidence(false);
