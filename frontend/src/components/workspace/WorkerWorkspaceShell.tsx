@@ -121,10 +121,13 @@ export function WorkerWorkspaceShell() {
     return () => animation.stop();
   }, [activeSection, fade]);
 
-  if (!user) return null;
-  const currentWorker = state?.workers.find(worker => worker.id === user.id);
+  const currentWorker = state?.workers.find(worker => worker.id === user?.id);
   const needsSetup = Boolean(currentWorker && (!currentWorker.profession?.trim() || !currentWorker.documents.some(item => item.category === "identity" && item.file_id)));
-  if (currentWorker && ((needsSetup && !dismissedSetup) || showSetup)) {
+  useEffect(() => {
+    if (needsSetup && !dismissedSetup) setShowSetup(true);
+  }, [needsSetup, dismissedSetup]);
+  if (!user) return null;
+  if (currentWorker && showSetup) {
     return <WorkerOnboarding worker={currentWorker} onFinish={() => { setDismissedSetup(true); setShowSetup(false); setActiveSection("profile"); }} />;
   }
 
