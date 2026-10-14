@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { pickWorklyFile, uploadWorklyFile } from "@/src/api/documentFiles";
+import { api } from "@/src/api/client";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import type { Worker } from "@/src/demo/types";
 import { professionalText } from "@/src/demo/professionalI18n";
@@ -28,6 +29,14 @@ export function WorkerOnboarding({ worker, onFinish }: { worker: Worker; onFinis
   const narrow = width < 640;
   const [step, setStep] = useState<Step>(0);
   const [busy, setBusy] = useState(false);
+  const [safeDocumentStorage, setSafeDocumentStorage] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void api.get<{ persistence: { connected: boolean; mode: string } }>("/health").then(result => {
+      if (active) setSafeDocumentStorage(result.persistence?.connected === true && result.persistence?.mode === "postgres");
+    }).catch(() => { if (active) setSafeDocumentStorage(false); });
+    return () => { active = false; };
+  }, []);
   const [error, setError] = useState("");
   const [addingCertificate, setAddingCertificate] = useState(false);
   const [profession, setProfession] = useState(worker.profession || "");
@@ -48,7 +57,10 @@ export function WorkerOnboarding({ worker, onFinish }: { worker: Worker; onFinis
   }, [worker.profession, busy]);
 
   const uploadIdentity = async () => {
-    if (busy) return;
+    if (busy || !safeDocumentStorage) {
+      setError(tr("Documentos reais só podem ser enviados quando o armazenamento seguro está ativo.", "Real identity documents require persistent secure storage."));
+      return;
+    }
     setError("");
     try {
       const file = await pickWorklyFile();
@@ -136,7 +148,8 @@ export function WorkerOnboarding({ worker, onFinish }: { worker: Worker; onFinis
             <StatusRow icon="document-text-outline" title={tr("Documento de identificação", "Identity document")} description={hasIdentityFile ? tr("Documento entregue para análise", "Document submitted for review") : tr("Envia uma cópia em PDF ou imagem (máximo 2 MB)", "Upload a PDF or image (max 2 MB)")} checked={hasIdentityFile} />
             <StatusRow icon="shield-checkmark-outline" title={tr("Verificação de identidade", "Identity verification")} description={verified ? tr("Validada", "Verified") : tr("Pendente de revisão", "Awaiting review")} checked={verified} />
             <View style={styles.privacy}><Ionicons name="lock-closed-outline" size={17} color={BLUE} /><Text style={styles.privacyText}>{tr("O documento é armazenado em área autenticada. O envio não confirma identidade nem aptidão para trabalhar.", "The document is stored behind authenticated access. Uploading does not verify your identity or work eligibility.")}</Text></View>
-            <Button label={busy ? tr("A guardar...", "Saving...") : hasIdentityFile ? tr("Substituir ou enviar outro", "Upload another copy") : tr("Enviar identificação", "Upload ID document")} icon="cloud-upload-outline" onPress={() => void uploadIdentity()} disabled={busy} />
+            {!safeDocumentStorage ? <View style={styles.privacy}><Ionicons name="information-circle-outline" size={17} color={BLUE} /><Text style={styles.privacyText}>{tr("Ambiente de demonstração: o carregamento de documentos de identificação está desativado. Não envies dados pessoais reais aqui.", "Demo environment: identity document upload is disabled. Do not submit real personal details here.")}</Text></View> : null}
+            <Button label={busy ? tr("A guardar...", "Saving...") : hasIdentityFile ? tr("Substituir ou enviar outro", "Upload another copy") : tr("Enviar identificação", "Upload ID document")} icon="cloud-upload-outline" onPress={() => void uploadIdentity()} disabled={busy || !safeDocumentStorage} />
             <Button label={tr("Seguinte", "Next")} icon="arrow-forward-outline" variant="secondary" onPress={() => advance(1)} />
           </> : null}
           {step === 1 ? <>
