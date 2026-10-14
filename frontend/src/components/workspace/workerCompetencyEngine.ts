@@ -285,10 +285,8 @@ export function assessWorkerCompetence(
         item.competency_id === "formation-professional-course" ||
         profile.competencies.some(spec =>
           spec.relation === "essential" &&
-            spec.dimension === "knowledge" &&
-            [spec.id, ...spec.aliases].map(normalize).some(alias =>
-              alias && (normalize(item.node_id || "") === alias || normalize(item.competency_id || "") === alias || normalize(item.name).includes(alias))
-            )
+          spec.dimension === "knowledge" &&
+          (item.node_id === spec.id || item.competency_id === spec.id)
         ))
     ).map(item => item.node_id || item.competency_id || normalize(item.name))
   ).size;
