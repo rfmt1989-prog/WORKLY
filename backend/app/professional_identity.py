@@ -190,7 +190,7 @@ LEVELS = (
         "minimum": 20,
         "core_coverage": 25,
         "verified_projects": 0,
-        "verified_experience_hours": 0,
+        "verified_experience_hours": 160,
         "responsibility_evidence": 0,
     },
     {
@@ -218,7 +218,7 @@ LEVELS = (
         "label": "V",
         "label_en": "V",
         "minimum": 85,
-        "core_coverage": 90,
+        "core_coverage": 100,
         "verified_projects": 8,
         "verified_experience_hours": 8000,
         "responsibility_evidence": 2,
@@ -493,9 +493,23 @@ def professional_identity(
         )
     ]
     verified_relevant = [item for item in relevant if _verified_current(item, today)]
-    verified_qualifications = sum(
-        _evidence_type(item) == "qualification" for item in verified_relevant
-    )
+    # Only distinct trade-core qualifications count; ATEX/IPAF/site courses do not.
+    def core_qualification(item: dict[str, Any]) -> bool:
+        if _evidence_type(item) != "qualification":
+            return False
+        node = str(item.get("node_id") or item.get("competency_id") or "")
+        if node == "formation-professional-course":
+            return True
+        return any(
+            competency_id in KNOWLEDGE_NODE_IDS
+            and _matches_competency(item, competency_id, aliases)
+            for competency_id, aliases in core_nodes.items()
+        )
+
+    verified_qualifications = len({
+        str(item.get("node_id") or item.get("competency_id") or normalize(str(item.get("name", ""))))
+        for item in verified_relevant if core_qualification(item)
+    })
 
     regulatory_terms = REGULATORY_MATCHES.get(area, ())
     verified_regulatory = sum(
@@ -542,6 +556,27 @@ def professional_identity(
         + confidence_points,
     )
 
+    def foundation_verified(node: str, evidence_type: str, names: tuple[str, ...]) -> bool:
+        for certificate in certificates:
+            if not _verified_current(certificate, today) or _evidence_type(certificate) != evidence_type:
+                continue
+            if str(certificate.get("node_id") or certificate.get("competency_id") or "") == node:
+                return True
+            name = normalize(str(certificate.get("name") or ""))
+            if any(term in name for term in names):
+                return True
+        return False
+
+    course_ready = foundation_verified(
+        "formation-professional-course", "qualification",
+        ("curso profissional", "curso tecnologico", "curso tecnico", "professional course", "technological course", "technical course"),
+    )
+    internship_ready = foundation_verified(
+        "formation-internship", "work_record",
+        ("estagio", "internship", "work placement", "practical placement"),
+    )
+    foundation_ready = course_ready and internship_ready
+
     level_index = 0
     for index, gate in enumerate(LEVELS):
         eligible = (
@@ -551,7 +586,7 @@ def professional_identity(
             and verified_experience_hours >= gate["verified_experience_hours"]
             and responsibility_evidence >= gate["responsibility_evidence"]
         )
-        if eligible:
+        if eligible and (index == 0 or foundation_ready):
             level_index = index
 
     current = LEVELS[level_index]
@@ -626,6 +661,9 @@ def professional_identity(
             "minimum": current["minimum"],
         },
         "level_index": level_index,
+        "foundation_verified": foundation_ready,
+        "course_verified": course_ready,
+        "internship_verified": internship_ready,
         "levels": levels,
         "next_level": (
             {
