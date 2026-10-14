@@ -276,9 +276,22 @@ export function assessWorkerCompetence(
     );
   });
   const verifiedRelevant = relevantCertificates.filter(isCurrentVerified);
-  const verifiedQualifications = verifiedRelevant.filter(
-    (item) => inferredEvidenceType(item) === "qualification",
-  ).length;
+  // Extras (IPAF, ATEX, site cards) never generate technical seniority.
+  // A distinct core qualification is counted at most once.
+  const verifiedQualifications = new Set(
+    verifiedRelevant.filter(item =>
+      inferredEvidenceType(item) === "qualification" &&
+      (item.node_id === "formation-professional-course" ||
+        item.competency_id === "formation-professional-course" ||
+        profile.competencies.some(spec =>
+          spec.relation === "essential" &&
+            spec.dimension === "knowledge" &&
+            [spec.id, ...spec.aliases].map(normalize).some(alias =>
+              alias && (normalize(item.node_id || "") === alias || normalize(item.competency_id || "") === alias || normalize(item.name).includes(alias))
+            )
+        ))
+    ).map(item => item.node_id || item.competency_id || normalize(item.name))
+  ).size;
 
   const responsibilityEvidence = competencies.filter(
     (item) =>
@@ -343,14 +356,14 @@ export function assessWorkerCompetence(
     id: string, evidenceType: "qualification" | "work_record", aliases: string[],
   ) => worker.certificates.some(certificate => {
     if (!isCurrentVerified(certificate)) return false;
+    if (inferredEvidenceType(certificate) !== evidenceType) return false;
     if (certificate.node_id === id || certificate.competency_id === id) return true;
-    if (certificate.evidence_type && certificate.evidence_type !== evidenceType) return false;
     const name = normalize(certificate.name);
     return aliases.some(alias => name.includes(normalize(alias)));
   });
   const courseReady = hasFoundationProof(
     "formation-professional-course", "qualification",
-    ["curso profissional", "curso tecnologico", "curso tecnológico", "professional course", "technological course", "technical course", "curso tecnico", "curso técnico", "técnico", "tecnico", "technician"],
+    ["curso profissional", "curso tecnologico", "professional course", "technological course", "technical course", "curso tecnico"],
   );
   const internshipReady = hasFoundationProof(
     "formation-internship", "work_record",
