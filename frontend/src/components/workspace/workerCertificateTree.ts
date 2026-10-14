@@ -623,7 +623,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       scope: "Formação profissional",
       certificate: course,
       evidence: findEvidence(worker.documents, course),
-      baseStatus: certificateStatus(course) || "available",
+      baseStatus: (certificateStatus(course) || "available") as Exclude<AchievementStatus, "locked">,
       meta: [],
     },
 
@@ -638,7 +638,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: ipaf,
       evidence: findEvidence(worker.documents, ipaf),
-      baseStatus: certificateStatus(ipaf) || "available",
+      baseStatus: (certificateStatus(ipaf) || "available") as Exclude<AchievementStatus, "locked">,
       meta: ["3A · móvel vertical", "3B · móvel multidirecional"],
     },
     nodeFromCertificate(
@@ -739,7 +739,7 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: riskChemical,
       evidence: findEvidence(worker.documents, riskChemical),
-      baseStatus: certificateStatus(riskChemical) || "available",
+      baseStatus: (certificateStatus(riskChemical) || "available") as Exclude<AchievementStatus, "locked">,
       meta: [],
       verificationNote: "Formação ATEX não equivale automaticamente a outras autorizações industriais.",
     },
