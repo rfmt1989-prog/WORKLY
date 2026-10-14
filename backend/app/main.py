@@ -152,7 +152,7 @@ class LoginInput(BaseModel):
 class RegisterInput(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=10, max_length=128)
     user_type: str | None = None
     role: str | None = None
     invite_token: str | None = Field(default=None, max_length=120)
@@ -739,6 +739,8 @@ def login(data: LoginInput) -> dict[str, Any]:
 
 @app.post(f"{API_PREFIX}/auth/register", tags=["Authentication"])
 def register(data: RegisterInput) -> dict[str, Any]:
+    if os.getenv("VERCEL_ENV") and not _persistence.connected:
+        raise HTTPException(status_code=503, detail="O registo está indisponível neste ambiente sem armazenamento persistente. Não envie dados de identificação nesta pré-visualização.")
     email = str(data.email).strip().lower()
     invite_token = (data.invite_token or "").strip()
     invitation = _persistence.get_invitation(invite_token) if invite_token else None
@@ -1990,6 +1992,8 @@ def upload_document_file(
     owner_id = data.owner_id.strip()
     category = data.category.strip().lower() or "other"
     _authorize_file_owner(user, owner_type, owner_id, manage=True)
+    if category == "identity" and os.getenv("VERCEL_ENV") and not _persistence.connected:
+        raise HTTPException(status_code=503, detail="O envio de documentos de identificação requer armazenamento persistente.")
     if category == "identity" and (user["role"] != "worker" or owner_type != "worker" or owner_id != user["sub"]):
         raise HTTPException(status_code=403, detail="Documento de identificação reservado ao titular.")
     if category not in ALLOWED_DOCUMENT_CATEGORIES:
@@ -2058,6 +2062,8 @@ def get_document_file_content(
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
     with _state_lock:
         found = _find_document_by_file_id(file_id)
+        if stored["owner_type"] == "worker" and user["role"] != "worker" and (not found or found[1].get("category") == "identity"):
+            raise HTTPException(status_code=403, detail="Documento reservado ao titular.")
         if found and found[1].get("category") == "identity" and (user["role"] != "worker" or user["sub"] != stored["owner_id"]):
             raise HTTPException(status_code=403, detail="Identificação reservada ao titular.")
     _authorize_file_owner(
@@ -2083,6 +2089,8 @@ def delete_document_file(
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
     with _state_lock:
         found = _find_document_by_file_id(file_id)
+        if stored["owner_type"] == "worker" and user["role"] != "worker" and (not found or found[1].get("category") == "identity"):
+            raise HTTPException(status_code=403, detail="Documento reservado ao titular.")
         if found and found[1].get("category") == "identity" and (user["role"] != "worker" or user["sub"] != stored["owner_id"]):
             raise HTTPException(status_code=403, detail="Identificação reservada ao titular.")
     _authorize_file_owner(
