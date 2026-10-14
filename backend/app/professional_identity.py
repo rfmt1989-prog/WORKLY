@@ -322,23 +322,33 @@ def _approved_attendance_hours(
     attendance: list[dict[str, Any]],
     project_id: str | None = None,
 ) -> float:
-    total = 0.0
+    """Merge approved time ranges so duplicates and overlapping shifts count once."""
+    intervals: list[tuple[float, float]] = []
     for item in attendance:
-        if item.get("worker_id") != worker_id:
-            continue
-        if item.get("approval_status") != "approved":
+        if item.get("worker_id") != worker_id or item.get("approval_status") != "approved":
             continue
         if project_id and item.get("project_id") != project_id:
             continue
         try:
             check_in = datetime.fromisoformat(str(item.get("check_in", "")).replace("Z", "+00:00"))
             check_out = datetime.fromisoformat(str(item.get("check_out", "")).replace("Z", "+00:00"))
-        except (TypeError, ValueError):
+            if check_in.tzinfo is None:
+                check_in = check_in.replace(tzinfo=timezone.utc)
+            if check_out.tzinfo is None:
+                check_out = check_out.replace(tzinfo=timezone.utc)
+            start = check_in.timestamp()
+            end = min(check_out.timestamp(), start + 16 * 3600)
+        except (TypeError, ValueError, OverflowError):
             continue
-        hours = (check_out - check_in).total_seconds() / 3600
-        if hours > 0:
-            total += min(hours, 16)
-    return round(total, 1)
+        if end > start:
+            intervals.append((start, end))
+    intervals.sort()
+    total = 0.0
+    last_end = float("-inf")
+    for start, end in intervals:
+        total += max(0.0, end - max(start, last_end))
+        last_end = max(last_end, end)
+    return round(total / 3600, 1)
 
 
 def _verified_projects(
