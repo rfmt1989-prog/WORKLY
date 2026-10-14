@@ -17,16 +17,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  roleAccent,
-  workspaceColors,
-} from "@/src/components/workspace/primitives";
+
 import { LanguageSelector } from "@/src/components/LanguageSelector";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
 import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import type { IdentityDocumentType } from "@/src/demo/types";
 
+const workspaceColors = {
+  background: "#F5F7F8", panel: "#F8FAFB", panelSoft: "#F1F5F6", panelStrong: "#E4EFF2",
+  line: "#DEE8EB", lineStrong: "#C7D9DF", text: "#233944", textSoft: "#506D79", muted: "#697F89",
+  blue: "#4B7E91", blueSoft: "#4B7E91", red: "#A36363", redSoft: "#A36363", green: "#558777",
+};
+const roleAccent = (role: UserRole) => role === "worker" ? workspaceColors.blue : workspaceColors.red;
 type ScreenMode = "login" | "register";
 
 const DEMO_PASSWORD = "WorklyDemo!";
@@ -53,7 +56,7 @@ const WORKER_IDENTITY_COPY = {
     citizenCard: "Cartão de Cidadão",
     passport: "Passaporte",
     number: "Número do documento",
-    privacy: "O número do documento é usado apenas para criar/verificar uma única identidade WORKLY e nunca aparece no perfil.",
+    privacy: "O número do documento é usado para criar a identidade WORKLY. A verificação depende da análise posterior do documento e o número não aparece no perfil.",
   },
   en: {
     title: "Official identification",
@@ -62,7 +65,7 @@ const WORKER_IDENTITY_COPY = {
     citizenCard: "Citizen card",
     passport: "Passport",
     number: "Document number",
-    privacy: "The document number is used only to create/verify one WORKLY identity and is never shown on the profile.",
+    privacy: "The document number creates your WORKLY identity. Verification requires a later review, and the number is never displayed on your profile.",
   },
   fr: {
     title: "Identification officielle",
@@ -130,6 +133,7 @@ export default function Login() {
   const [nationality, setNationality] = useState("");
   const [documentType, setDocumentType] = useState<IdentityDocumentType>("citizen_card");
   const [documentNumber, setDocumentNumber] = useState("");
+  const [identityConsent, setIdentityConsent] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -165,6 +169,14 @@ export default function Login() {
         (!nationality.trim() || !documentNumber.trim()))
     ) {
       setError(text.required);
+      return;
+    }
+    if (mode === "register" && !demoRole && cleanPassword.length < 10) {
+      setError(language === "pt" ? "A palavra-passe deve ter pelo menos 10 caracteres." : "Password must be at least 10 characters.");
+      return;
+    }
+    if (mode === "register" && !demoRole && selectedRole === "worker" && !identityConsent) {
+      setError(language === "pt" ? "Confirma que estás a registar os teus próprios dados de identificação." : "Confirm that you are registering your own identity details.");
       return;
     }
 
@@ -213,7 +225,7 @@ export default function Login() {
       style={styles.root}
     >
       <LinearGradient
-        colors={["#07090E", "#0A0D15", "#080A10"]}
+        colors={["#F8FAFB", "#EDF3F5", "#F5F7F8"]}
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.glow, styles.blueGlow]} />
@@ -270,7 +282,7 @@ export default function Login() {
                 </View>
               ))}
             </View>
-            {!compact ? (
+            {!compact && mode === "login" ? (
               <View style={styles.signal}>
                 <View style={[styles.signalLine, { backgroundColor: workspaceColors.blue }]} />
                 <View style={styles.signalContent}>
@@ -402,7 +414,7 @@ export default function Login() {
                       value={name}
                       onChangeText={setName}
                       placeholder={
-                        role === "company" ? "Atlas Estruturas" : "Rodolfo Maia"
+                        role === "company" ? "Nome da empresa" : "Nome conforme documento"
                       }
                       placeholderTextColor={workspaceColors.muted}
                       style={styles.input}
@@ -421,7 +433,7 @@ export default function Login() {
                         accessibilityLabel={identityText.nationality}
                         value={nationality}
                         onChangeText={setNationality}
-                        placeholder="Portugal"
+                        placeholder={language === "pt" ? "Ex.: Portuguesa" : "e.g. Portuguese"}
                         placeholderTextColor={workspaceColors.muted}
                         style={styles.input}
                       />
@@ -480,6 +492,10 @@ export default function Login() {
                       />
                     </View>
                   </View>
+                  <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: identityConsent }} onPress={() => setIdentityConsent(value => !value)} style={styles.identityConsent}>
+                    <Ionicons name={identityConsent ? "checkbox" : "square-outline"} size={21} color={workspaceColors.blue} />
+                    <Text style={styles.identityConsentText}>{language === "pt" ? "Confirmo que são os meus dados e que irei apresentar um documento para análise. O envio não garante verificação automática." : "I confirm these are my details and will submit an ID for review. Uploading does not automatically verify my identity."}</Text>
+                  </Pressable>
                   <View style={styles.identityPrivacy}>
                     <Ionicons name="shield-checkmark-outline" size={14} color={workspaceColors.blueSoft} />
                     <Text style={styles.identityPrivacyText}>{identityText.privacy}</Text>
@@ -502,7 +518,7 @@ export default function Login() {
                     textContentType="emailAddress"
                     value={email}
                     onChangeText={setEmail}
-                    placeholder={DEMO_ACCOUNTS[role]}
+                    placeholder={role === "worker" ? "email@exemplo.pt" : "empresa@exemplo.pt"}
                     placeholderTextColor={workspaceColors.muted}
                     style={styles.input}
                   />
@@ -569,19 +585,19 @@ export default function Login() {
               onPress={() => void authenticate()}
               style={({ pressed }) => [
                 styles.submit,
-                { backgroundColor: accent, shadowColor: accent },
+                { backgroundColor: `${accent}15`, borderColor: `${accent}75`, shadowColor: accent },
                 pressed ? { opacity: 0.8 } : null,
                 submitting ? { opacity: 0.65 } : null,
               ]}
             >
               {submitting === "form" ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={accent} />
               ) : (
                 <>
                   <Text style={styles.submitText}>
                     {mode === "login" ? text.submitLogin : text.submitRegister}
                   </Text>
-                  <Ionicons name="arrow-forward" color="#FFFFFF" size={18} />
+                  <Ionicons name="arrow-forward" color={accent} size={18} />
                 </>
               )}
             </Pressable>
@@ -903,12 +919,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: workspaceColors.lineStrong,
-    backgroundColor: "rgba(16,20,29,0.96)",
+    backgroundColor: "#F9FBFC",
     padding: 24,
     gap: 18,
     shadowColor: "#000000",
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 18 },
   },
   modeTabs: {
@@ -1003,7 +1019,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: workspaceColors.line,
-    backgroundColor: "#07111A",
+    backgroundColor: "#F0F5F7",
     borderRadius: 14,
     padding: 12,
   },
@@ -1032,7 +1048,7 @@ const styles = StyleSheet.create({
   },
   documentTypeButtonActive: {
     borderColor: workspaceColors.blue,
-    backgroundColor: "#0B2234",
+    backgroundColor: "#E7F0F3",
   },
   documentTypeText: {
     color: workspaceColors.muted,
@@ -1042,6 +1058,8 @@ const styles = StyleSheet.create({
   documentTypeTextActive: {
     color: workspaceColors.text,
   },
+  identityConsent: { flexDirection: "row", alignItems: "flex-start", gap: 9, padding: 11, borderRadius: 10, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#D2E1E6" },
+  identityConsentText: { flex: 1, fontSize: 10, color: "#536E7A", lineHeight: 16 },
   identityPrivacy: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1098,17 +1116,18 @@ const styles = StyleSheet.create({
   },
   submit: {
     minHeight: 48,
+    borderWidth: 1,
     borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 5 },
   },
   submitText: {
-    color: "#FFFFFF",
+    color: workspaceColors.blue,
     fontSize: 13,
     fontWeight: "800",
   },
