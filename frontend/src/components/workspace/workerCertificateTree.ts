@@ -435,7 +435,7 @@ export function buildSpecialtyTree(
       subtitle: specialty.description,
       icon: specialty.icon,
       status,
-      stage: specialty.minScore >= 60 ? "master" : "responsibility",
+      stage: specialty.minScore >= 60 ? ("master" as const) : ("responsibility" as const),
       family: "extra-specialty",
       scope: "Especialização técnica adicional",
       certificate: evidence,
@@ -578,6 +578,7 @@ function resolveStatuses(specs: NodeSpec[]): AchievementNode[] {
 
 export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
   // WORKLY never special-cases a worker's identity or name.
+  const course = findCertificate(worker.certificates, ["curso profissional", "curso tecnologico", "professional course", "technological course"]);
   const ipaf = findCertificate(worker.certificates, ["ipaf", "3a", "3b"]);
   const electrical = findCertificate(worker.certificates, [
     "h0b0",
@@ -614,16 +615,16 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
   const specs: NodeSpec[] = [
     {
       id: "course",
-      title: isRodolfo
-        ? "Técnico Eletromecânico de Refrigeração e Climatização IV"
-        : "Formação técnica",
-      subtitle: isRodolfo ? "Concluído em 2008" : "Formação profissional",
+      title: "Formação técnica",
+      subtitle: "Formação profissional",
       icon: "school-outline",
       stage: "foundation",
       family: "technical-foundation",
       scope: "Formação profissional",
-      baseStatus: isRodolfo ? "recorded" : "available",
-      meta: isRodolfo ? ["Portugal", "2008"] : [],
+      certificate: course,
+      evidence: findEvidence(worker.documents, course),
+      baseStatus: certificateStatus(course) || "available",
+      meta: [],
     },
 
     {
@@ -637,19 +638,8 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: ipaf,
       evidence: findEvidence(worker.documents, ipaf),
-      baseStatus: ipaf ? "recorded" : "available",
-      meta: isRodolfo
-        ? [
-            "PAL · 3A / 3B",
-            "Avaliado · 26/05/2026",
-            "Válido até · 31/05/2031",
-            "Going Up Portugal",
-            "Formação · 8 h",
-          ]
-        : ["3A · móvel vertical", "3B · móvel multidirecional"],
-      verificationNote: isRodolfo
-        ? "Dados de formação registados no perfil. O ficheiro pessoal não é publicado no demo público."
-        : undefined,
+      baseStatus: certificateStatus(ipaf) || "available",
+      meta: ["3A · móvel vertical", "3B · móvel multidirecional"],
     },
     nodeFromCertificate(
       {
@@ -749,13 +739,9 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
       dependsOn: ["course"],
       certificate: riskChemical,
       evidence: findEvidence(worker.documents, riskChemical),
-      baseStatus: riskChemical ? "recorded" : "available",
-      meta: isRodolfo
-        ? ["SGP Formation", "28–29/08/2026", "7 h", "Validação · Succès"]
-        : [],
-      verificationNote: isRodolfo
-        ? "Registo de formação industrial. Não equivale automaticamente a France Chimie N1 nem a Ism-ATEX N1."
-        : undefined,
+      baseStatus: certificateStatus(riskChemical) || "available",
+      meta: [],
+      verificationNote: "Formação ATEX não equivale automaticamente a outras autorizações industriais.",
     },
     {
       id: "atex-n1",
@@ -1004,15 +990,6 @@ export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
   const extraSpecs: NodeSpec[] = [];
   for (const certificate of worker.certificates) {
     if (resolvedSpecs.some((item) => item.certificate?.id === certificate.id))
-      continue;
-    // These legacy demonstration entries were intentionally excluded from the
-    // existing Rodolfo profile; only an explicit upload may associate them.
-    if (
-      isRodolfo &&
-      !certificate.node_id &&
-      !certificate.file_id &&
-      /h0b0|trabalho em altura/i.test(certificate.name)
-    )
       continue;
     extraSpecs.push({
       id: certificate.node_id || `certificate-${certificate.id}`,
