@@ -473,8 +473,10 @@ def professional_identity(
     core_coverage = (
         round(verified_core / len(core_nodes) * 100) if core_nodes else 0
     )
+    # Unverified declarations (proficiency 1) are visible, but award zero Value.
     essential_average = (
-        sum(proficiencies.values()) / len(proficiencies) if proficiencies else 0
+        sum(value if value >= 2 else 0 for value in proficiencies.values()) / len(proficiencies)
+        if proficiencies else 0
     )
 
     responsibility_ids = set(RESPONSIBILITY_NODE_ALIASES.get(area, ()))
