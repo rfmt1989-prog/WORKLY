@@ -13,17 +13,24 @@ export function verifiedAttendanceHours(
   attendance: Attendance[],
   projectId?: string,
 ) {
-  return Math.round(
-    attendance
-      .filter(
-        (item) =>
-          item.worker_id === workerId &&
-          item.approval_status === "approved" &&
-          (!projectId || item.project_id === projectId),
-      )
-      .reduce((sum, item) => sum + durationHours(item.check_in, item.check_out), 0) *
-      10,
-  ) / 10;
+  // Union approved time intervals: overlapping or duplicated records cannot
+  // inflate the worker's verified experience.
+  const periods = attendance
+    .filter(item => item.worker_id === workerId && item.approval_status === "approved" && (!projectId || item.project_id === projectId))
+    .map(item => {
+      const start = Date.parse(item.check_in);
+      const end = Date.parse(item.check_out || "");
+      return { start, end: Math.min(end, start + 16 * 3600000) };
+    })
+    .filter(item => Number.isFinite(item.start) && Number.isFinite(item.end) && item.end > item.start)
+    .sort((a, b) => a.start - b.start);
+  let totalMs = 0;
+  let lastEnd = Number.NEGATIVE_INFINITY;
+  for (const period of periods) {
+    totalMs += Math.max(0, period.end - Math.max(period.start, lastEnd));
+    lastEnd = Math.max(lastEnd, period.end);
+  }
+  return Math.round(totalMs / 3600000 * 10) / 10;
 }
 
 export function verifiedProjectIds(
