@@ -502,8 +502,8 @@ def professional_identity(
             return True
         return any(
             competency_id in KNOWLEDGE_NODE_IDS
-            and _matches_competency(item, competency_id, aliases)
-            for competency_id, aliases in core_nodes.items()
+            and node == competency_id
+            for competency_id in core_nodes
         )
 
     verified_qualifications = len({
