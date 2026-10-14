@@ -266,13 +266,17 @@ export function assessWorkerCompetence(
     ? Math.round((verifiedEssential.length / essential.length) * 100)
     : 0;
 
-  const relevantCertificates = worker.certificates.filter((certificate) => {
-    if (certificate.profession_id === profession.id) return true;
-    const nodeId = normalize(certificate.node_id || "");
-    return profile.competencies.some((competency) =>
-      [competency.id, ...competency.aliases]
-        .map(normalize)
-        .some((alias) => alias && (nodeId === alias || normalize(certificate.name).includes(alias))),
+  const relevantCertificates = worker.certificates.filter(certificate => {
+    const evidenceType = inferredEvidenceType(certificate);
+    if (evidenceType === "authorisation") return false;
+    const nodeId = certificate.node_id || certificate.competency_id || "";
+    if (nodeId === "formation-professional-course" || nodeId === "formation-internship") return true;
+    return profile.competencies.some(spec =>
+      nodeId === spec.id ||
+      (evidenceType !== "qualification" &&
+        [spec.id, ...spec.aliases].map(normalize).some(alias =>
+          alias && (normalize(nodeId) === alias || normalize(certificate.name).includes(alias))
+        ))
     );
   });
   const verifiedRelevant = relevantCertificates.filter(isCurrentVerified);
