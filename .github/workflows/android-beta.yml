@@ -24,8 +24,22 @@ jobs:
       EXPO_PUBLIC_API_URL: ${{ vars.WORKLY_TEST_API_URL }}
       EAS_NO_VCS: "0"
     steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Verify isolated beta configuration
         run: |
+          if [ "$GITHUB_REF_NAME" != "feature/single-profession-skill-tree" ]; then
+            echo "::error::Select the feature/single-profession-skill-tree branch when running Android Beta APK."
+            exit 1
+          fi
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::Set EXPO_TOKEN in the android-beta GitHub environment."
             exit 1
@@ -42,16 +56,6 @@ jobs:
               process.exit(1);
             }
           '
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - name: Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Verify TypeScript
