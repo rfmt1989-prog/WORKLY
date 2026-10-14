@@ -454,7 +454,7 @@ export function buildSpecialtyTree(
     descriptionEn:
       "New technical areas unlocked only when the required professional foundations are demonstrated.",
     nodes,
-    unlockedCount: nodes.filter((node) => node.status !== "locked").length,
+    unlockedCount: nodes.filter((node) => node.status === "verified").length,
   };
 }
 
@@ -577,18 +577,14 @@ function resolveStatuses(specs: NodeSpec[]): AchievementNode[] {
 }
 
 export function buildWorkerCertificateNodes(worker: Worker): AchievementNode[] {
-  const isRodolfo = worker.name.toLowerCase().includes("rodolfo maia");
+  // WORKLY never special-cases a worker's identity or name.
   const ipaf = findCertificate(worker.certificates, ["ipaf", "3a", "3b"]);
-  const electrical = isRodolfo
-    ? undefined
-    : findCertificate(worker.certificates, [
-        "h0b0",
-        "h0 / b0",
-        "habilitação elétrica",
-      ]);
-  const heights = isRodolfo
-    ? undefined
-    : findCertificate(worker.certificates, ["altura", "heights"]);
+  const electrical = findCertificate(worker.certificates, [
+    "h0b0",
+    "h0 / b0",
+    "habilitação elétrica",
+  ]);
+  const heights = findCertificate(worker.certificates, ["altura", "heights"]);
   const riskChemical = findCertificate(worker.certificates, [
     "risco químico",
     "sensibilização atex",
