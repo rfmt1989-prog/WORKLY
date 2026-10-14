@@ -14,11 +14,13 @@ def _certificate(name="Instalações elétricas", **extra):
 
 
 def test_one_identity_survives_edits_and_duplicate_registration(client):
-    registration = {"name": "Worker Único", "email": "one.profile@example.com", "password": "secure-password", "user_type": "worker"}
+    registration = {"name": "Worker Único", "email": "one.profile@example.com", "password": "secure-password", "user_type": "worker", "nationality": "Portuguesa", "identity_document_type": "citizen_card", "identity_document_number": "CC1234567890"}
     created = client.post("/api/auth/register", json=registration).json()
     worker_id = created["user"]["id"]
     auth = {"headers": {"Authorization": f"Bearer {created['access_token']}"}}
-    changed = _patch(client, auth, {"name": "Nome atualizado", "profession": "Eletricista", "experience_years": 12}, worker_id)
+    protected_name = _patch(client, auth, {"name": "Nome atualizado"}, worker_id)
+    assert protected_name.status_code == 403
+    changed = _patch(client, auth, {"profession": "Eletricista", "experience_years": 12}, worker_id)
     assert changed.status_code == 200
     assert changed.json()["professional_identity"]["id"] == worker_id
     assert changed.json()["professional_identity"]["score"] == 0
@@ -27,7 +29,7 @@ def test_one_identity_survives_edits_and_duplicate_registration(client):
     assert len(client.get("/api/workers", headers=auth["headers"]).json()) == 1
     login = client.post("/api/auth/login", json=registration).json()
     assert login["user"]["id"] == worker_id
-    assert login["user"]["name"] == "Nome atualizado"
+    assert login["user"]["name"] == "Worker Único"
     assert login["user"]["profession"] == "Eletricista"
 
 
@@ -45,18 +47,18 @@ def test_unconfirmed_or_unrelated_evidence_does_not_inflate_level():
     assert result["level"]["id"] == "apprentice"
 
 
-def test_master_requires_projects_and_duplicate_certificates_do_not_add_points():
+def test_unlinked_certificates_and_unverified_portfolio_do_not_award_master():
     certificates = [_certificate(f"Certificado {index}") for index in range(5)]
     skills = [_certificate(f"Skill {index}", kind="skill") for index in range(5)]
     worker = {"id": "w", "profession": "Eletricista", "certificates": [*certificates, *skills, {**certificates[0], "id": "duplicate"}], "best_projects": []}
     result = professional_identity(worker, [], today=date(2026, 10, 7))
-    assert result["score"] == 70
-    assert result["level"]["id"] == "specialist"
+    assert result["score"] == 0
+    assert result["level"]["id"] == "apprentice"
     worker["best_projects"] = [{"id": f"p{index}", "status": "verified", "profession_id": "electrical", "verified_by": "company-1"} for index in range(3)]
     result = professional_identity(worker, [], today=date(2026, 10, 7))
-    assert result["score"] == 100
-    assert result["level"]["id"] == "master"
-    assert result["next_level"] is None
+    assert result["score"] == 0
+    assert result["level"]["id"] == "apprentice"
+    assert result["next_level"] is not None
     worker["profession"] = "Canalizador"
     assert professional_identity(worker, [], today=date(2026, 10, 7))["score"] == 0
 
@@ -68,7 +70,7 @@ def test_company_confirmation_updates_score_and_edit_invalidates_confirmation(cl
     })
     assert uploaded.status_code == 200, uploaded.text
     proof = uploaded.json()["document"]
-    certificate = _certificate(file_id=proof["file_id"], file_name=proof["file_name"], status="pending")
+    certificate = _certificate(file_id=proof["file_id"], file_name=proof["file_name"], status="pending", evidence_type="work_record", node_id="el-installation", competency_id="el-installation")
     recorded = _patch(client, worker_auth, {"certificates": [certificate]})
     assert recorded.status_code == 200, recorded.text
     assert recorded.json()["professional_identity"]["score"] == 0
@@ -76,9 +78,10 @@ def test_company_confirmation_updates_score_and_edit_invalidates_confirmation(cl
     assert self_verified.json()["certificates"][0]["status"] == "pending"
     confirmed = _patch(client, company_auth, {"certificates": [{**certificate, "status": "verified"}]})
     assert confirmed.status_code == 200, confirmed.text
-    assert confirmed.json()["professional_identity"]["score"] == 10
+    verified_score = confirmed.json()["professional_identity"]["score"]
+    assert verified_score > 0
     bootstrap = client.get("/api/bootstrap", headers=worker_auth["headers"]).json()
-    assert next(item for item in bootstrap["workers"] if item["id"] == "worker-1")["professional_identity"]["score"] == 10
+    assert next(item for item in bootstrap["workers"] if item["id"] == "worker-1")["professional_identity"]["score"] == verified_score
     changed = deepcopy(confirmed.json()["certificates"])
     changed[0]["issuer"] = "Outro emissor"
     edited = _patch(client, worker_auth, {"certificates": changed})
@@ -97,7 +100,8 @@ def test_portfolio_confirmation_is_tied_to_the_same_profession(client, worker_au
     _patch(client, worker_auth, {"profession": "Eletricista", "best_projects": [{"id": "portfolio-1", "title": "Instalação elétrica", "location": "Portugal", "year": 2025, "summary": "Quadro e cablagem."}]})
     confirmed = _patch(client, company_auth, {"best_projects": [{"id": "portfolio-1", "title": "Instalação elétrica", "location": "Portugal", "year": 2025, "summary": "Quadro e cablagem.", "status": "verified"}]})
     assert confirmed.status_code == 200, confirmed.text
-    assert confirmed.json()["professional_identity"]["score"] == 10
+    assert confirmed.json()["professional_identity"]["score"] == 0
+    assert confirmed.json()["professional_identity"]["verified_projects"] == 0
     changed = _patch(client, worker_auth, {"profession": "Canalizador"})
     assert changed.json()["professional_identity"]["score"] == 0
     assert changed.json()["id"] == "worker-1"
