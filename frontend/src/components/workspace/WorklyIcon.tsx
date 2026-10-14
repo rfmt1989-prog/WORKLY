@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { type ComponentProps } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect } from "react-native-svg";
+import Svg, { Circle, G, Path, Polygon, Rect } from "react-native-svg";
 
 /**
  * WORKLY's vector symbol language.
@@ -40,7 +40,7 @@ function resolveSymbol(name: string): SymbolKey | null {
     "git-branch": "career", "git-network": "career", "trending-up": "career", "trail-sign": "career",
     business: "site", storefront: "site", build: "site", "briefcase": "site", "business-outline": "site", hammer: "site",
     folder: "document", "folder-open": "document", document: "document", "document-text": "document", archive: "document", receipt: "document", clipboard: "document", "cloud-upload": "document",
-    time: "time", timer: "time", calendar: "time", "alarm": "time", stopwatch: "time",
+    time: "time", timer: "time", calendar: "time", "alarm": "time", stopwatch: "time", radio: "time",
     shield: "shield", "shield-checkmark": "shield", "lock-closed": "shield", key: "shield",
     "checkmark-circle": "verified", "checkmark-done": "verified", checkmark: "verified", checkbox: "verified",
     school: "education", book: "education", "book-outline": "education", library: "education",
@@ -140,7 +140,7 @@ export function WorklyIcon({
   const alternative = name.endsWith("-outline") ? name : (name + "-outline") as WorklyIconName;
   const fallback = Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, alternative) ? alternative : name;
   return (
-    <View style={[{ width: size, height: size, alignItems: "center", justifyContent: "center" }, style]}>
+    <View pointerEvents="none" style={[{ width: size, height: size, alignItems: "center", justifyContent: "center" }, style]}>
       <Svg width={size} height={size} viewBox="0 0 24 24">
         {framed ? (
           isEmblem
@@ -154,7 +154,7 @@ export function WorklyIcon({
           </G>
         ) : null}
       </Svg>
-      {!key ? <Ionicons name={fallback} color={tone} size={framed ? size * 0.59 : size * 0.88} style={StyleSheet.absoluteFillObject as any} /> : null}
+      {!key ? <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { alignItems: "center", justifyContent: "center" }]}><Ionicons name={fallback} color={tone} size={framed ? size * 0.59 : size * 0.88} /></View> : null}
     </View>
   );
 }
