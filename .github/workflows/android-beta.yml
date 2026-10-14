@@ -21,7 +21,7 @@ jobs:
     env:
       CI: "1"
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_PUBLIC_API_URL: ${{ vars.WORKLY_TEST_API_URL }}
+      EXPO_PUBLIC_API_URL: ${{ vars.WORKLY_TEST_API_URL || 'https://workly-demo-4p9oor6hm-rfmt1989-8687s-projects.vercel.app/api' }}
       EAS_NO_VCS: "0"
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
             exit 1
           fi
           if [ -z "$EXPO_PUBLIC_API_URL" ]; then
-            echo "::error::Set WORKLY_TEST_API_URL to the isolated backend API base URL."
+            echo "::error::Set WORKLY_TEST_API_URL to a test backend API base URL."
             exit 1
           fi
           node -e '
