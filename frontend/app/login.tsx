@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/src/components/workspace/WorklyIcon";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -290,7 +290,7 @@ export default function Login() {
               ].map((feature) => (
                 <View key={feature.label} style={styles.feature}>
                   <Ionicons
-                    name={feature.icon as keyof typeof Ionicons.glyphMap}
+                    name={feature.icon as React.ComponentProps<typeof Ionicons>["name"]}
                     color={workspaceColors.blueSoft}
                     size={17}
                   />
