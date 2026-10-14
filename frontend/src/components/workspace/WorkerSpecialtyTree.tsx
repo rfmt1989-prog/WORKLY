@@ -38,7 +38,7 @@ export function WorkerSpecialtyTree({
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>{text("DESENVOLVIMENTO TÉCNICO", "TECHNICAL DEVELOPMENT")}</Text>
-          <Text style={styles.title}>{text("Extras", "Extras")}</Text>
+          <Text style={styles.title}>{text("Skills+", "Skills+")}</Text>
           {expanded ? (
             <Text style={styles.description}>
               {text(tree.description, tree.descriptionEn)}
@@ -48,7 +48,7 @@ export function WorkerSpecialtyTree({
         <View style={styles.count}>
           <Text style={styles.countValue}>{tree.unlockedCount}</Text>
           <View style={styles.countLine}>
-            <Text style={styles.countLabel}>{text("disponíveis", "available")}</Text>
+            <Text style={styles.countLabel}>{text("verificadas", "verified")}</Text>
             <Ionicons
               name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
               size={14}
@@ -96,8 +96,8 @@ export function WorkerSpecialtyTree({
                     <View style={styles.unlockChip}>
                       <Text style={styles.unlockText}>
                         {node.status === "available"
-                          ? text("DESBLOQUEADA", "UNLOCKED")
-                          : text("ATIVA", "ACTIVE")}
+                          ? text("DISPONÍVEL", "AVAILABLE")
+                          : node.status === "verified" ? text("VERIFICADA", "VERIFIED") : node.status === "pending" ? text("EM ANÁLISE", "IN REVIEW") : text("REGISTADA", "RECORDED")}
                       </Text>
                     </View>
                   ) : null}
@@ -123,8 +123,8 @@ export function WorkerSpecialtyTree({
         <Ionicons name="information-circle-outline" size={14} color="#C7B6A4" />
         <Text style={styles.noteText}>
           {text(
-            "O desbloqueio é progressão interna WORKLY. Certificações e autorizações legais continuam a exigir comprovativo próprio.",
-            "Unlocking is an internal WORKLY progression. Legal certificates and authorisations still require their own evidence.",
+            "As skills extras diferenciam o perfil, mas não alteram o nível da profissão principal. Só os comprovativos validados recebem o badge verificado.",
+            "Extra skills distinguish your profile without changing your main trade level. Only reviewed evidence earns a verified badge.",
           )}
         </Text>
       </View>
