@@ -373,7 +373,7 @@ export function assessWorkerCompetence(
   );
   const foundationReady = courseReady && internshipReady;
 
-  let achieved = worklyLevelGates[0];
+  let achieved: (typeof worklyLevelGates)[number] = worklyLevelGates[0];
   for (const gate of worklyLevelGates) {
     const eligible =
       score >= gate.minimum &&
