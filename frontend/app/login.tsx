@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 
 import { LanguageSelector } from "@/src/components/LanguageSelector";
+import { api } from "@/src/api/client";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
 import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
@@ -134,6 +135,7 @@ export default function Login() {
   const [documentType, setDocumentType] = useState<IdentityDocumentType>("citizen_card");
   const [documentNumber, setDocumentNumber] = useState("");
   const [identityConsent, setIdentityConsent] = useState(false);
+  const [registrationReady, setRegistrationReady] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -142,6 +144,16 @@ export default function Login() {
     () => (mode === "login" ? text.login : text.register),
     [mode, text.login, text.register],
   );
+
+  useEffect(() => {
+    if (mode !== "register" || __DEV__) return;
+    let active = true;
+    setRegistrationReady(null);
+    void api.get<{ persistence: { connected: boolean; mode: string } }>("/health")
+      .then(result => { if (active) setRegistrationReady(result.persistence?.connected === true && result.persistence?.mode === "postgres"); })
+      .catch(() => { if (active) setRegistrationReady(false); });
+    return () => { active = false; };
+  }, [mode]);
 
   useEffect(() => {
     if (!sessionLoading && user) {
@@ -169,6 +181,10 @@ export default function Login() {
         (!nationality.trim() || !documentNumber.trim()))
     ) {
       setError(text.required);
+      return;
+    }
+    if (mode === "register" && !demoRole && !__DEV__ && registrationReady !== true) {
+      setError(language === "pt" ? "O registo real está indisponível neste ambiente. Não introduzas documentos pessoais na pré-visualização." : "Real registration is unavailable here. Do not submit personal identity documents in this preview.");
       return;
     }
     if (mode === "register" && !demoRole && cleanPassword.length < 10) {
@@ -565,6 +581,9 @@ export default function Login() {
               </View>
             </View>
 
+            {mode === "register" && !__DEV__ && registrationReady !== true ? (
+              <View style={styles.errorBox} accessibilityRole="alert"><Ionicons name="information-circle-outline" color={workspaceColors.red} size={18}/><Text style={styles.errorText}>{registrationReady === null ? (language === "pt" ? "A confirmar a disponibilidade do registo seguro..." : "Checking secure registration availability...") : (language === "pt" ? "Pré-visualização sem armazenamento de registos. Testa com uma conta de demonstração; não envies dados pessoais reais." : "Preview has no persistent registration storage. Use the demo account; do not upload real personal details.")}</Text></View>
+            ) : null}
             {error ? (
               <View accessibilityRole="alert" style={styles.errorBox}>
                 <Ionicons
@@ -581,7 +600,7 @@ export default function Login() {
               accessibilityLabel={
                 mode === "login" ? text.submitLogin : text.submitRegister
               }
-              disabled={submitting !== null}
+              disabled={submitting !== null || (mode === "register" && !__DEV__ && registrationReady !== true)}
               onPress={() => void authenticate()}
               style={({ pressed }) => [
                 styles.submit,
