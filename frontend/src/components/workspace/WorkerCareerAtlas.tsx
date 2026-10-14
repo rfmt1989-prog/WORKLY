@@ -40,11 +40,21 @@ function Glyph({ icon, size = 20 }: { icon: React.ComponentProps<typeof Ionicons
 }
 
 function RankBadge({ numeral, current, completed }: { numeral: string; current: boolean; completed: boolean }) {
+  const icon = LEVELS.find((level, index) => worklyLevelGates[index]?.label === numeral)?.icon ?? "diamond-outline";
   return (
-    <View style={[styles.rankFrame, current && styles.rankFrameCurrent, completed && styles.rankFrameCompleted]}>
-      <View style={[styles.rankDiamond, current && styles.rankDiamondCurrent]} />
-      <Text style={[styles.rankNumeral, current && styles.rankNumeralCurrent]}>{numeral}</Text>
-      {completed && !current ? <View style={styles.rankCheck}><Ionicons name="checkmark" size={9} color={SURFACE} /></View> : null}
+    <View style={[styles.rankFrame, current && styles.rankFrameCurrent]}>
+      <Ionicons
+        name={icon}
+        size={47}
+        variant="emblem"
+        color={current ? ACCENT : completed ? "#397B73" : "#8FA5AF"}
+        active={current}
+        verified={completed}
+      />
+      <View style={[styles.rankNumberPlate, current && styles.rankNumberPlateCurrent]}>
+        <Text style={[styles.rankNumeral, current && styles.rankNumeralCurrent]}>{numeral}</Text>
+      </View>
+      {completed ? <View style={styles.rankCheck}><Ionicons name="checkmark" size={11} color={SURFACE} /></View> : null}
     </View>
   );
 }
@@ -352,14 +362,13 @@ const styles = StyleSheet.create({
   levels: { flexDirection: "row", alignItems: "stretch", gap: 3 },
   levelButton: { flex: 1, minWidth: 0, paddingVertical: 10, paddingHorizontal: 1, alignItems: "center", gap: 12, borderWidth: 1, borderColor: "transparent", borderRadius: 12, position: "relative" },
   levelButtonOpen: { backgroundColor: PALE, borderColor: "#BDD4DD" },
-  rankFrame: { width: 47, height: 47, alignItems: "center", justifyContent: "center", position: "relative" },
-  rankFrameCurrent: { transform: [{ scale: 1.08 }] },
-  rankFrameCompleted: {},
-  rankDiamond: { position: "absolute", width: 33, height: 33, borderRadius: 6, borderWidth: 2, borderColor: "#C3D1D7", backgroundColor: "#F6F9FA", transform: [{ rotate: "45deg" }] },
-  rankDiamondCurrent: { borderColor: ACCENT, backgroundColor: "#DCECF1" },
-  rankNumeral: { fontWeight: "900", fontSize: 18, color: "#8298A2", textAlign: "center" },
+  rankFrame: { width: 47, height: 53, alignItems: "center", justifyContent: "flex-start", position: "relative" },
+  rankFrameCurrent: { transform: [{ scale: 1.05 }] },
+  rankNumberPlate: { position: "absolute", bottom: 0, minWidth: 23, height: 15, backgroundColor: SURFACE, borderRadius: 5, borderWidth: 1, borderColor: "#C8D9E0", justifyContent: "center", alignItems: "center", paddingHorizontal: 3 },
+  rankNumberPlateCurrent: { backgroundColor: "#E9F2F5", borderColor: ACCENT },
+  rankNumeral: { fontWeight: "900", fontSize: 9, color: "#8298A2", textAlign: "center" },
   rankNumeralCurrent: { color: "#2A657C" },
-  rankCheck: { position: "absolute", right: 0, bottom: 0, width: 13, height: 13, alignItems: "center", justifyContent: "center", borderRadius: 7, backgroundColor: ACCENT },
+  rankCheck: { position: "absolute", right: 0, top: 0, width: 14, height: 14, alignItems: "center", justifyContent: "center", borderRadius: 7, backgroundColor: ACCENT },
   levelName: { fontSize: 9, lineHeight: 13, textAlign: "center", color: MUTED, fontWeight: "700" },
   levelNameCurrent: { color: INK, fontWeight: "800" },
   activeTick: { position: "absolute", bottom: 0, width: 21, height: 2, borderRadius: 2, backgroundColor: ACCENT },
