@@ -20,6 +20,7 @@ import { AttendanceView } from "./AttendanceView";
 import { DocumentsView } from "./DocumentsView";
 import { NotificationCenter } from "./NotificationCenter";
 import { WorkerProfileView } from "./WorkerProfileView";
+import { WorkerOnboarding } from "./WorkerOnboarding";
 import { ProjectsView } from "./ProjectsView";
 import { Avatar, roleAccent, workspaceColors } from "./primitives";
 
@@ -101,6 +102,8 @@ export function WorkerWorkspaceShell() {
   const { user, logout } = useAuth();
   const { state, language, setLanguage } = useWorklyData();
   const [activeSection, setActiveSection] = useState<WorkerSection>("profile");
+  const [dismissedSetup, setDismissedSetup] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
   const compact = width < 720;
   const accent = roleAccent("worker");
@@ -119,6 +122,11 @@ export function WorkerWorkspaceShell() {
   }, [activeSection, fade]);
 
   if (!user) return null;
+  const currentWorker = state?.workers.find(worker => worker.id === user.id);
+  const needsSetup = Boolean(currentWorker && (!currentWorker.profession?.trim() || !currentWorker.documents.some(item => item.category === "identity" && item.file_id)));
+  if (currentWorker && ((needsSetup && !dismissedSetup) || showSetup)) {
+    return <WorkerOnboarding worker={currentWorker} onFinish={() => { setDismissedSetup(true); setShowSetup(false); setActiveSection("profile"); }} />;
+  }
 
   const navItems: {
     id: WorkerSection;
@@ -181,6 +189,7 @@ export function WorkerWorkspaceShell() {
         </View>
 
         <View style={styles.topActions}>
+          {needsSetup ? <Pressable accessibilityRole="button" accessibilityLabel={language === "pt" ? "Completar registo" : "Complete registration"} onPress={() => setShowSetup(true)} style={styles.setupAction}><Ionicons name="person-add-outline" color="#4B7E91" size={19} />{!compact ? <Text style={styles.setupActionText}>{language === "pt" ? "Registo" : "Setup"}</Text> : null}</Pressable> : null}
           <NotificationCenter />
           <LanguageSelector
             language={language}
@@ -341,6 +350,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 2.1,
   },
+  setupAction: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#EAF2F4", borderColor: "#C5D8E0", borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, minHeight: 36 },
+  setupActionText: { color: "#4B7E91", fontSize: 11, fontWeight: "700" },
   topActions: {
     marginLeft: "auto",
     flexDirection: "row",
