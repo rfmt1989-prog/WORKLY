@@ -60,7 +60,7 @@ function Requirement({ label, actual, required, unit, icon }: { label: string; a
           <Text style={styles.requirementName}>{label}</Text>
           <Text style={styles.requirementNumbers}>{Math.round(actual)} / {required}{unit}</Text>
         </View>
-        <View style={styles.track}><View style={[styles.trackFill, { width: String(percent) + "%" }]} /></View>
+        <View style={styles.track}><View style={[styles.trackFill, { width: (String(percent) + "%") as `${number}%` }]} /></View>
       </View>
       <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} color={done ? ACCENT : "#9AACB4"} size={19} />
     </View>
@@ -182,7 +182,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
       <Pressable onPress={onRules} accessibilityRole="button" style={({ pressed }) => [styles.scoreMeter, pressed && styles.pressed]} testID="workly-value-meter">
         <View style={styles.meterCopy}>
           <View style={styles.meterTitleRow}><Ionicons name="analytics-outline" color={ACCENT} size={19} /><Text style={styles.meterTitle}>WORKLY VALUE</Text><Text style={styles.meterNumber}>{assessment.score}<Text style={styles.meterDenominator}>/100</Text></Text></View>
-          <View style={styles.meterTrack}><View style={[styles.meterFill, { width: String(Math.max(0, Math.min(100, assessment.score))) + "%" }]} /></View>
+          <View style={styles.meterTrack}><View style={[styles.meterFill, { width: (String(Math.max(0, Math.min(100, assessment.score))) + "%") as `${number}%` }]} /></View>
           <Text style={styles.meterCaption}>{tr("Técnica 45 · Obras e horas 25 · Formação 15 · Validação 15", "Skills 45 · Projects & hours 25 · Training 15 · Verification 15")}</Text>
         </View>
         <Ionicons name="chevron-forward-outline" size={17} color={ACCENT} />
@@ -216,7 +216,7 @@ export function WorkerCareerAtlas({ worker, assessment, language, onNode, onAddE
       </View>
       {nextGate ? <View style={styles.nextProgress}>
         <View style={styles.nextRow}><Text style={styles.nextName}>{tr("Próximo", "Next")} {nextGate.label}</Text><Text style={styles.nextRatio}>{nextCompleted}/{nextChecks.length} {tr("condições", "conditions")}</Text></View>
-        <View style={styles.nextTrack}><View style={[styles.nextFill, { width: nextPercent + "%" }]} /></View>
+        <View style={styles.nextTrack}><View style={[styles.nextFill, { width: (String(nextPercent) + "%") as `${number}%` }]} /></View>
       </View> : null}
       <View style={styles.treeFooter}>
         <View style={styles.legend}><View style={styles.legendDot} /><Text style={styles.legendText}>{tr("Nível atual", "Current level")}: {current.label}</Text></View>
