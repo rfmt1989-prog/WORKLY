@@ -249,10 +249,10 @@ export const competencyProfiles: CompetencyProfile[] = [
 
 export const worklyLevelGates = [
   { id:"apprentice", label:"I", labelEn:"I", minimum:0, coreCoverage:0, verifiedProjects:0, verifiedExperienceHours:0, responsibilityEvidence:0 },
-  { id:"junior", label:"II", labelEn:"II", minimum:20, coreCoverage:25, verifiedProjects:0, verifiedExperienceHours:0, responsibilityEvidence:0 },
+  { id:"junior", label:"II", labelEn:"II", minimum:20, coreCoverage:25, verifiedProjects:0, verifiedExperienceHours:160, responsibilityEvidence:0 },
   { id:"professional", label:"III", labelEn:"III", minimum:45, coreCoverage:60, verifiedProjects:2, verifiedExperienceHours:1600, responsibilityEvidence:0 },
   { id:"specialist", label:"IV", labelEn:"IV", minimum:70, coreCoverage:75, verifiedProjects:5, verifiedExperienceHours:4800, responsibilityEvidence:1 },
-  { id:"master", label:"V", labelEn:"V", minimum:85, coreCoverage:90, verifiedProjects:8, verifiedExperienceHours:8000, responsibilityEvidence:2 },
+  { id:"master", label:"V", labelEn:"V", minimum:85, coreCoverage:100, verifiedProjects:8, verifiedExperienceHours:8000, responsibilityEvidence:2 },
 ] as const;
 
 export function competencyProfileFor(professionId: string) {
