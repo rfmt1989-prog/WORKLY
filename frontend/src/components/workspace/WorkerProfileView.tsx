@@ -41,9 +41,10 @@ export function WorkerProfileView({
   const compact = width < 960;
   const narrow = width < 600;
   const careerScroll = useRef<ScrollView>(null);
+  const careerViewport = useRef<View>(null);
   const scrollPosition = useRef(0);
   const focusCareerDetail = (y: number, _height: number) => {
-    careerScroll.current?.measureInWindow((_x, viewportY) => {
+    careerViewport.current?.measureInWindow((_x: number, viewportY: number) => {
       const delta = y - viewportY - 12;
       if (Math.abs(delta) > 24) {
         careerScroll.current?.scrollTo({ y: Math.max(0, scrollPosition.current + delta), animated: true });
@@ -126,7 +127,7 @@ export function WorkerProfileView({
   };
 
   return (
-    <View style={[styles.root, mode === "journey" && styles.journeyRoot]} testID="worker-profile">
+    <View ref={careerViewport} style={[styles.root, mode === "journey" && styles.journeyRoot]} testID="worker-profile">
       {mode !== "journey" ? <WorkerProfileBackdrop /> : null}
       <ScrollView ref={careerScroll} onScroll={event => { scrollPosition.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
         <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
@@ -277,7 +278,7 @@ export function WorkerProfileView({
                   <View style={styles.snapshotMetric}>
                     <Text style={styles.snapshotNumber}>{competencyAssessment.score}<Text style={styles.snapshotSuffix}>/100</Text></Text>
                     <Text style={styles.snapshotCaption}>WORKLY VALUE</Text>
-                    <View style={styles.snapshotTrack}><View style={[styles.snapshotFill, { width: String(Math.max(0, Math.min(100, competencyAssessment.score))) + "%" }]} /></View>
+                    <View style={styles.snapshotTrack}><View style={[styles.snapshotFill, { width: (String(Math.max(0, Math.min(100, competencyAssessment.score))) + "%") as `${number}%` }]} /></View>
                   </View>
                   <View style={styles.snapshotMetric}>
                     <Text style={styles.snapshotNumber}>{competencyAssessment.verifiedProjects}</Text>
@@ -406,7 +407,7 @@ export function WorkerProfileView({
                 <Text style={styles.ruleTitle}>{text(part.label, part.labelEn)}</Text>
                 <Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text>
               </View>
-              <View style={styles.ruleTrack}><View style={[styles.ruleFill, { width: String(Math.max(0, Math.min(100, part.maximum ? part.points / part.maximum * 100 : 0))) + "%" }]} /></View>
+              <View style={styles.ruleTrack}><View style={[styles.ruleFill, { width: (String(Math.max(0, Math.min(100, part.maximum ? part.points / part.maximum * 100 : 0))) + "%") as `${number}%` }]} /></View>
               <Text style={styles.ruleDescription}>
                 {part.id === "technical" ? text("Badges da profissão: funções e competências comprovadas.", "Trade badges: demonstrable skills and work.")
                 : part.id === "experience" ? text("Check-ins aprovados, horas e obras concluídas.", "Approved check-ins, hours and completed projects.")
