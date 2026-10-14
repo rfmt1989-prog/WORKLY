@@ -693,7 +693,7 @@ def public_worker_verification(workly_id: str) -> dict[str, Any]:
             _state.get("attendance", []),
         )
         return {
-            "verified_profile": True,
+            "verified_profile": worker.get("identity_verification_status") == "verified",
             "workly_id": _public_workly_id(worker),
             "name": worker.get("name") or "",
             "nationality": worker.get("nationality") or worker.get("country") or "",
@@ -769,13 +769,16 @@ def register(data: RegisterInput) -> dict[str, Any]:
                 status_code=422,
                 detail="Indique um número de documento válido.",
             )
-        identity_document_number_hash = hashlib.sha256(
-            normalized_document_number.encode("utf-8")
+        identity_document_number_hash = hmac.new(
+            TOKEN_SECRET,
+            f"workly-identity:{identity_document_type}:{nationality.casefold()}:{normalized_document_number}".encode("utf-8"),
+            hashlib.sha256,
         ).hexdigest()
         identity_document_last4 = normalized_document_number[-4:]
+        # Legacy unkeyed digests are checked only for existing accounts.
+        legacy_hash = hashlib.sha256(normalized_document_number.encode("utf-8")).hexdigest()
         if any(
-            item.get("identity_document_number_hash")
-            == identity_document_number_hash
+            item.get("identity_document_number_hash") in {identity_document_number_hash, legacy_hash}
             for item in _registered_users.values()
         ):
             raise HTTPException(
@@ -1089,6 +1092,12 @@ def update_worker(
         "avatar",
     }
     clean_patch = {key: value for key, value in patch.data.items() if key in allowed}
+    if user["role"] == "worker" and "name" in clean_patch and _registered_users.get(user["email"], {}).get("identity_document_number_hash"):
+        raise HTTPException(status_code=403, detail="O nome legal não pode ser alterado por edição do perfil.")
+    if "avatar" in clean_patch:
+        photo = clean_patch["avatar"]
+        if not isinstance(photo, str) or len(photo) > 255_000 or (photo and not photo.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "https://"))):
+            raise HTTPException(status_code=422, detail="Fotografia inválida ou demasiado grande.")
     if "profession" in clean_patch:
         profession = clean_patch["profession"]
         if not isinstance(profession, str) or not profession.strip() or len(profession.strip()) > 100:
@@ -1942,6 +1951,8 @@ def upload_document_file(
     owner_id = data.owner_id.strip()
     category = data.category.strip().lower() or "other"
     _authorize_file_owner(user, owner_type, owner_id, manage=True)
+    if category == "identity" and (user["role"] != "worker" or owner_type != "worker" or owner_id != user["sub"]):
+        raise HTTPException(status_code=403, detail="Documento de identificação reservado ao titular.")
     if category not in ALLOWED_DOCUMENT_CATEGORIES:
         raise HTTPException(status_code=422, detail="Categoria documental inválida.")
     content_type = data.content_type.split(";", 1)[0].strip().lower()
@@ -1984,7 +1995,7 @@ def upload_document_file(
         "title": data.title.strip(),
         "category": category,
         "file_name": safe_name,
-        "status": "valid",
+        "status": "pending" if category == "identity" else "valid",
         "updated_at": _now_iso(),
         "demo_content": "Ficheiro real armazenado de forma autenticada na WORKLY.",
         "file_id": file_id,
@@ -2006,6 +2017,10 @@ def get_document_file_content(
     stored = _persistence.get_file(file_id)
     if not stored:
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
+    with _state_lock:
+        found = _find_document_by_file_id(file_id)
+        if found and found[1].get("category") == "identity" and (user["role"] != "worker" or user["sub"] != stored["owner_id"]):
+            raise HTTPException(status_code=403, detail="Identificação reservada ao titular.")
     _authorize_file_owner(
         user, str(stored["owner_type"]), str(stored["owner_id"]), manage=False
     )
@@ -2027,6 +2042,10 @@ def delete_document_file(
     stored = _persistence.get_file(file_id)
     if not stored:
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado.")
+    with _state_lock:
+        found = _find_document_by_file_id(file_id)
+        if found and found[1].get("category") == "identity" and (user["role"] != "worker" or user["sub"] != stored["owner_id"]):
+            raise HTTPException(status_code=403, detail="Identificação reservada ao titular.")
     _authorize_file_owner(
         user, str(stored["owner_type"]), str(stored["owner_id"]), manage=True
     )
@@ -2062,7 +2081,8 @@ def list_documents(
         raise HTTPException(status_code=403, detail="Documentos de outra empresa.")
     return [
         item for item in documents
-        if (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
+        if item.get("category") != "identity"
+        and (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
         or (owner_id and item.get("owner_id") == owner_id)
     ]
 
