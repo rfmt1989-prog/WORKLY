@@ -58,5 +58,18 @@ jobs:
         run: npx tsc --noEmit
       - name: Verify lint
         run: npm run lint
+      - name: Pass public beta API URL into remote Expo build
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const config = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+          config.build.preview.env = {
+            ...(config.build.preview.env || {}),
+            EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL
+          };
+          fs.writeFileSync("eas.json", JSON.stringify(config, null, 2) + "\n");
+          NODE
+      - name: Create or link WORKLY project in Expo
+        run: npx --yes eas-cli@16.28.0 init --account maia239 --non-interactive
       - name: Build Android APK
         run: npx --yes eas-cli@16.28.0 build --platform android --profile preview --non-interactive --wait
