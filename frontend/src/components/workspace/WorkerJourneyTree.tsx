@@ -1,7 +1,6 @@
 import Ionicons from "./WorklyIcon";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Path, Polygon } from "react-native-svg";
 import { uiText } from "@/src/demo/fullUi";
 import { professionalText } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
@@ -17,71 +16,15 @@ import {
 } from "./workerCertificateTree";
 
 function TechGlyph({ node, size = 22, color }: { node: AchievementNode; size?: number; color: string }) {
-  const family = `${node.id} ${node.family} ${node.title}`.toLowerCase();
-  const skill = node.kind === "skill";
-
-  if (skill) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M6 12L12 6L18 12L12 18Z" fill="none" stroke={color} strokeWidth="1.4" />
-        <Circle cx="6" cy="12" r="1.8" fill={color} />
-        <Circle cx="12" cy="6" r="1.8" fill={color} />
-        <Circle cx="18" cy="12" r="1.8" fill={color} />
-        <Circle cx="12" cy="18" r="1.8" fill={color} />
-      </Svg>
-    );
-  }
-
-  if (/electr|h0b0|b1|b2|loto/.test(family)) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M13.7 2.8L6.8 12.2H11L9.9 21.2L17.4 10.5H13.1L13.7 2.8Z" fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-      </Svg>
-    );
-  }
-
-  if (/hvac|refrig|fgas|climat|snow/.test(family)) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M12 3V21M4.2 7.5L19.8 16.5M4.2 16.5L19.8 7.5" stroke={color} strokeWidth="1.25" strokeLinecap="round" />
-        <Circle cx="12" cy="12" r="2" fill="none" stroke={color} strokeWidth="1.25" />
-      </Svg>
-    );
-  }
-
-  if (/atex|chem|risk|safety|vca|scc|first-aid/.test(family)) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Polygon points="12,3 21,12 12,21 3,12" fill="none" stroke={color} strokeWidth="1.3" />
-        <Path d="M12 7.5V13.5M12 16.7V16.9" stroke={color} strokeWidth="1.7" strokeLinecap="round" />
-      </Svg>
-    );
-  }
-
-  if (/ipaf|lift|rigg|crane|fork|platform|height/.test(family)) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M5 18H19M7 16L12 7L17 16M12 7V4M9.7 6.3L12 4L14.3 6.3" fill="none" stroke={color} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>
-    );
-  }
-
-  if (node.kind === "profession") {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Polygon points="12,3 19,8 17,17 12,21 7,17 5,8" fill="none" stroke={color} strokeWidth="1.35" />
-        <Path d="M8 12H16M12 8V16" stroke={color} strokeWidth="1.15" />
-      </Svg>
-    );
-  }
-
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Polygon points="12,3 19.5,7.5 19.5,16.5 12,21 4.5,16.5 4.5,7.5" fill="none" stroke={color} strokeWidth="1.25" />
-      <Circle cx="12" cy="12" r="2.2" fill="none" stroke={color} strokeWidth="1.25" />
-      <Path d="M12 5.8V8M12 16V18.2M5.9 12H8M16 12H18.1" stroke={color} strokeWidth="1.05" strokeLinecap="round" />
-    </Svg>
-  );
+  const family = (node.id + " " + node.family + " " + node.title).toLowerCase();
+  const motif = /hvac|refrig|fgas|climat|frio/.test(family) ? "snow-outline"
+    : /electr|h0b0|b1|b2|loto/.test(family) ? "flash-outline"
+    : /atex|quim|chem|explosi/.test(family) ? "warning-outline"
+    : /plataforma|ipaf|nacel/.test(family) ? "arrow-up-circle-outline"
+    : /solar|fotovolta/.test(family) ? "sunny-outline"
+    : /mecan|motor|industr/.test(family) ? "hardware-chip-outline"
+    : node.icon;
+  return <Ionicons name={motif} size={size} color={color} />;
 }
 
 export function JourneySymbol({
@@ -95,7 +38,7 @@ export function JourneySymbol({
   const inactive = node.status === "locked";
   const size = large ? 68 : 50;
   const core = large ? 40 : 30;
-  const tone = inactive ? "#819199" : color;
+  const tone = inactive ? "#97ABB4" : color;
 
   return (
     <View
@@ -103,11 +46,11 @@ export function JourneySymbol({
         styles.symbolFrame,
         { width: size, height: size, borderRadius: size / 2 },
         node.status === "verified" && styles.symbolVerified,
-        { borderColor: inactive ? "#486779" : "#7593A2", shadowColor: color },
+        { borderColor: inactive ? "#DCE5E9" : "#ABC7D1", shadowColor: color },
       ]}
     >
-      <View style={[styles.crosshairH, { backgroundColor: inactive ? "#446174" : "#435F70" }]} />
-      <View style={[styles.crosshairV, { backgroundColor: inactive ? "#D8E5EC" : `${color}30` }]} />
+      <View style={[styles.crosshairH, { backgroundColor: inactive ? "#D7E3E7" : "#A9C5CF" }]} />
+      <View style={[styles.crosshairV, { backgroundColor: inactive ? "#D7E3E7" : `${color}30` }]} />
       {node.status === "verified" ? <View style={styles.verifiedHalo} /> : null}
       <View
         style={[
@@ -115,14 +58,14 @@ export function JourneySymbol({
           {
             width: core,
             height: core,
-            borderColor: inactive ? "#486779" : tone,
-            backgroundColor: isCompleted(node.status) ? "#284354" : "#172736",
+            borderColor: inactive ? "#DCE5E9" : tone,
+            backgroundColor: isCompleted(node.status) ? "#E4F0F2" : "#F6F9FA",
           },
         ]}
       >
         <View style={styles.icon}>
           {inactive ? (
-            <Ionicons name="lock-closed-outline" size={large ? 18 : 14} color="#AEC2CB" />
+            <Ionicons name="lock-closed-outline" size={large ? 18 : 14} color="#8FA4AD" />
           ) : (
             <TechGlyph node={node} size={large ? 24 : 18} color={tone} />
           )}
@@ -606,15 +549,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#172736",
-    shadowOpacity: 0.16,
+    backgroundColor: "#F6F9FA",
+    shadowOpacity: 0.035,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
     zIndex: 2,
   },
   symbolVerified: {
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
+    shadowOpacity: 0.12,
+    shadowRadius: 9,
   },
   verifiedHalo: {
     position: "absolute",
@@ -622,11 +565,11 @@ const styles = StyleSheet.create({
     height: "124%",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#7394A7",
+    borderColor: "#C2D6DE",
   },
   crosshairH: { position: "absolute", width: "124%", height: 1 },
   crosshairV: { position: "absolute", height: "124%", width: 1 },
-  verifyDot: { position: "absolute", right: 2, top: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: "#223747", shadowColor: "#2388FF", shadowOpacity: .65, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
+  verifyDot: { position: "absolute", right: 2, top: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: "#397B73", shadowColor: "#397B73", shadowOpacity: .15, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
   diamond: {
     alignItems: "center",
     justifyContent: "center",
