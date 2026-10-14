@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import main
-from backend.app.demo_data import fresh_demo_state
+from backend.tests.synthetic_seed import fresh_demo_state
 
 
 @pytest.fixture(autouse=True)
