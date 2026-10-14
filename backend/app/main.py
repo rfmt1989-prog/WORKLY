@@ -336,6 +336,14 @@ def _worker_payload(worker: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _worker_payload_for_viewer(worker: dict[str, Any], viewer: dict[str, Any]) -> dict[str, Any]:
+    """A company may see validated work records, never private ID uploads."""
+    payload = _worker_payload(worker)
+    if viewer["role"] != "worker" or str(viewer["sub"]) != str(worker["id"]):
+        payload["documents"] = [item for item in payload.get("documents", []) if item.get("category") != "identity"]
+    return payload
+
+
 def _login_response(user: dict[str, Any]) -> dict[str, Any]:
     public_user = _enrich_auth_user(user)
     return {
@@ -993,7 +1001,37 @@ def bootstrap(
 ) -> dict[str, Any]:
     with _state_lock:
         payload = deepcopy(_state)
-        payload["workers"] = [_worker_payload(item) for item in _state["workers"]]
+        if user["role"] == "worker":
+            own_id = str(user["sub"])
+            worker_ids = {own_id}
+            projects = [item for item in _state["projects"] if own_id in item.get("worker_ids", [])]
+            company_ids = _company_ids_for_worker(own_id)
+            teams = [item for item in _state["teams"] if own_id in item.get("member_ids", [])]
+            attendance = [item for item in _state["attendance"] if item.get("worker_id") == own_id]
+            contracts = [item for item in _state["contracts"] if item.get("worker_id") == own_id]
+            notifications = [item for item in _state["notifications"] if item.get("target_id") == own_id]
+        else:
+            company_id = str(user.get("company_id") or "")
+            _require_company_permission(user, "workers.read")
+            worker_ids = _company_worker_ids(company_id)
+            projects = [item for item in _state["projects"] if str(item.get("company_id")) == company_id]
+            company_ids = {company_id}
+            teams = [item for item in _state["teams"] if str(item.get("company_id")) == company_id]
+            attendance = [item for item in _state["attendance"] if str(item.get("company_id")) == company_id]
+            contracts = [item for item in _state["contracts"] if str(item.get("company_id")) == company_id]
+            notifications = [item for item in _state["notifications"] if item.get("target_id") == company_id]
+        payload["workers"] = [
+            _worker_payload_for_viewer(item, user)
+            for item in _state["workers"] if str(item.get("id")) in worker_ids
+        ]
+        payload["companies"] = [
+            deepcopy(item) for item in _state["companies"] if str(item.get("id")) in company_ids
+        ]
+        payload["teams"] = deepcopy(teams)
+        payload["projects"] = deepcopy(projects)
+        payload["attendance"] = deepcopy(attendance)
+        payload["contracts"] = deepcopy(contracts)
+        payload["notifications"] = deepcopy(notifications)
     current = _demo_auth_user(user["email"]) or _registered_users.get(user["email"]) or user
     payload["current_user"] = _enrich_auth_user(current)
     payload["demo"] = {
@@ -1010,7 +1048,8 @@ def bootstrap(
 def reset_demo(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
-    del user
+    if os.getenv("VERCEL_ENV") or user["email"] not in {WORKER_DEMO_EMAIL, COMPANY_DEMO_EMAIL}:
+        raise HTTPException(status_code=403, detail="O reinício dos dados de demonstração não está disponível.")
     global _state
     with _state_lock:
         _state = fresh_demo_state()
@@ -1025,7 +1064,7 @@ def list_workers(
 ) -> list[dict[str, Any]]:
     query = q.strip().lower()
     with _state_lock:
-        workers = [_worker_payload(item) for item in _state["workers"]]
+        workers = [_worker_payload_for_viewer(item, user) for item in _state["workers"]]
         if user["role"] == "company":
             visible = _company_worker_ids(str(user.get("company_id") or ""))
             workers = [item for item in workers if item["id"] in visible]
@@ -1053,7 +1092,7 @@ def get_worker(
 ) -> dict[str, Any]:
     with _state_lock:
         _assert_worker_visible(user, worker_id)
-        return _worker_payload(_find("workers", worker_id))
+        return _worker_payload_for_viewer(_find("workers", worker_id), user)
 
 @app.patch(f"{API_PREFIX}/workers/{{worker_id}}", tags=["Workers"])
 def update_worker(
@@ -2082,8 +2121,10 @@ def list_documents(
     return [
         item for item in documents
         if item.get("category") != "identity"
-        and (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
-        or (owner_id and item.get("owner_id") == owner_id)
+        and (
+            (not owner_id and (item.get("owner_id") == company_id or item.get("owner_id") in worker_ids))
+            or (owner_id and item.get("owner_id") == owner_id)
+        )
     ]
 
 @app.get(f"{API_PREFIX}/certificates", tags=["Documents"])
