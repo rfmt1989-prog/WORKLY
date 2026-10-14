@@ -315,7 +315,7 @@ export function assessWorkerCompetence(
   const verifiedRegulatory = regulatoryMatched.filter(Boolean).length;
 
   const essentialProficiency = essential.length
-    ? essential.reduce((sum, item) => sum + item.proficiency, 0) / essential.length
+    ? essential.reduce((sum, item) => sum + (item.proficiency >= 2 ? item.proficiency : 0), 0) / essential.length
     : 0;
   const technicalPoints = Math.round((essentialProficiency / 4) * 45);
   const experienceScore = experiencePoints(verifiedWorkHours, verifiedProjects);
