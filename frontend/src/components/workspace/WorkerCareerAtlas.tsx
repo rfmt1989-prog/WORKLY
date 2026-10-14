@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "./WorklyIcon";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, useWindowDimensions, View } from "react-native";
 import { professionalText } from "@/src/demo/professionalI18n";
