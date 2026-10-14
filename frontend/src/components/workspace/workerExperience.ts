@@ -64,3 +64,19 @@ export function verifiedProjectIds(
       .map((project) => project.id),
   );
 }
+
+/** Calendar experience for display only; independent approval governs career points. */
+export function experienceYears(entries: Array<{ start_date: string; end_date: string; current: boolean }>): number {
+  const now = Date.now();
+  const intervals = entries.map(item => ({
+    start: Date.parse(item.start_date),
+    end: item.current ? now : Date.parse(item.end_date),
+  })).filter(period => Number.isFinite(period.start) && Number.isFinite(period.end) && period.end >= period.start).sort((a, b) => a.start - b.start);
+  let total = 0;
+  let lastEnd = Number.NEGATIVE_INFINITY;
+  for (const period of intervals) {
+    total += Math.max(0, period.end - Math.max(period.start, lastEnd));
+    lastEnd = Math.max(lastEnd, period.end);
+  }
+  return Math.min(80, Math.round(total / (365.25 * 86400000) * 10) / 10);
+}
