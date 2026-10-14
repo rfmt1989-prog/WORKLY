@@ -4,6 +4,7 @@ import type React from "react";
 export type CompetencyRelation = "essential" | "optional";
 export type CompetencyDimension =
   | "knowledge"
+  | "technical"
   | "practical"
   | "diagnostic"
   | "responsibility";
