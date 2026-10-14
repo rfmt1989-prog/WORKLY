@@ -400,7 +400,21 @@ export function WorkerProfileView({
       </ScrollView>
       {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como é calculado o WORKLY VALUE", "How WORKLY VALUE is calculated")} subtitle={text("Quatro dimensões simples formam o valor 0–100. O nível profissional exige também critérios mínimos.", "Four simple dimensions create the 0–100 value. Professional level also requires minimum gates.")}>
         <View style={styles.ruleList}>
-          {competencyAssessment.components.map(part => <View key={part.id} style={styles.ruleItem}><Text style={styles.ruleTitle}>{text(part.label, part.labelEn)}</Text><Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text></View>)}
+          {competencyAssessment.components.map(part => (
+            <View key={part.id} style={styles.ruleItem}>
+              <View style={styles.ruleHead}>
+                <Text style={styles.ruleTitle}>{text(part.label, part.labelEn)}</Text>
+                <Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text>
+              </View>
+              <View style={styles.ruleTrack}><View style={[styles.ruleFill, { width: String(Math.max(0, Math.min(100, part.maximum ? part.points / part.maximum * 100 : 0))) + "%" }]} /></View>
+              <Text style={styles.ruleDescription}>
+                {part.id === "technical" ? text("Badges da profissão: funções e competências comprovadas.", "Trade badges: demonstrable skills and work.")
+                : part.id === "experience" ? text("Check-ins aprovados, horas e obras concluídas.", "Approved check-ins, hours and completed projects.")
+                : part.id === "qualifications" ? text("Formações ligadas à profissão, verificadas e distintas.", "Distinct verified training directly linked to the trade.")
+                : text("Qualidade e validação independente dos comprovativos.", "Evidence quality and independent verification.")}
+              </Text>
+            </View>
+          ))}
           {competencyAssessment.missingGates.length ? (
             <View style={styles.ruleItem}>
               <Text style={styles.ruleTitle}>{text("Para o próximo nível", "For the next level")}</Text>
@@ -411,7 +425,7 @@ export function WorkerProfileView({
               ))}
             </View>
           ) : null}
-          <Text style={styles.detailNote}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
+          <Text style={[styles.detailNote, { color: "#536E78" }]}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
         </View>
       </ModalPanel> : null}
       {selected ? (
@@ -839,9 +853,13 @@ const styles = StyleSheet.create({
   muted: { color: workspaceColors.muted, fontSize: 12, lineHeight: 19 },
   pressed: { opacity: .72 },
   ruleList: { gap: 16 },
-  ruleItem: { padding: 16, gap: 8, borderWidth: 1, borderColor: "#40596A", borderRadius: 8, backgroundColor: "#172736" },
-  ruleTitle: { color: "#EDF5F7", fontSize: 13, lineHeight: 20 },
-  ruleValue: { color: "#91C9DD", fontSize: 24, fontWeight: "600" },
+  ruleItem: { padding: 14, gap: 9, borderWidth: 1, borderColor: "#DAE6E9", borderRadius: 13, backgroundColor: "#F7FAFB" },
+  ruleHead: { flexDirection: "row", gap: 8, justifyContent: "space-between", alignItems: "center" },
+  ruleTrack: { height: 6, backgroundColor: "#DDE8EC", borderRadius: 5, overflow: "hidden" },
+  ruleFill: { height: 6, backgroundColor: "#4B7E91", borderRadius: 5 },
+  ruleTitle: { color: "#253D48", flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "700" },
+  ruleValue: { color: "#4B7E91", fontSize: 19, fontWeight: "800" },
+  ruleDescription: { fontSize: 10, color: "#5B747F", lineHeight: 16 },
   detailContent: { gap: 18 },
   proofSection: { gap: 10, borderWidth: 1, borderColor: "#40596A", borderRadius: 16, backgroundColor: "#172736", padding: 12 },
   proofHeading: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
