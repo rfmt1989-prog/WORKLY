@@ -493,15 +493,21 @@ def professional_identity(
     }
     responsibility_evidence = len(demonstrated_responsibility)
 
-    relevant = [
-        item
-        for item in certificates
-        if item.get("profession_id") == area
-        or any(
-            _certificate_matches_node(item, aliases)
-            for aliases in core_nodes.values()
-        )
-    ]
+    def is_trade_evidence(item: dict[str, Any]) -> bool:
+        evidence_type = _evidence_type(item)
+        if evidence_type == "authorisation":
+            return False
+        node = str(item.get("node_id") or item.get("competency_id") or "")
+        if node in {"formation-professional-course", "formation-internship"}:
+            return True
+        for competency_id, aliases in core_nodes.items():
+            if node == competency_id:
+                return True
+            if evidence_type != "qualification" and _matches_competency(item, competency_id, aliases):
+                return True
+        return False
+
+    relevant = [item for item in certificates if is_trade_evidence(item)]
     verified_relevant = [item for item in relevant if _verified_current(item, today)]
     # Only distinct trade-core qualifications count; ATEX/IPAF/site courses do not.
     def core_qualification(item: dict[str, Any]) -> bool:
