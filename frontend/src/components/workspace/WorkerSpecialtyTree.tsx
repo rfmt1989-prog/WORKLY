@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "./WorklyIcon";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { professionalText, specialtyCopy, specialtyRequirementText } from "@/src/demo/professionalI18n";
