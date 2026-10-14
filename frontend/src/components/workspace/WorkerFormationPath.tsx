@@ -28,9 +28,6 @@ const apprenticeshipRequirements = [
       "curso tecnico",
       "curso técnico",
       "technical course",
-      "tecnico",
-      "técnico",
-      "technician",
     ],
   },
   {
@@ -67,19 +64,8 @@ function evidenceFor(
   requirement: (typeof apprenticeshipRequirements)[number],
 ): Certificate | undefined {
   return worker.certificates.find((item) => {
-    if (
-      item.competency_id === requirement.id ||
-      item.node_id === requirement.id
-    ) {
-      return true;
-    }
-
-    if (
-      item.evidence_type &&
-      item.evidence_type !== requirement.evidenceType
-    ) {
-      return false;
-    }
+    if (item.evidence_type && item.evidence_type !== requirement.evidenceType) return false;
+    if (item.competency_id === requirement.id || item.node_id === requirement.id) return true;
 
     const name = normalize(item.name);
     return requirement.aliases.some((alias) =>
