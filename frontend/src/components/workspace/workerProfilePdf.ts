@@ -93,11 +93,17 @@ function buildHtml(
     : "—";
 
   const worklyId = formatWorklyId(worker);
+  const avatar = worker.avatar?.trim() || "";
+  // Only embed data images or HTTPS URLs; never embed arbitrary worker input as HTML.
+  const avatarUrl = /^(data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https:\/\/[^\s"'<>]+)$/i.test(avatar) ? avatar : "";
+  const issueDate = new Date().toLocaleDateString(language === "pt" ? "pt-PT" : "en-GB", {
+    day: "2-digit", month: "long", year: "numeric",
+  });
   const verifyUrl = verificationUrl(worklyId);
   const qrUrl = qrImageUrl(verifyUrl);
   const eligibilityStatus =
     worker.work_eligibility_status ||
-    (worker.id === "worker-1" ? "eligible" : "pending");
+    "pending";
   const eligibilityLabel =
     eligibilityStatus === "eligible"
       ? text("Apto para trabalhar", "Eligible to work")
@@ -321,30 +327,41 @@ function buildHtml(
   * { box-sizing:border-box; }
   body { font-family: Arial, Helvetica, sans-serif; color:#17212b; margin:0; font-size:10.5px; line-height:1.4; }
   h1 { font-size:25px; margin:0 0 3px; }
-  h2 { font-size:13px; margin:18px 0 7px; padding-bottom:5px; border-bottom:1px solid #dbe3ea; break-after:avoid; }
-  .brand { font-size:10px; font-weight:800; letter-spacing:2.2px; color:#256da8; }
-  .header { display:flex; justify-content:space-between; gap:18px; padding-bottom:14px; border-bottom:2px solid #256da8; }
+  h2 { font-size:12px; margin:20px 0 8px; padding-bottom:7px; border-bottom:1px solid #DDE7EA; break-after:avoid; letter-spacing:.2px; }
+  .report-intro { margin-top:8px; display:flex; justify-content:space-between; color:#77909B; font-size:8px; letter-spacing:.6px; }
+  .section-hint { font-size:8px; line-height:12px; color:#8799A2; margin-bottom:6px; }
+  .brand { font-size:12px; font-weight:900; letter-spacing:3px; color:#4B7E91; }
+  .header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:17px; border-bottom:2px solid #4B7E91; }
+  .identity-title { display:flex; align-items:center; gap:13px; min-width:0; }
+  .avatar { height:76px; width:76px; border-radius:14px; border:1px solid #C6D9E1; object-fit:cover; background:#EAF2F4; }
+  .avatar-empty { height:76px; width:76px; border-radius:14px; border:1px solid #C6D9E1; background:#EAF2F4; color:#8197A2; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:8px; text-align:center; }
+  .avatar-mark { font-size:27px; font-weight:900; line-height:29px; }
+  .document-caption { color:#6C8590; font-size:8px; text-transform:uppercase; letter-spacing:1.3px; margin:3px 0 5px; }
+  .issued { margin-top:6px; color:#738891; font-size:8px; }
+  .summary { margin-top:12px; padding:10px 12px; background:#F1F6F7; border-left:3px solid #4B7E91; border-radius:0 8px 8px 0; }
+  .summary-label { font-size:7px; font-weight:800; letter-spacing:1px; color:#4B7E91; text-transform:uppercase; }
+  .summary-copy { font-size:10px; line-height:1.5; color:#334C58; margin-top:3px; }
   .header-main { min-width:0; flex:1; }
   .profession { font-size:13px; font-weight:700; }
   .workly-id { margin-top:4px; color:#607080; font-size:9px; letter-spacing:.5px; }
-  .hero { display:flex; align-items:flex-start; justify-content:flex-end; gap:12px; min-width:255px; }
+  .hero { display:flex; align-items:center; justify-content:flex-end; gap:12px; min-width:230px; }
   .hero-copy { text-align:right; flex:1; }
   .qr-wrap { width:82px; text-align:center; }
   .qr { display:block; width:78px; height:78px; border:1px solid #d7e2ea; padding:3px; background:#fff; }
   .qr-label { margin-top:3px; font-size:6.5px; line-height:9px; color:#657787; text-transform:uppercase; letter-spacing:.45px; }
-  .hero-level { font-size:28px; line-height:30px; color:#256da8; font-weight:800; }
+  .hero-level { font-size:24px; line-height:28px; color:#345F72; font-weight:850; }
   .hero-score { font-size:12px; font-weight:700; margin-top:2px; }
-  .fit { display:inline-block; margin-top:6px; padding:3px 7px; border-radius:999px; border:1px solid #a9c7dc; color:#225f8d; font-size:8px; font-weight:700; }
+  .fit { display:inline-block; margin-top:6px; padding:4px 7px; border-radius:5px; border:1px solid #C6D9E1; background:#F3F7F8; color:#536E7B; font-size:8px; font-weight:700; }
   .identity-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 14px; margin:12px 0 0; }
   .item { min-width:0; }
   .item-label { font-size:7.5px; text-transform:uppercase; letter-spacing:.7px; color:#748494; }
   .item-value { margin-top:2px; font-weight:700; }
   .snapshot { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-top:10px; }
-  .snapshot-card { border:1px solid #d9e4ec; border-radius:8px; padding:8px; background:#f8fbfd; }
-  .snapshot-value { font-size:17px; color:#256da8; font-weight:800; }
+  .snapshot-card { border:1px solid #D6E5E9; border-radius:8px; padding:9px; background:#F0F6F7; }
+  .snapshot-value { font-size:18px; color:#345F72; font-weight:900; }
   .snapshot-label { margin-top:2px; font-size:7.5px; color:#657787; text-transform:uppercase; letter-spacing:.4px; }
   .components { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:8px; }
-  .component { border:1px solid #e0e8ee; border-radius:7px; padding:7px; }
+  .component { border:1px solid #DDE8EB; border-radius:7px; padding:7px; background:#FBFCFD; }
   .component-name { font-size:8px; color:#607080; }
   .component-value { margin-top:3px; font-size:13px; font-weight:800; }
   .section-status { float:right; font-size:8px; color:#607080; font-weight:700; }
@@ -355,17 +372,24 @@ function buildHtml(
   .right { text-align:right; white-space:nowrap; }
   .tiny { color:#71808d; font-size:8px; margin-top:1px; }
   .muted { color:#71808d; }
-  .core { display:inline-block; margin-left:4px; padding:1px 4px; border-radius:999px; border:1px solid #b7d0e2; color:#256da8; font-size:6px; font-weight:800; vertical-align:middle; }
+  .core { display:inline-block; margin-left:4px; padding:1px 4px; border-radius:4px; border:1px solid #B7D0D6; color:#4B7E91; font-size:6px; font-weight:800; vertical-align:middle; }
   .footer { margin-top:20px; padding-top:8px; border-top:1px solid #dbe3ea; color:#71808d; font-size:7.5px; }
 </style>
 </head>
 <body>
   <div class="header">
-    <div class="header-main">
-      <div class="brand">WORKLY</div>
-      <h1>${esc(worker.name || text("Perfil Worker", "Worker Profile"))}</h1>
-      <div class="profession">${esc(professionLabel)}</div>
-      <div class="workly-id">${esc(text("WORKLY ID", "WORKLY ID"))}: ${esc(worklyId)}</div>
+    <div class="identity-title">
+      ${avatarUrl
+        ? `<img class="avatar" src="${esc(avatarUrl)}" alt="${esc(text("Fotografia profissional", "Professional photograph"))}" />`
+        : `<div class="avatar-empty"><div class="avatar-mark">W</div>${esc(text("Sem fotografia", "No photo"))}</div>`}
+      <div class="header-main">
+        <div class="brand">WORKLY</div>
+        <div class="document-caption">${esc(text("Passaporte profissional", "Professional passport"))}</div>
+        <h1>${esc(worker.name || text("Perfil Worker", "Worker Profile"))}</h1>
+        <div class="profession">${esc(professionLabel)}</div>
+        <div class="workly-id">${esc(text("WORKLY ID", "WORKLY ID"))}: ${esc(worklyId)}</div>
+        <div class="issued">${esc(text("Emitido em", "Issued on"))}: ${esc(issueDate)}</div>
+      </div>
     </div>
     <div class="hero">
       <div class="hero-copy">
@@ -376,7 +400,7 @@ function buildHtml(
       </div>
       <div class="qr-wrap">
         <img class="qr" src="${esc(qrUrl)}" alt="WORKLY verification QR" />
-        <div class="qr-label">${esc(text("Verificar perfil", "Verify profile"))}</div>
+        <div class="qr-label">${esc(text("Consultar WORKLY ID", "Look up WORKLY ID"))}</div>
       </div>
     </div>
   </div>
@@ -391,11 +415,15 @@ function buildHtml(
       <div class="item-value">${esc(languages)}</div>
     </div>
     <div class="item">
-      <div class="item-label">${esc(text("Apto para trabalhar", "Fit to work"))}</div>
-      <div class="item-value">${esc(eligibilityLabel)}</div>
+      <div class="item-label">${esc(text("Localização profissional", "Work location"))}</div>
+      <div class="item-value">${esc(worker.location || "—")}</div>
     </div>
   </div>
 
+  ${worker.bio?.trim()
+    ? `<div class="summary"><div class="summary-label">${esc(text("Resumo profissional", "Professional summary"))}</div><div class="summary-copy">${esc(worker.bio.trim().slice(0, 460))}</div></div>`
+    : ""}
+  <div class="report-intro"><span>${esc(text("INDICADORES PROFISSIONAIS", "PROFESSIONAL INDICATORS"))}</span><span>${esc(text("Apenas evidências confirmadas contam para a progressão", "Only confirmed evidence counts toward progression"))}</span></div>
   <div class="snapshot">
     <div class="snapshot-card">
       <div class="snapshot-value">${assessment?.score ?? 0}</div>
@@ -523,7 +551,7 @@ function buildHtml(
 
   <div class="footer">
     <div><strong>${esc(text("WORKLY ID", "WORKLY ID"))}: ${esc(worklyId)}</strong></div>
-    <div>${esc(text("Verificação pública", "Public verification"))}: ${esc(verifyUrl)}</div>
+    <div>${esc(text("Consulta do perfil", "Profile lookup"))}: ${esc(verifyUrl)}</div>
     <div style="margin-top:4px;">${esc(
       text(
         "Documento gerado pela WORKLY. O WORKLY VALUE e os níveis I–V são classificações internas baseadas em evidência e não substituem qualificações, licenças ou autorizações legais.",
