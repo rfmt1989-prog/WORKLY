@@ -55,6 +55,12 @@ jobs:
               process.exit(1);
             }
           '
+      - name: Verify Expo access token before installing the app
+        run: |
+          if ! npx --yes eas-cli@16.28.0 whoami; then
+            echo "::error::Expo rejected EXPO_TOKEN. Create a fresh token in https://expo.dev/settings/access-tokens and replace EXPO_TOKEN in GitHub Actions secrets. Also check if the android-beta environment overrides the repository secret."
+            exit 1
+          fi
       - name: Install dependencies
         run: npm ci
       - name: Verify TypeScript
