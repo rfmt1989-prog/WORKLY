@@ -8,7 +8,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "./WorklyIcon";
+import { openWorklyFile } from "@/src/api/documentFiles";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
@@ -444,6 +445,33 @@ function WorkerDetails({
 }) {
   const t = copy[language];
   const accent = roleAccent("company");
+  const { user } = useAuth();
+  const { updateWorker, notify } = useWorklyData();
+  const canVerify = user?.permissions?.includes("workers.manage") === true;
+  const [confirmation, setConfirmation] = useState<{ kind: "certificate" | "project"; id: string; title: string } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const projectForEvidence = (projectId?: string) =>
+    projectId ? projects.find((project) => project.id === projectId) : undefined;
+  const openEvidence = async (fileId: string) => {
+    try { await openWorklyFile(fileId); }
+    catch { notify(uiText(language, "Não foi possível abrir o comprovativo.", "Could not open evidence."), "error"); }
+  };
+  const confirmEvidence = async () => {
+    if (!confirmation || verifying) return;
+    setVerifying(true);
+    try {
+      if (confirmation.kind === "certificate") {
+        await updateWorker(worker.id, { certificates: worker.certificates.map((item) => item.id === confirmation.id ? { ...item, status: "verified" } : item) });
+      } else {
+        await updateWorker(worker.id, { best_projects: worker.best_projects.map((item) => item.id === confirmation.id ? { ...item, status: "verified" as const } : item) });
+      }
+      setConfirmation(null);
+    } catch {
+      // The shared mutation handler presents the server error.
+    } finally {
+      setVerifying(false);
+    }
+  };
   return (
     <View style={{ gap: 18 }}>
       <View style={styles.profileHero}>
@@ -480,6 +508,7 @@ function WorkerDetails({
       </View>
 
       <Text style={sharedStyles.body}>{localizeDemoText(language, worker.bio)}</Text>
+      {worker.professional_identity ? <Card><SectionTitle title={uiText(language, "Nível profissional Workly", "Workly professional level")} /><Text style={[styles.profileTrade, { marginTop: 12 }]}>{uiText(language, worker.professional_identity.level.label, worker.professional_identity.level.label_en)} · {worker.professional_identity.score}/100</Text></Card> : null}
 
       <View style={styles.detailColumns}>
         <Card style={{ flex: 1, minWidth: 250 }}>
@@ -514,9 +543,37 @@ function WorkerDetails({
                 <View style={{ flex: 1 }}>
                   <Text style={styles.detailLabel}>{localizeDemoText(language, certificate.name)}</Text>
                   <Text style={styles.workerLocation}>
-                    {certificate.issuer} · {certificate.expires_at}
+                    {certificate.issuer || "—"}{certificate.expires_at ? ` · ${certificate.expires_at}` : ""}
+                  </Text>
+                  {certificate.project_id ? (
+                    <View style={styles.proofRow}>
+                      <Ionicons name="link-outline" size={12} color={workspaceColors.green} />
+                      <Text style={styles.proofText}>
+                        PROOF OF WORK · {projectForEvidence(certificate.project_id)?.name || certificate.project_id}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.workerLocation}>
+                    {certificate.status === "verified"
+                      ? uiText(language, "Validado pela empresa", "Employer verified")
+                      : uiText(language, "A validar", "Pending verification")}
                   </Text>
                 </View>
+                {certificate.file_id || certificate.project_id ? (
+                  <View style={{ gap: 8 }}>
+                    {certificate.file_id ? (
+                      <Button compact variant="ghost" label={uiText(language, "Consultar", "Open")} onPress={() => { if (certificate.file_id) void openEvidence(certificate.file_id); }} />
+                    ) : null}
+                    {canVerify && certificate.status !== "verified" ? (
+                      <Button
+                        compact
+                        variant="secondary"
+                        label={certificate.project_id ? uiText(language, "Validar Proof of Work", "Verify Proof of Work") : uiText(language, "Confirmar", "Confirm")}
+                        onPress={() => setConfirmation({ kind: "certificate", id: certificate.id, title: certificate.name })}
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
@@ -537,6 +594,8 @@ function WorkerDetails({
               <Text style={styles.workerLocation}>
                 {project.location} · {project.year}
               </Text>
+              <Text style={styles.workerLocation}>{project.status === "verified" ? uiText(language, "Confirmado pela empresa", "Confirmed by company") : uiText(language, "Declarado pelo worker", "Declared by worker")}</Text>
+              {canVerify && project.status !== "verified" ? <Button compact variant="secondary" label={uiText(language, "Confirmar realização", "Confirm completion")} onPress={() => setConfirmation({ kind: "project", id: project.id, title: project.title })} /> : null}
             </View>
           ))}
         </ScrollView>
@@ -615,6 +674,7 @@ function WorkerDetails({
           })}
         </View>
       </Card>
+      {confirmation ? <ModalPanel visible title={uiText(language, "Confirmar registo profissional", "Confirm professional record")} onClose={() => { if (!verifying) setConfirmation(null); }} footer={<><Button variant="secondary" label={uiText(language, "Cancelar", "Cancel")} disabled={verifying} onPress={() => setConfirmation(null)} /><Button label={uiText(language, "Confirmar verificação", "Confirm verification")} loading={verifying} onPress={() => void confirmEvidence()} /></>}><Text style={sharedStyles.body}>{confirmation.title}</Text><Text style={sharedStyles.subtitle}>{uiText(language, "Confirma que verificaste este registo de", "Confirm that you checked this record for")} {worker.name}. {uiText(language, "A confirmação será atribuída à tua conta e poderá alterar a pontuação profissional.", "Confirmation will be attributed to your account and may change the professional score.")}</Text></ModalPanel> : null}
     </View>
   );
 }
@@ -817,6 +877,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: "600",
   },
+  proofRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  proofText: { color: workspaceColors.green, fontSize: 9, lineHeight: 13, fontWeight: "700", letterSpacing: .4 },
   workerLocation: {
     color: workspaceColors.muted,
     fontSize: 10,

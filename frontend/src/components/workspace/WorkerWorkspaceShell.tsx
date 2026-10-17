@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "./WorklyIcon";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -20,15 +20,16 @@ import { AttendanceView } from "./AttendanceView";
 import { DocumentsView } from "./DocumentsView";
 import { NotificationCenter } from "./NotificationCenter";
 import { WorkerProfileView } from "./WorkerProfileView";
+import { WorkerOnboarding } from "./WorkerOnboarding";
 import { ProjectsView } from "./ProjectsView";
 import { Avatar, roleAccent, workspaceColors } from "./primitives";
 
-type WorkerSection = "home" | "points" | "projects" | "documents";
+type WorkerSection = "profile" | "journey" | "attendance" | "projects" | "documents";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 type WorkerNavLabels = {
-  home: string;
-  points: string;
+  profile: string;
+  journey: string;
   projects: string;
   documents: string;
   worker: string;
@@ -37,56 +38,56 @@ type WorkerNavLabels = {
 
 const workerNavCopy: Record<LanguageCode, WorkerNavLabels> = {
   pt: {
-    home: "Início",
-    points: "Pontos",
+    profile: "Perfil",
+    journey: "Percurso",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABALHADOR",
     logout: "Sair",
   },
   en: {
-    home: "Home",
-    points: "Check-in",
+    profile: "Profile",
+    journey: "Journey",
     projects: "Projects",
     documents: "Documents",
     worker: "WORKER",
     logout: "Log out",
   },
   fr: {
-    home: "Accueil",
-    points: "Pointage",
+    profile: "Profil",
+    journey: "Parcours",
     projects: "Chantiers",
     documents: "Documents",
     worker: "TRAVAILLEUR",
     logout: "Déconnexion",
   },
   es: {
-    home: "Inicio",
-    points: "Fichaje",
+    profile: "Perfil",
+    journey: "Trayectoria",
     projects: "Obras",
     documents: "Documentos",
     worker: "TRABAJADOR",
     logout: "Salir",
   },
   ro: {
-    home: "Acasă",
-    points: "Pontaj",
+    profile: "Profil",
+    journey: "Parcurs",
     projects: "Șantiere",
     documents: "Documente",
     worker: "LUCRĂTOR",
     logout: "Ieșire",
   },
   de: {
-    home: "Start",
-    points: "Zeiterfassung",
+    profile: "Profil",
+    journey: "Laufbahn",
     projects: "Baustellen",
     documents: "Dokumente",
     worker: "MITARBEITER",
     logout: "Abmelden",
   },
   nl: {
-    home: "Start",
-    points: "Registratie",
+    profile: "Profiel",
+    journey: "Traject",
     projects: "Projecten",
     documents: "Documenten",
     worker: "WERKNEMER",
@@ -100,7 +101,9 @@ export function WorkerWorkspaceShell() {
   const { width } = useWindowDimensions();
   const { user, logout } = useAuth();
   const { state, language, setLanguage } = useWorklyData();
-  const [activeSection, setActiveSection] = useState<WorkerSection>("home");
+  const [activeSection, setActiveSection] = useState<WorkerSection>("profile");
+  const [dismissedSetup, setDismissedSetup] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
   const compact = width < 720;
   const accent = roleAccent("worker");
@@ -118,29 +121,45 @@ export function WorkerWorkspaceShell() {
     return () => animation.stop();
   }, [activeSection, fade]);
 
+  const currentWorker = state?.workers.find(worker => worker.id === user?.id);
+  const needsSetup = Boolean(currentWorker && (!currentWorker.profession?.trim() || !currentWorker.documents.some(item => item.category === "identity" && item.file_id)));
+  useEffect(() => {
+    if (needsSetup && !dismissedSetup) setShowSetup(true);
+  }, [needsSetup, dismissedSetup]);
   if (!user) return null;
+  if (currentWorker && showSetup) {
+    return <WorkerOnboarding worker={currentWorker} onFinish={() => { setDismissedSetup(true); setShowSetup(false); setActiveSection("profile"); }} />;
+  }
 
   const navItems: {
     id: WorkerSection;
     label: string;
     icon: IconName;
   }[] = [
-    { id: "home", label: labels.home, icon: "home-outline" },
-    { id: "points", label: labels.points, icon: "location-outline" },
+    { id: "profile", label: labels.profile, icon: "person-outline" },
+    { id: "journey", label: labels.journey, icon: "git-branch-outline" },
     { id: "projects", label: labels.projects, icon: "business-outline" },
     { id: "documents", label: labels.documents, icon: "folder-open-outline" },
   ];
 
   const content = (() => {
     switch (activeSection) {
-      case "points":
+      case "journey":
+        return <WorkerProfileView mode="journey" />;
+      case "attendance":
         return <AttendanceView />;
       case "projects":
         return <ProjectsView />;
       case "documents":
         return <DocumentsView key="worker-documents" mode="archive" />;
       default:
-        return <WorkerProfileView />;
+        return (
+          <WorkerProfileView
+            mode="profile"
+            onOpenJourney={() => setActiveSection("journey")}
+            onOpenAttendance={() => setActiveSection("attendance")}
+          />
+        );
     }
   })();
 
@@ -156,7 +175,7 @@ export function WorkerWorkspaceShell() {
           styles.topbar,
           {
             paddingTop: Math.max(insets.top, 8),
-            borderBottomColor: `${accent}24`,
+            borderBottomColor: "#3B5567",
           },
         ]}
       >
@@ -173,6 +192,7 @@ export function WorkerWorkspaceShell() {
         </View>
 
         <View style={styles.topActions}>
+          {needsSetup ? <Pressable accessibilityRole="button" accessibilityLabel={language === "pt" ? "Completar registo" : "Complete registration"} onPress={() => setShowSetup(true)} style={styles.setupAction}><Ionicons name="person-add-outline" color="#4B7E91" size={19} />{!compact ? <Text style={styles.setupActionText}>{language === "pt" ? "Registo" : "Setup"}</Text> : null}</Pressable> : null}
           <NotificationCenter />
           <LanguageSelector
             language={language}
@@ -188,6 +208,12 @@ export function WorkerWorkspaceShell() {
               pressed ? { opacity: 0.72 } : null,
             ]}
           >
+            {activeSection === "profile" ? (
+              <>
+                <Ionicons name="log-out-outline" size={21} color={workspaceColors.muted} />
+                {!compact ? <Text style={styles.logoutHint}>{labels.logout}</Text> : null}
+              </>
+            ) : <>
             <Avatar
               name={user.name}
               source={
@@ -204,6 +230,7 @@ export function WorkerWorkspaceShell() {
                 <Text style={styles.logoutHint}>{labels.logout}</Text>
               </View>
             ) : null}
+            </>}
           </Pressable>
         </View>
       </View>
@@ -217,7 +244,7 @@ export function WorkerWorkspaceShell() {
           styles.dockArea,
           {
             paddingBottom: Math.max(insets.bottom, 10),
-            borderTopColor: `${accent}28`,
+            borderTopColor: "#3B5567",
           },
         ]}
       >
@@ -251,13 +278,13 @@ export function WorkerWorkspaceShell() {
                   <Ionicons
                     name={item.icon}
                     size={21}
-                    color={active ? accent : workspaceColors.muted}
+                    color={active ? accent : "#AEC2CB"}
                   />
                 </View>
                 <Text
                   style={[
                     styles.dockLabel,
-                    active ? { color: workspaceColors.text } : null,
+                    active ? { color: "#91C9DD" } : null,
                   ]}
                   numberOfLines={1}
                 >
@@ -284,11 +311,11 @@ const styles = StyleSheet.create({
     backgroundColor: workspaceColors.background,
   },
   topbar: {
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingBottom: 8,
+    minHeight: 68,
+    paddingHorizontal: 18,
+    paddingBottom: 9,
     borderBottomWidth: 1,
-    backgroundColor: workspaceColors.backgroundElevated,
+    backgroundColor: "#101B28CC",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -302,11 +329,11 @@ const styles = StyleSheet.create({
   logo: {
     width: 36,
     height: 36,
-    borderRadius: 6,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: workspaceColors.panelSoft,
+    backgroundColor: "#284354",
   },
   logoText: {
     fontSize: 20,
@@ -317,15 +344,17 @@ const styles = StyleSheet.create({
     color: workspaceColors.text,
     fontSize: 18,
     lineHeight: 22,
-    fontWeight: "900",
-    letterSpacing: 1.4,
+    fontWeight: "800",
+    letterSpacing: 3.2,
   },
   roleLabel: {
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
+    fontSize: 9,
+    lineHeight: 13,
+    fontWeight: "700",
+    letterSpacing: 2.1,
   },
+  setupAction: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#EAF2F4", borderColor: "#C5D8E0", borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, minHeight: 36 },
+  setupActionText: { color: "#4B7E91", fontSize: 11, fontWeight: "700" },
   topActions: {
     marginLeft: "auto",
     flexDirection: "row",
@@ -357,13 +386,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     overflow: "hidden",
-    backgroundColor: workspaceColors.background,
+    backgroundColor: "transparent",
   },
   dockArea: {
     borderTopWidth: 1,
-    paddingTop: 7,
+    paddingTop: 6,
     paddingHorizontal: 8,
-    backgroundColor: workspaceColors.backgroundElevated,
+    backgroundColor: "#111C2BCC",
     zIndex: 20,
   },
   dockContent: {
@@ -379,8 +408,8 @@ const styles = StyleSheet.create({
     position: "relative",
     flex: 1,
     minWidth: 0,
-    height: 57,
-    borderRadius: 6,
+    height: 67,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
@@ -388,25 +417,29 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   dockIcon: {
-    width: 32,
-    height: 26,
-    borderRadius: 9,
+    width: 34,
+    height: 28,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#3B5567",
     alignItems: "center",
     justifyContent: "center",
   },
   dockLabel: {
     maxWidth: "95%",
-    color: workspaceColors.muted,
-    fontSize: 11,
-    lineHeight: 16,
+    color: "#AEC2CB",
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "700",
+    letterSpacing: 1.15,
+    textTransform: "uppercase",
     textAlign: "center",
   },
   activeLine: {
     position: "absolute",
-    bottom: 2,
-    width: 24,
+    bottom: 1,
+    width: 30,
     height: 2,
-    borderRadius: 2,
+    borderRadius: 0,
   },
 });

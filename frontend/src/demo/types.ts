@@ -15,12 +15,30 @@ export type CompanyPermission =
   | "documents.manage"
   | "operations.read";
 export type WorkerStatus = "available" | "contracted" | "on_site";
+export type IdentityDocumentType = "citizen_card" | "passport";
+export type IdentityVerificationStatus = "pending" | "verified" | "rejected";
+export type WorkEligibilityStatus = "pending" | "eligible" | "not_eligible";
 export type ProjectStatus = "planned" | "active" | "paused" | "completed";
 export type LanguageCode = "pt" | "en" | "fr" | "es" | "ro" | "de" | "nl";
 
 export type Skill = {
   name: string;
   level: number;
+};
+
+export type WorkExperience = {
+  id: string;
+  company: string;
+  role: string;
+  country: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  current: boolean;
+  description: string;
+  hours?: number;
+  status: "recorded" | "pending" | "verified";
+  verified_by?: string;
 };
 
 export type Certificate = {
@@ -34,6 +52,15 @@ export type Certificate = {
   profession_id?: string;
   node_id?: string;
   file_id?: string;
+  kind?: "certification" | "skill";
+  evidence_type?: "qualification" | "work_record" | "employer_validation" | "technical_assessment" | "authorisation";
+  competency_id?: string;
+  project_id?: string;
+  hours?: number;
+  context?: string;
+  verified_by?: string;
+  verified_by_company_id?: string;
+  verified_at?: string;
 };
 
 export type DemoDocument = {
@@ -58,10 +85,45 @@ export type BestProject = {
   location: string;
   year: number;
   summary: string;
+  status?: "recorded" | "pending" | "verified";
+  profession_id?: string;
+  verified_by?: string;
+};
+
+export type ProfessionalLevel = {
+  id: string;
+  label: string;
+  label_en: string;
+  minimum: number;
+};
+
+export type ProfessionalIdentity = {
+  id: string;
+  profession_id: string;
+  score: number;
+  maximum: number;
+  level: ProfessionalLevel;
+  level_index: number;
+  levels: ProfessionalLevel[];
+  next_level: ProfessionalLevel | null;
+  points_to_next: number;
+  progress: number;
+  components: { id: string; label: string; label_en: string; points: number; maximum: number; count: number; points_each: number }[];
+  core_coverage?: number;
+  verified_projects?: number;
+  verified_experience_months?: number;
+  verified_experience_hours?: number;
+  verified_qualifications?: number;
+  responsibility_evidence?: number;
+  verified_regulatory?: number;
+  regulatory_context?: string;
+  level_gate_note?: string;
+  framework_note?: string;
 };
 
 export type Worker = {
   id: string;
+  workly_id?: string;
   name: string;
   email: string;
   role: "worker";
@@ -69,14 +131,20 @@ export type Worker = {
   avatar_color: string;
   age: number;
   country: string;
+  nationality?: string;
   flag: string;
+  identity_document_type?: IdentityDocumentType;
+  identity_verification_status?: IdentityVerificationStatus;
+  work_eligibility_status?: WorkEligibilityStatus;
   profession: string;
   title: string;
   experience_years: number;
+  work_experience?: WorkExperience[];
   location: string;
   phone: string;
   bio: string;
   skills: Skill[];
+  specialties?: string[];
   certificates: Certificate[];
   availability: boolean;
   status: WorkerStatus;
@@ -89,6 +157,7 @@ export type Worker = {
   company_id: string | null;
   current_project_id: string | null;
   schedule: string;
+  professional_identity?: ProfessionalIdentity;
 };
 
 export type Company = {
@@ -239,9 +308,14 @@ export type WorklyState = {
 
 export type AuthUser = {
   id: string;
+  workly_id?: string;
   name: string;
   email: string;
   role: UserRole;
+  nationality?: string;
+  identity_document_type?: IdentityDocumentType;
+  identity_verification_status?: IdentityVerificationStatus;
+  work_eligibility_status?: WorkEligibilityStatus;
   company_id?: string | null;
   company_role?: CompanyAccessRole;
   permissions?: CompanyPermission[];

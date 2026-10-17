@@ -13,30 +13,31 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "./WorklyIcon";
 import { Image } from "expo-image";
 
 import type { UserRole, WorkerStatus } from "@/src/demo/types";
 
 export const workspaceColors = {
-  background: "#06080D",
-  backgroundElevated: "#090C12",
-  panel: "#0E131B",
-  panelStrong: "#141B25",
-  panelSoft: "#0A0F16",
-  line: "#1D2734",
-  lineStrong: "#303D50",
-  text: "#F7F9FC",
-  textSoft: "#CAD3E2",
-  muted: "#7D899C",
-  blue: "#2388FF",
-  blueSoft: "#72BCFF",
-  red: "#FF3B48",
-  redSoft: "#FF7A82",
-  green: "#2FE39C",
-  yellow: "#FFCD57",
-  orange: "#FF954D",
-  shadow: "#000000",
+  // Night-blue canvas from the Workly entry; slate surfaces replace white tiles.
+  background: "#080C14",
+  backgroundElevated: "#121D2A",
+  panel: "#172736",
+  panelStrong: "#213746",
+  panelSoft: "#1B2E3D",
+  line: "#3E596A",
+  lineStrong: "#5A7A8A",
+  text: "#EDF5F7",
+  textSoft: "#CDDEE6",
+  muted: "#A6BEC9",
+  blue: "#91C9DD",
+  blueSoft: "#B6DDEA",
+  red: "#DAACAF",
+  redSoft: "#DAACAF",
+  green: "#91C6AF",
+  yellow: "#D6C197",
+  orange: "#D0B397",
+  shadow: "#030910",
 };
 
 export function roleAccent(role: UserRole) {
@@ -115,26 +116,20 @@ export function Button({
   testID?: string;
   style?: ViewStyle | ViewStyle[];
 }) {
+  // Neutral, high-contrast actions. Primary actions never use filled dark surfaces.
   const backgroundColor =
-    variant === "primary"
-      ? accent
-      : variant === "danger"
-        ? `${workspaceColors.red}22`
-        : variant === "secondary"
-          ? workspaceColors.panelStrong
-          : "transparent";
+    variant === "primary" ? `${accent}16`
+      : variant === "danger" ? "#412C35"
+      : variant === "secondary" ? workspaceColors.panelSoft
+      : "transparent";
   const borderColor =
-    variant === "danger"
-      ? `${workspaceColors.red}88`
-      : variant === "primary"
-        ? accent
-        : workspaceColors.lineStrong;
+    variant === "primary" ? `${accent}65`
+      : variant === "danger" ? "#77515D"
+      : workspaceColors.lineStrong;
   const color =
-    variant === "danger"
-      ? workspaceColors.redSoft
-      : variant === "primary"
-        ? "#FFFFFF"
-        : workspaceColors.textSoft;
+    variant === "primary" ? accent
+      : variant === "danger" ? workspaceColors.red
+      : workspaceColors.text;
 
   return (
     <Pressable
@@ -519,7 +514,7 @@ export const sharedStyles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 32,
     fontWeight: "800",
-    letterSpacing: -0.7,
+    letterSpacing: 0.1,
   },
   subtitle: {
     color: workspaceColors.muted,
@@ -547,9 +542,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: workspaceColors.line,
     borderRadius: 20,
-    padding: 17,
+    padding: 20,
     shadowColor: workspaceColors.shadow,
-    shadowOpacity: Platform.OS === "web" ? 0.16 : 0.1,
+    shadowOpacity: Platform.OS === "web" ? 0.12 : 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
   },
@@ -572,7 +567,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 44,
-    borderRadius: 13,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 15,
     paddingVertical: 10,
@@ -580,8 +575,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
   },
   buttonCompact: {
@@ -723,7 +718,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(2,4,9,0.82)",
+    backgroundColor: "rgba(2,7,13,0.66)",
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
@@ -735,10 +730,10 @@ const styles = StyleSheet.create({
     backgroundColor: workspaceColors.backgroundElevated,
     borderWidth: 1,
     borderColor: workspaceColors.lineStrong,
-    borderRadius: 22,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.55,
+    shadowOpacity: 0.12,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 16 },
   },

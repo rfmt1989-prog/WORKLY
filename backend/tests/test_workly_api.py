@@ -82,6 +82,9 @@ def test_register_login_and_profile_creation(client: TestClient) -> None:
             "email": email,
             "password": "registration-demo",
             "user_type": "worker",
+            "nationality": "Portuguesa",
+            "identity_document_type": "citizen_card",
+            "identity_document_number": f"CC{uuid4().hex[:11].upper()}",
         },
     )
     assert registered.status_code == 200, registered.text
@@ -100,31 +103,22 @@ def test_register_login_and_profile_creation(client: TestClient) -> None:
     )
 
 
-def test_bootstrap_has_complete_demo_seed(
+def test_bootstrap_is_tenant_scoped_and_hides_identity_documents(
     client: TestClient,
     company_auth: dict,
 ) -> None:
     response = client.get("/api/bootstrap", headers=company_auth["headers"])
     assert response.status_code == 200
     state = response.json()
-
-    assert len(state["workers"]) == 8
-    assert len(state["companies"]) == 2
-    assert len(state["projects"]) == 3
-    assert len(state["teams"]) == 2
-    assert len(state["attendance"]) >= 3
-    professions = {worker["profession"].lower() for worker in state["workers"]}
-    assert any("eletricista" in value for value in professions)
-    assert any("canalizador" in value for value in professions)
-    assert any("soldador" in value for value in professions)
-    assert any("avac" in value for value in professions)
-    assert any("estruturas" in value for value in professions)
-    assert any("ipaf" in value for value in professions)
-    assert any("máquinas" in value for value in professions)
-    assert any("encarregado" in value for value in professions)
-    assert all(worker["documents"] for worker in state["workers"])
-    assert all(worker["certificates"] for worker in state["workers"])
-    assert all(worker["best_projects"] for worker in state["workers"])
+    company_id = company_auth["user"]["company_id"]
+    assert len(state["companies"]) == 1
+    assert state["companies"][0]["id"] == company_id
+    assert state["workers"]
+    assert state["projects"]
+    assert all(project["company_id"] == company_id for project in state["projects"])
+    assert all(team["company_id"] == company_id for team in state["teams"])
+    assert all(document["category"] != "identity" for worker in state["workers"] for document in worker["documents"])
+    assert all(contract["company_id"] == company_id for contract in state["contracts"])
 
 
 def test_worker_search_details_and_profile_edit(

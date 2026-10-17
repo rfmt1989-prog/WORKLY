@@ -13,7 +13,7 @@ import {
   register as requestRegister,
 } from "@/src/api/auth";
 import { ApiError, setAuthToken } from "@/src/api/client";
-import type { AuthUser, UserRole } from "@/src/demo/types";
+import type { AuthUser, IdentityDocumentType, UserRole } from "@/src/demo/types";
 import { storage } from "@/src/utils/storage";
 
 export type { UserRole };
@@ -46,6 +46,11 @@ type AuthState = {
     password: string,
     role: UserRole,
     inviteToken?: string,
+    identity?: {
+      nationality: string;
+      documentType: IdentityDocumentType;
+      documentNumber: string;
+    },
   ) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<User | null>;
@@ -156,6 +161,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: string,
       role: UserRole,
       inviteToken?: string,
+      identity?: {
+        nationality: string;
+        documentType: IdentityDocumentType;
+        documentNumber: string;
+      },
     ): Promise<User> => {
       const response = await requestRegister({
         name: name.trim(),
@@ -163,6 +173,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         user_type: role,
         invite_token: inviteToken?.trim() || undefined,
+        nationality: identity?.nationality.trim() || undefined,
+        identity_document_type: identity?.documentType,
+        identity_document_number: identity?.documentNumber.trim() || undefined,
       });
       const nextUser = response.user as User;
       await persistSession(response.access_token, nextUser);

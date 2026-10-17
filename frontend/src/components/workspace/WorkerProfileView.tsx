@@ -1,734 +1,603 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Ionicons from "./WorklyIcon";
+import React, { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { openWorklyFile } from "@/src/api/documentFiles";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
-import { uiText } from "@/src/demo/fullUi";
+import { assessmentGateText, complianceTitle, professionTitle, professionalMetaText, professionalText, scopeText, specialtyCopy } from "@/src/demo/professionalI18n";
 import { localizeDemoText } from "@/src/demo/localizedData";
-import type { LanguageCode } from "@/src/demo/types";
-import {
-  Avatar,
-  Button,
-  ModalPanel,
-  StatusPill,
-  workspaceColors,
-} from "./primitives";
+import type { Attendance, Certificate, Company, LanguageCode, Project } from "@/src/demo/types";
+import { Avatar, Button, ModalPanel, workspaceColors } from "./primitives";
+import { WorkerCareerAtlas } from "./WorkerCareerAtlas";
 import { WorkerProfileBackdrop } from "./WorkerProfileBackdrop";
-import {
-  WorkerCertificateEditor,
-  WorkerIdentityEditor,
-} from "./WorkerProfileEditors";
-import {
-  buildProfessionTrees,
-  buildWorkerCertificateNodes,
-  isCompleted,
-  statusIcon,
-  statusLabel,
-  statusTone,
-  type AchievementNode,
-  type ProfessionTree,
-} from "./workerCertificateTree";
+import { WorkerCertificateEditor, WorkerIdentityEditor } from "./WorkerProfileEditors";
+import { JourneyStatus, JourneySymbol } from "./WorkerJourneyTree";
+import { WorkerSpecialtyTree } from "./WorkerSpecialtyTree";
+import { WorkerCompliancePanel } from "./WorkerCompliancePanel";
+import { WorkerCompetencyTree } from "./WorkerCompetencyTree";
+import { WorkerProofOfWork } from "./WorkerProofOfWork";
+import { exportWorkerProfilePdf } from "./workerProfilePdf";
+import { assessWorkerCompetence } from "./workerCompetencyEngine";
+import { evidenceTypeDefinition } from "./competencyEvidenceModel";
+import { buildComplianceTree, buildProfessionTrees, buildSpecialtyTree, buildWorkerCertificateNodes, type AchievementNode } from "./workerCertificateTree";
+import { complianceCatalog, findProfessionDefinition, specialtyCatalog } from "./professionCatalog";
 
 const accent = workspaceColors.blue;
 const serif = Platform.OS === "android" ? "serif" : "Georgia";
 
-export function WorkerProfileView() {
+export function WorkerProfileView({
+  mode = "combined",
+  onOpenJourney,
+  onOpenAttendance,
+}: {
+  mode?: "combined" | "profile" | "journey";
+  onOpenJourney?: () => void;
+  onOpenAttendance?: () => void;
+}) {
   const { user } = useAuth();
-  const { state, language, error } = useWorklyData();
+  const { state, language, error, notify } = useWorklyData();
   const { width } = useWindowDimensions();
-  const compact = width < 1000;
-  const oneColumn = width < 740;
-  const [filter, setFilter] = useState<string | null>(null);
+  const compact = width < 960;
+  const narrow = width < 600;
+  const careerScroll = useRef<ScrollView>(null);
+  const careerViewport = useRef<View>(null);
+  const scrollPosition = useRef(0);
+  const focusCareerDetail = (y: number, _height: number) => {
+    careerViewport.current?.measureInWindow((_x: number, viewportY: number) => {
+      const delta = y - viewportY - 12;
+      if (Math.abs(delta) > 24) {
+        careerScroll.current?.scrollTo({ y: Math.max(0, scrollPosition.current + delta), animated: true });
+      }
+    });
+  };
   const [selected, setSelected] = useState<AchievementNode | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openedSection, setOpenedSection] = useState<"skills" | "extras" | "requirements" | null>(null);
+  const sectionRefs = {
+    skills: useRef<View>(null),
+    extras: useRef<View>(null),
+    requirements: useRef<View>(null),
+  };
+  const lastPanelFocus = useRef<string | null>(null);
+  const toggleSection = (section: "skills" | "extras" | "requirements") => {
+    if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    lastPanelFocus.current = null;
+    setOpenedSection(previous => previous === section ? null : section);
+  };
+  const onPanelLayout = (section: "skills" | "extras" | "requirements") => {
+    if (openedSection !== section || lastPanelFocus.current === section) return;
+    lastPanelFocus.current = section;
+    requestAnimationFrame(() => sectionRefs[section].current?.measureInWindow((_x, y, _w, h) => focusCareerDetail(y, h)));
+  };
   const [editing, setEditing] = useState(false);
-  const [certificateTarget, setCertificateTarget] = useState<{
-    professionId: string;
-    node?: AchievementNode;
-  } | null>(null);
-  const worker = state?.workers.find((item) => item.id === user?.id);
-  const achievements = useMemo(
-    () => (worker ? buildWorkerCertificateNodes(worker) : []),
-    [worker],
-  );
-  const trees = useMemo(
-    () => (worker ? buildProfessionTrees(worker, achievements) : []),
-    [worker, achievements],
-  );
-  const byId = useMemo(
-    () =>
-      new Map(
-        [
-          ...achievements,
-          ...trees.flatMap((tree) => [tree.root, ...tree.nodes]),
-        ].map((node) => [node.id, node]),
-      ),
-    [achievements, trees],
-  );
-  const text = (pt: string, en: string) => uiText(language, pt, en);
-  if (!worker)
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={accent} />
-        <Text style={styles.muted}>{error || copy[language].loading}</Text>
-      </View>
-    );
-  const visible = filter
-    ? trees.filter((tree) => tree.id === filter)
-    : trees.slice(0, 4);
-  const expandedTree = trees.find((tree) => tree.id === expanded);
-  const count = new Set(
-    achievements.flatMap((node) =>
-      node.certificate ? [node.certificate.id] : [],
-    ),
-  ).size;
+  const [rules, setRules] = useState(false);
+  const [certificateTarget, setCertificateTarget] = useState<{ professionId: string; node?: AchievementNode } | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const worker = state?.workers.find(item => item.id === user?.id);
+  const achievements = useMemo(() => worker ? buildWorkerCertificateNodes(worker) : [], [worker]);
+  const trees = useMemo(() => worker ? buildProfessionTrees(worker, achievements) : [], [worker, achievements]);
+  const competencyAssessment = useMemo(() => worker ? assessWorkerCompetence(worker, state?.projects || [], state?.attendance || []) : null, [worker, state?.projects, state?.attendance]);
+  const specialtyTree = useMemo(() => worker ? buildSpecialtyTree(worker, competencyAssessment) : null, [worker, competencyAssessment]);
+  const complianceTree = useMemo(() => worker ? buildComplianceTree(worker) : null, [worker]);
+  const byId = useMemo(() => new Map([...achievements, ...trees.flatMap(tree => [tree.root, ...tree.nodes]), ...(specialtyTree?.nodes || []), ...(complianceTree?.nodes || [])].map(node => [node.id, node])), [achievements, trees, specialtyTree, complianceTree]);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  if (!worker) return <View style={styles.loading}><ActivityIndicator color={accent} /><Text style={styles.muted}>{error || copy[language].loading}</Text></View>;
+  const primaryTree = trees[0];
+  const professionDefinition = findProfessionDefinition(worker.profession);
   const displayProfession =
-    worker.name.toLowerCase().includes("rodolfo maia") &&
-    /^nacellista/i.test(worker.profession)
-      ? "Técnico Eletromecânico · Refrigeração e Climatização"
-      : worker.profession;
+    worker.profession && professionDefinition
+      ? professionTitle(
+          language,
+          professionDefinition.id,
+          professionDefinition.title,
+          professionDefinition.titleEn,
+        )
+      : worker.profession || text("Profissão por definir", "Profession not set");
+  const worklyId = worker.workly_id || formatWorklyId(worker.id);
+  const eligibilityStatus =
+    worker.work_eligibility_status ||
+    (worker.id === "worker-1" ? "eligible" : "pending");
+  const eligibilityLabel =
+    eligibilityStatus === "eligible"
+      ? text("Apto para trabalhar", "Eligible to work")
+      : eligibilityStatus === "not_eligible"
+        ? text("Não apto para trabalhar", "Not eligible to work")
+        : text(
+            "Aptidão a aguardar validação",
+            "Eligibility pending verification",
+          );
+
+  const exportPdf = async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      await exportWorkerProfilePdf(worker, competencyAssessment, specialtyTree, complianceTree, state?.projects || [], state?.attendance || [], language);
+      notify(
+        text(
+          Platform.OS === "web" ? "Abriu a exportação PDF do perfil." : "Perfil PDF preparado para partilhar.",
+          Platform.OS === "web" ? "Profile PDF export opened." : "Profile PDF prepared for sharing.",
+        ),
+        "success",
+      );
+    } catch {
+      notify(text("Não foi possível gerar o PDF.", "Could not generate the PDF."), "error");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   return (
-    <View style={styles.root} testID="worker-profile">
-      <WorkerProfileBackdrop />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[
-          styles.content,
-          compact ? styles.contentCompact : null,
-        ]}
-      >
-        <View style={[styles.layout, compact ? styles.layoutCompact : null]}>
-          <View
-            style={[styles.identity, compact ? styles.identityCompact : null]}
-            testID="worker-identification"
-          >
+    <View ref={careerViewport} style={[styles.root, mode === "journey" && styles.journeyRoot]} testID="worker-profile">
+      {mode !== "journey" ? <WorkerProfileBackdrop /> : null}
+      <ScrollView ref={careerScroll} onScroll={event => { scrollPosition.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, compact && styles.contentCompact]}>
+        <View style={[styles.layout, compact && styles.layoutCompact, mode === "journey" && styles.layoutJourney]}>
+          {mode !== "journey" ? (
             <View
-              style={[styles.identityHero, compact ? styles.heroCompact : null]}
+              style={[
+                styles.identity,
+                compact && styles.identityCompact,
+                mode === "profile" && styles.identityProfile,
+              ]}
+              testID="worker-identification"
             >
-              <Avatar
-                name={worker.name}
-                source={worker.avatar}
-                size={compact ? 86 : 118}
-              />
-              <View
-                style={[
-                  styles.identityHeading,
-                  compact ? styles.headingCompact : null,
-                ]}
-              >
-                <Text style={styles.eyebrow}>WORKLY · WORKER</Text>
-                <Text
-                  style={[styles.name, compact ? styles.nameCompact : null]}
-                >
-                  {worker.name}
-                </Text>
-                <Text style={styles.profession}>
-                  {localizeDemoText(language, displayProfession)}
-                </Text>
-                <StatusPill
-                  status={worker.status}
-                  label={
-                    worker.status === "on_site"
-                      ? copy[language].onSite
-                      : worker.status === "contracted"
-                        ? copy[language].contracted
-                        : copy[language].available
-                  }
-                />
+
+              <View style={[styles.passportTop, compact && styles.passportTopCompact]}>
+                <View style={styles.passportEmblem}><Text style={styles.passportEmblemText}>W</Text></View>
+                <View style={styles.passportTopCopy}>
+                  <Text style={styles.passportKicker}>{text("WORKLY · IDENTIDADE PROFISSIONAL", "WORKLY · PROFESSIONAL IDENTITY")}</Text>
+                  <Text style={styles.passportSub}>{text("Passaporte de carreira", "Career passport")}</Text>
+                </View>
+                <Ionicons name="shield-outline" size={21} color="#91C9DD" />
               </View>
-            </View>
-            <Button
-              label={text("Editar perfil", "Edit profile")}
-              icon="create-outline"
-              variant="secondary"
-              onPress={() => setEditing(true)}
-              style={styles.editButton}
-              testID="edit-worker-profile"
-            />
-            <Divider />
-            <Text style={styles.sectionLabel}>
-              {text("Identificação", "Identity")}
-            </Text>
-            <View style={styles.identityRows}>
-              <IdentityRow
-                icon="flag-outline"
-                label={text("País", "Country")}
-                value={`${worker.flag} ${localizeDemoText(language, worker.country)}`}
-              />
-              <IdentityRow
-                icon="location-outline"
-                label={text("Localização", "Location")}
-                value={worker.location}
-              />
-              <IdentityRow
-                icon="mail-outline"
-                label="Email"
-                value={worker.email}
-              />
-              <IdentityRow
-                icon="call-outline"
-                label={text("Telefone", "Phone")}
-                value={worker.phone || "—"}
-              />
-              <IdentityRow
-                icon="language-outline"
-                label={text("Idiomas", "Languages")}
-                value={
-                  worker.languages
-                    .map((item) => localizeDemoText(language, item))
-                    .join(" · ") || "—"
-                }
-              />
-            </View>
-            <Divider />
-            <Text style={styles.sectionLabel}>
-              {text("Percurso profissional", "Professional journey")}
-            </Text>
-            <Text style={styles.bio}>
-              {localizeDemoText(language, worker.bio)}
-            </Text>
-            {worker.name.toLowerCase().includes("rodolfo maia") ? (
-              <View style={styles.education}>
-                <Ionicons
-                  name="school-outline"
-                  size={23}
-                  color={workspaceColors.blueSoft}
-                />
-                <View style={{ flex: 1, gap: 5 }}>
-                  <Text style={styles.educationTitle}>
-                    {text(
-                      "Técnico Eletromecânico IV",
-                      "Electromechanical Technician IV",
-                    )}
-                  </Text>
-                  <Text style={styles.muted}>2008 · Portugal</Text>
+              <View style={[styles.identityHero, narrow && styles.heroCompact]}>
+                <View style={styles.photoFrame}>
+                  <Avatar name={worker.name || "Worker"} source={worker.avatar} flag={worker.flag} size={narrow ? 98 : 124} accent="#C7785D" />
+                </View>
+                <View style={[styles.identityHeading, narrow && styles.headingCompact]}>
+                  <Text style={styles.eyebrow}>{text("PERFIL ÚNICO", "ONE PROFESSIONAL PROFILE")}</Text>
+                  <Text style={[styles.name, narrow && styles.nameCompact]}>{worker.name || text("Nome por definir", "Name not set")}</Text>
+                  <View style={styles.professionLine}>
+                    <Ionicons name="briefcase-outline" size={16} color="#91C9DD" />
+                    <Text style={styles.profession}>{displayProfession}</Text>
+                  </View>
+                  {worker.title && worker.title !== worker.profession && worker.title !== displayProfession ? <Text style={styles.professionalHeadline} numberOfLines={2}>{worker.title}</Text> : null}
+                  {worker.location ? <View style={styles.locationLine}><Ionicons name="location-outline" size={13} color="#A7BEC8" /><Text style={styles.locationText}>{worker.location}</Text></View> : null}
                 </View>
               </View>
-            ) : null}
-          </View>
-          <View style={styles.main}>
-            <View style={styles.mainHeader}>
-              <View style={styles.headingWrap}>
-                <Text style={styles.eyebrow}>
-                  {text(
-                    "O teu percurso, organizado",
-                    "Your professional journey",
-                  )}
-                </Text>
-                <Text
-                  style={[styles.title, oneColumn ? styles.titleCompact : null]}
-                >
-                  {text("Árvore de certificados", "Certificate trees")}
-                </Text>
-                <Text style={styles.subtitle}>
-                  {text(
-                    "Um percurso para cada profissão.",
-                    "A separate journey for each profession.",
-                  )}
-                </Text>
-              </View>
-              <Button
-                label={text("Adicionar certificado", "Add certificate")}
-                icon="add-outline"
-                onPress={() =>
-                  setCertificateTarget({
-                    professionId: filter || trees[0]?.id || "professional",
-                  })
-                }
-                style={styles.addButton}
-                testID="add-worker-certificate"
-              />
-            </View>
-            <View style={styles.overview}>
-              <OverviewStat
-                value={count}
-                label={text(
-                  "certificados associados",
-                  "associated certificates",
-                )}
-                icon="ribbon-outline"
-              />
-              <OverviewStat
-                value={trees.length}
-                label={text("profissões", "professions")}
-                icon="git-branch-outline"
-              />
-              <OverviewStat
-                value={worker.documents.filter((item) => item.file_id).length}
-                label={text("comprovativos", "evidence files")}
-                icon="document-attach-outline"
-              />
-            </View>
-            <View style={styles.filters} accessibilityRole="tablist">
-              <ProfessionFilter
-                active={filter === null}
-                label={text("Visão geral", "Overview")}
-                onPress={() => setFilter(null)}
-              />
-              {trees.map((tree) => (
-                <ProfessionFilter
-                  key={tree.id}
-                  active={filter === tree.id}
-                  label={text(tree.title, tree.titleEn)}
-                  onPress={() => setFilter(tree.id)}
-                />
-              ))}
-            </View>
-            <View style={styles.grid} testID="profession-trees">
-              {visible.map((tree) => (
-                <ProfessionCard
-                  key={tree.id}
-                  tree={tree}
-                  language={language}
-                  single={oneColumn || Boolean(filter)}
-                  onNode={setSelected}
-                  onExpand={() => setExpanded(tree.id)}
-                />
-              ))}
-            </View>
-            <View style={styles.legend}>
-              <LegendItem
-                label={text("Verificado", "Verified")}
-                color={workspaceColors.blueSoft}
-              />
-              <LegendItem
-                label={text("Registado", "Recorded")}
-                color={accent}
-              />
-              <LegendItem
-                label={text("A validar", "Pending")}
-                color="#CDB37E"
-              />
-              <LegendItem
-                label={text("Por adicionar", "To add")}
-                color="#7D899C"
-              />
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-      {expandedTree ? (
-        <ModalPanel
-          visible
-          wide
-          onClose={() => setExpanded(null)}
-          title={text(expandedTree.title, expandedTree.titleEn)}
-          subtitle={text(
-            "Certificados e progressão desta profissão",
-            "Certificates and progression for this profession",
-          )}
-          footer={
-            <Button
-              label={text("Adicionar certificado", "Add certificate")}
-              icon="add-outline"
-              onPress={() => {
-                setExpanded(null);
-                setCertificateTarget({ professionId: expandedTree.id });
-              }}
-            />
-          }
-        >
-          <View>
-            {[expandedTree.root, ...expandedTree.nodes].map((node, index) => (
-              <View key={node.id} style={styles.fullTreeRow}>
-                <View style={styles.fullTreeRail}>
-                  <View
-                    style={[
-                      styles.fullTreeLine,
-                      index === 0 ? { top: "50%" } : null,
-                      index === expandedTree.nodes.length
-                        ? { bottom: "50%" }
-                        : null,
-                    ]}
-                  />
-                  <Diamond node={node} />
+
+              <View style={styles.identityBadges}>
+                <View style={styles.worklyBadge}>
+                  <Ionicons name="finger-print-outline" size={15} color="#91C9DD" />
+                  <View style={styles.badgeCopy}>
+                    <Text style={styles.badgeLabel}>{text("WORKLY ID", "WORKLY ID")}</Text>
+                    <Text style={styles.badgeValue}>{worklyId}</Text>
+                  </View>
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={node.title}
-                  onPress={() => {
-                    setExpanded(null);
-                    setSelected(node);
-                  }}
-                  style={({ pressed }) => [
-                    styles.fullTreeContent,
-                    pressed ? styles.pressed : null,
+                <View
+                  style={[
+                    styles.fitBadge,
+                    eligibilityStatus === "eligible"
+                      ? styles.fitBadgePositive
+                      : eligibilityStatus === "not_eligible"
+                        ? styles.fitBadgeNegative
+                        : styles.fitBadgePending,
                   ]}
                 >
-                  <Text style={styles.nodeTitle}>
-                    {localizeDemoText(language, node.title)}
-                  </Text>
-                  <Text style={styles.nodeSubtitle}>
-                    {localizeDemoText(language, node.subtitle)}
-                  </Text>
-                  <NodeStatus node={node} language={language} />
-                </Pressable>
+                  <Ionicons
+                    name={
+                      eligibilityStatus === "eligible"
+                        ? "shield-checkmark-outline"
+                        : eligibilityStatus === "not_eligible"
+                          ? "close-circle-outline"
+                          : "time-outline"
+                    }
+                    size={15}
+                    color={
+                      eligibilityStatus === "eligible"
+                        ? "#95C7A9"
+                        : eligibilityStatus === "not_eligible"
+                          ? "#E5A6A6"
+                          : "#D9C48E"
+                    }
+                  />
+                  <View style={styles.badgeCopy}>
+                    <Text style={styles.badgeLabel}>
+                      {text("Apto para trabalhar", "Fit to work")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.badgeValue,
+                        eligibilityStatus === "eligible"
+                          ? styles.fitTextPositive
+                          : eligibilityStatus === "not_eligible"
+                            ? styles.fitTextNegative
+                            : styles.fitTextPending,
+                      ]}
+                    >
+                      {eligibilityLabel}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            ))}
-          </View>
-        </ModalPanel>
-      ) : null}
+
+
+              {mode === "profile" && (worker.bio?.trim() || (worker.specialties || []).length > 0) ? (
+                <View style={styles.professionalOverview} testID="worker-specialty-overview">
+                  <View style={styles.overviewHead}>
+                    <Ionicons name="hardware-chip-outline" size={18} color="#4B7E91" />
+                    <Text style={styles.overviewTitle}>{text("Áreas técnicas", "Technical areas")}</Text>
+                  </View>
+                  {worker.bio?.trim() ? <Text style={styles.overviewDescription}>{worker.bio}</Text> : null}
+                  {(worker.specialties || []).length ? (
+                    <View style={styles.specialtyTags}>
+                      {(worker.specialties || []).map((area, index) => (
+                        <View key={index + "-" + area} style={styles.specialtyTag}><Text style={styles.specialtyTagText}>{area}</Text></View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              {mode === "profile" && worker.certificates.length > 0 ? (
+                <View style={styles.professionalOverview} testID="worker-certificate-overview">
+                  <View style={styles.overviewHead}>
+                    <Ionicons name="ribbon-outline" size={18} color="#4B7E91" />
+                    <Text style={styles.overviewTitle}>{text("Certificações", "Certifications")}</Text>
+                    <Text style={styles.overviewCount}>{worker.certificates.length}</Text>
+                  </View>
+                  {worker.certificates.slice(0, 6).map((certificate) => {
+                    const verified = certificate.status === "verified";
+                    const pending = certificate.status === "pending";
+                    const label = verified ? text("Verificada", "Verified") : pending ? text("Em análise", "Under review") : text("Declarada", "Declared");
+                    return (
+                      <Pressable key={certificate.id} accessibilityRole="button" onPress={() => setSelected({
+                        id: "profile-" + certificate.id, title: certificate.name,
+                        subtitle: text("Certificação profissional", "Professional certification"),
+                        icon: certificate.evidence_type === "authorisation" ? "shield-checkmark-outline" : "ribbon-outline",
+                        status: verified ? "verified" : pending ? "pending" : "recorded",
+                        stage: "industrial-access", family: "certification", scope: text("Qualificação adicional", "Additional qualification"),
+                        certificate, kind: "certification",
+                      })} style={({ pressed }) => [styles.certificationRow, pressed && styles.pressed]}>
+                        <View style={styles.certificationSymbol}><Ionicons name={certificate.evidence_type === "authorisation" ? "shield-checkmark-outline" : "ribbon-outline"} size={18} color="#4B7E91" /></View>
+                        <View style={styles.certificationCopy}>
+                          <Text style={styles.certificationName}>{certificate.name}</Text>
+                          <Text style={styles.certificationStatus}>{label}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={17} color="#728791" />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+              {mode === "profile" && competencyAssessment ? (
+                <View style={styles.snapshot} testID="worker-career-snapshot">
+                  <View style={styles.snapshotMain}>
+                    <Text style={styles.snapshotEyebrow}>{text("POSIÇÃO NA CARREIRA", "CAREER POSITION")}</Text>
+                    <Text style={styles.snapshotLevel}>{competencyAssessment.levelLabel}</Text>
+                    <Text style={styles.snapshotCaption}>{text("Nível profissional", "Professional level")}</Text>
+                  </View>
+                  <View style={styles.snapshotMetric}>
+                    <Text style={styles.snapshotNumber}>{competencyAssessment.score}<Text style={styles.snapshotSuffix}>/100</Text></Text>
+                    <Text style={styles.snapshotCaption}>WORKLY VALUE</Text>
+                    <View style={styles.snapshotTrack}><View style={[styles.snapshotFill, { width: (String(Math.max(0, Math.min(100, competencyAssessment.score))) + "%") as `${number}%` }]} /></View>
+                  </View>
+                  <View style={styles.snapshotMetric}>
+                    <Text style={styles.snapshotNumber}>{competencyAssessment.verifiedProjects}</Text>
+                    <Text style={styles.snapshotCaption}>{text("Obras verificadas", "Verified projects")}</Text>
+                  </View>
+                </View>
+              ) : null}
+              {mode === "profile" && competencyAssessment?.nextLevelId ? (
+                <Pressable accessibilityRole="button" onPress={onOpenJourney} style={({ pressed }) => [styles.nextChapter, pressed && styles.pressed]} testID="worker-next-career-level">
+                  <View style={styles.nextChapterIcon}><Ionicons name="trending-up-outline" color="#91C9DD" size={21}/></View>
+                  <View style={styles.nextChapterCopy}>
+                    <Text style={styles.nextChapterEyebrow}>{text("PRÓXIMO OBJETIVO", "NEXT MILESTONE")}</Text>
+                    <Text style={styles.nextChapterTitle}>{text("Explorar o próximo nível da carreira", "Explore the next career level")}</Text>
+                    <Text style={styles.nextChapterDetail}>{competencyAssessment.missingGates.length} {text("critérios ainda por cumprir", "requirements remaining")}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward-outline" size={20} color="#91C9DD" />
+                </Pressable>
+              ) : null}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <View style={styles.dividerDiamond} />
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.identityFacts}>
+                <View style={styles.identityFact}>
+                  <Ionicons name="flag-outline" size={15} color="#91C9DD" />
+                  <View style={styles.identityField}>
+                    <Text style={styles.identityLabel}>
+                      {text("Nacionalidade", "Nationality")}
+                    </Text>
+                    <Text style={styles.identityValue}>
+                      {localizeDemoText(
+                        language,
+                        worker.nationality || worker.country || "—",
+                      )}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.identityFact}>
+                  <Ionicons name="language-outline" size={15} color="#91C9DD" />
+                  <View style={styles.identityField}>
+                    <Text style={styles.identityLabel}>
+                      {text("Idiomas", "Languages")}
+                    </Text>
+                    <Text style={styles.identityValue}>
+                      {worker.languages
+                        .map((item) => localizeDemoText(language, item))
+                        .join(" · ") || "—"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Button
+                label={text("Editar dados profissionais", "Professional data")}
+                icon="create-outline"
+                variant="secondary"
+                onPress={() => setEditing(true)}
+                style={styles.editButton}
+                testID="edit-worker-profile"
+              />
+              {mode === "profile" ? (
+                <View style={styles.profileActions}>
+                  <Button
+                    label={text("Abrir percurso", "Open journey")}
+                    icon="git-branch-outline"
+                    onPress={onOpenJourney || (() => {})}
+                    style={styles.profileActionButton}
+                  />
+                  <Button
+                    label={text("Check-in / Pontos", "Check-in")}
+                    icon="location-outline"
+                    variant="secondary"
+                    onPress={onOpenAttendance || (() => {})}
+                    style={styles.profileActionButton}
+                  />
+                  <Button
+                    label={text("Passaporte PDF", "PDF professional passport")}
+                    icon="document-text-outline"
+                    variant="secondary"
+                    loading={exportingPdf}
+                    onPress={() => void exportPdf()}
+                    style={styles.profileActionButton}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+          {mode !== "profile" ? <View style={styles.main}>
+            {!primaryTree ? (
+              <EmptyProfessionalProfile language={language} onStart={() => setEditing(true)} />
+            ) : <View style={styles.journey}>
+              {competencyAssessment ? (
+                <WorkerCareerAtlas worker={worker} assessment={competencyAssessment} language={language} onNode={setSelected}
+                  onAddEvidence={() => setCertificateTarget({ professionId: primaryTree?.id || "professional" })}
+                  onRules={() => setRules(true)} onReveal={focusCareerDetail}
+                  collapseKey={openedSection} onLevelChange={() => setOpenedSection(null)} />
+              ) : null}
+              {competencyAssessment ? (
+                <View ref={sectionRefs.skills} onLayout={() => onPanelLayout("skills")}>
+                  <WorkerCompetencyTree assessment={competencyAssessment} language={language} onNode={setSelected}
+                    expanded={openedSection === "skills"} onToggle={() => toggleSection("skills")} />
+                </View>
+              ) : null}
+              {specialtyTree ? (
+                <View ref={sectionRefs.extras} onLayout={() => onPanelLayout("extras")}>
+                  <WorkerSpecialtyTree tree={specialtyTree} language={language} onNode={setSelected}
+                    expanded={openedSection === "extras"} onToggle={() => toggleSection("extras")} />
+                </View>
+              ) : null}
+              {complianceTree ? (
+                <View ref={sectionRefs.requirements} onLayout={() => onPanelLayout("requirements")}>
+                  <WorkerCompliancePanel tree={complianceTree} language={language} onNode={setSelected}
+                    expanded={openedSection === "requirements"} onToggle={() => toggleSection("requirements")} />
+                </View>
+              ) : null}
+            </View>}
+          </View> : null}
+        </View>
+      </ScrollView>
+      {rules && competencyAssessment ? <ModalPanel visible onClose={() => setRules(false)} title={text("Como é calculado o WORKLY VALUE", "How WORKLY VALUE is calculated")} subtitle={text("Quatro dimensões simples formam o valor 0–100. O nível profissional exige também critérios mínimos.", "Four simple dimensions create the 0–100 value. Professional level also requires minimum gates.")}>
+        <View style={styles.ruleList}>
+          {competencyAssessment.components.map(part => (
+            <View key={part.id} style={styles.ruleItem}>
+              <View style={styles.ruleHead}>
+                <Text style={styles.ruleTitle}>{text(part.label, part.labelEn)}</Text>
+                <Text style={styles.ruleValue}>{part.points}/{part.maximum}</Text>
+              </View>
+              <View style={styles.ruleTrack}><View style={[styles.ruleFill, { width: (String(Math.max(0, Math.min(100, part.maximum ? part.points / part.maximum * 100 : 0))) + "%") as `${number}%` }]} /></View>
+              <Text style={styles.ruleDescription}>
+                {part.id === "technical" ? text("Badges da profissão: funções e competências comprovadas.", "Trade badges: demonstrable skills and work.")
+                : part.id === "experience" ? text("Check-ins aprovados, horas e obras concluídas.", "Approved check-ins, hours and completed projects.")
+                : part.id === "qualifications" ? text("Formações ligadas à profissão, verificadas e distintas.", "Distinct verified training directly linked to the trade.")
+                : text("Qualidade e validação independente dos comprovativos.", "Evidence quality and independent verification.")}
+              </Text>
+            </View>
+          ))}
+          {competencyAssessment.missingGates.length ? (
+            <View style={styles.ruleItem}>
+              <Text style={styles.ruleTitle}>{text("Para o próximo nível", "For the next level")}</Text>
+              {competencyAssessment.missingGates.map((item, index) => (
+                <Text key={item} style={styles.detailNote}>
+                  · {assessmentGateText(language, item, competencyAssessment.missingGatesEn[index] || item)}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          <Text style={[styles.detailNote, { color: "#536E78" }]}>{text("Autorizações, cartões de segurança e conformidade são mostrados à parte. Podem ser obrigatórios para executar um trabalho, mas não aumentam automaticamente a senioridade técnica.", "Authorisations, safety cards and compliance are shown separately. They may be required to perform work, but do not automatically increase technical seniority.")}</Text>
+        </View>
+      </ModalPanel> : null}
       {selected ? (
         <CertificateDetails
           node={selected}
           byId={byId}
           language={language}
+          workerId={worker.id}
+          proofEvidence={
+            competencyAssessment?.competencies.find(
+              (item) => item.competency.id === selected.id,
+            )?.evidence
+          }
+          projects={state?.projects || []}
+          attendance={state?.attendance || []}
+          companies={state?.companies || []}
           onClose={() => setSelected(null)}
           onAssociate={() => {
-            const tree =
-              trees.find((item) =>
-                item.nodes.some((node) => node.id === selected.id),
-              ) ||
-              trees.find((item) => item.root.id === selected.id) ||
-              trees[0];
             setCertificateTarget({
-              professionId: tree?.id || "professional",
+              professionId: primaryTree?.id || "professional",
               node: selected,
             });
             setSelected(null);
           }}
         />
       ) : null}
-      {editing ? (
-        <WorkerIdentityEditor
-          worker={{ ...worker, profession: displayProfession }}
-          onClose={() => setEditing(false)}
-        />
-      ) : null}
-      {certificateTarget ? (
-        <WorkerCertificateEditor
-          worker={worker}
-          {...certificateTarget}
-          onClose={() => setCertificateTarget(null)}
-        />
-      ) : null}
+      {editing ? <WorkerIdentityEditor worker={worker} onClose={() => setEditing(false)} /> : null}
+      {certificateTarget ? <WorkerCertificateEditor worker={worker} {...certificateTarget} onClose={() => setCertificateTarget(null)} /> : null}
     </View>
   );
 }
 
-function Divider() {
+function EmptyProfessionalProfile({
+  language,
+  onStart,
+}: {
+  language: LanguageCode;
+  onStart: () => void;
+}) {
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const steps = [
+    ["person-outline", text("Identificação", "Identity"), text("Completa os dados profissionais essenciais.", "Complete the essential professional details.")],
+    ["briefcase-outline", text("Profissão principal", "Main profession"), text("Escolhe uma profissão. Esta será a tua única árvore principal.", "Choose one profession. This becomes your only main tree.")],
+    ["briefcase-outline", text("Experiência WORKLY", "WORKLY experience"), text("Começa a contar nas Obras após o registo através de horas e atividade verificadas.", "Starts counting in Projects after registration through verified hours and activity.")],
+    ["ribbon-outline", text("Evidências e especialidades", "Evidence & specialties"), text("Liga qualificações e provas às competências para desbloquear progressão.", "Link qualifications and evidence to competences to unlock progression.")],
+  ] as const;
   return (
-    <View style={styles.divider}>
-      <View style={styles.dividerLine} />
-      <View style={styles.dividerDiamond} />
-      <View style={styles.dividerLine} />
+    <View style={styles.emptyProfile} testID="empty-worker-profile">
+      <View style={styles.emptyCore}>
+        <View style={styles.emptyCoreRing}>
+          <Ionicons name="finger-print-outline" size={30} color="#91C9DD" />
+        </View>
+        <Text style={styles.emptyEyebrow}>{text("NOVA IDENTIDADE PROFISSIONAL", "NEW PROFESSIONAL IDENTITY")}</Text>
+        <Text style={styles.emptyTitle}>{text("Constrói o teu perfil Worker", "Build your Worker profile")}</Text>
+        <Text style={styles.emptyDescription}>
+          {text(
+            "Começas com um perfil vazio. Escolhes uma profissão principal e a WORKLY gera o percurso correspondente sem misturar outras áreas.",
+            "You start with an empty profile. Choose one main profession and WORKLY generates the matching journey without mixing other trades.",
+          )}
+        </Text>
+      </View>
+      <View style={styles.emptySteps}>
+        {steps.map(([icon, title, description], index) => (
+          <View key={title} style={styles.emptyStep}>
+            <View style={styles.emptyStepIndex}><Text style={styles.emptyStepNumber}>{String(index + 1).padStart(2, "0")}</Text></View>
+            <Ionicons name={icon} size={19} color="#91C9DD" />
+            <View style={styles.emptyStepCopy}>
+              <Text style={styles.emptyStepTitle}>{title}</Text>
+              <Text style={styles.emptyStepDescription}>{description}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <Button label={text("Criar perfil profissional", "Create professional profile")} icon="add-outline" onPress={onStart} style={styles.emptyStart} />
     </View>
   );
 }
+
 function IdentityRow({
   icon,
   label,
   value,
+  tone,
 }: {
   icon: AchievementNode["icon"];
   label: string;
   value: string;
+  tone?: "positive" | "negative" | "pending";
 }) {
+  const color =
+    tone === "positive"
+      ? "#95C7A9"
+      : tone === "negative"
+        ? "#E5A6A6"
+        : tone === "pending"
+          ? "#D9C48E"
+          : "#D9B395";
   return (
     <View style={styles.identityRow}>
-      <Ionicons name={icon} size={16} color={workspaceColors.blueSoft} />
-      <Text style={styles.identityLabel}>{label}</Text>
-      <Text style={styles.identityValue}>{value}</Text>
-    </View>
-  );
-}
-function OverviewStat({
-  value,
-  label,
-  icon,
-}: {
-  value: number;
-  label: string;
-  icon: AchievementNode["icon"];
-}) {
-  return (
-    <View style={styles.stat}>
-      <Ionicons name={icon} size={18} color={workspaceColors.blueSoft} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-function ProfessionFilter({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.filter,
-        active ? styles.filterActive : null,
-        pressed ? styles.pressed : null,
-      ]}
-    >
-      <Text
-        style={[
-          styles.filterText,
-          active ? { color: workspaceColors.blueSoft } : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-function LegendItem({ label, color }: { label: string; color: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
-    </View>
-  );
-}
-function Diamond({ node }: { node: AchievementNode }) {
-  return (
-    <View
-      style={[
-        styles.diamond,
-        {
-          borderColor: statusTone(node.status, accent),
-          backgroundColor: isCompleted(node.status) ? "#12243B" : "#111821",
-        },
-      ]}
-    >
-      <View style={styles.diamondInner}>
-        <Ionicons
-          name={node.icon}
-          color={statusTone(node.status, accent)}
-          size={19}
-        />
+      <Ionicons name={icon} size={16} color={color} />
+      <View style={styles.identityField}>
+        <Text style={styles.identityLabel}>{label}</Text>
+        <Text style={[styles.identityValue, tone ? { color } : null]}>{value}</Text>
       </View>
     </View>
   );
 }
-function NodeStatus({
-  node,
-  language,
-}: {
-  node: AchievementNode;
-  language: LanguageCode;
-}) {
-  return (
-    <View style={styles.nodeStatus}>
-      <Ionicons
-        name={statusIcon(node.status)}
-        size={12}
-        color={statusTone(node.status, accent)}
-      />
-      <Text
-        style={[
-          styles.nodeStatusText,
-          { color: statusTone(node.status, accent) },
-        ]}
-      >
-        {uiText(
-          language,
-          statusLabel(node.status),
-          node.status === "verified"
-            ? "VERIFIED"
-            : node.status === "recorded"
-              ? "RECORDED"
-              : node.status === "pending"
-                ? "PENDING"
-                : node.status === "locked"
-                  ? "NEXT STEP"
-                  : "TO ADD",
-        )}
-      </Text>
-    </View>
-  );
+
+function formatWorklyId(id: string) {
+  if (id === "worker-1") return "WLY-W-000001";
+  const compact = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return `WLY-W-${compact.slice(-8).padStart(8, "0")}`;
 }
-function TreeNode({
-  node,
-  language,
-  root = false,
-  onPress,
-}: {
-  node: AchievementNode;
-  language: LanguageCode;
-  root?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={localizeDemoText(language, node.title)}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.treeNode,
-        root ? styles.treeRoot : null,
-        pressed ? styles.pressed : null,
-      ]}
-    >
-      <Diamond node={node} />
-      <View style={styles.nodeCaption}>
-        <Text style={styles.nodeTitle}>
-          {root && node.id === "course" && node.meta?.includes("2008")
-            ? uiText(
-                language,
-                "Formação técnica IV",
-                "Technical qualification IV",
-              )
-            : localizeDemoText(language, node.title)}
-        </Text>
-        <NodeStatus node={node} language={language} />
-      </View>
-    </Pressable>
-  );
-}
-function ProfessionCard({
-  tree,
-  language,
-  single,
-  onNode,
-  onExpand,
-}: {
-  tree: ProfessionTree;
-  language: LanguageCode;
-  single: boolean;
-  onNode: (node: AchievementNode) => void;
-  onExpand: () => void;
-}) {
-  const confirmed = tree.nodes.filter((node) =>
-    isCompleted(node.status),
-  ).length;
-  return (
-    <View
-      style={[styles.professionCard, single ? styles.cardSingle : null]}
-      testID={`profession-tree-${tree.id}`}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.cardIcon}>
-          <Ionicons
-            name={tree.icon}
-            size={24}
-            color={workspaceColors.blueSoft}
-          />
-        </View>
-        <View style={styles.cardHeading}>
-          <Text style={styles.cardTitle}>
-            {uiText(language, tree.title, tree.titleEn)}
-          </Text>
-          <Text style={styles.cardDescription}>
-            {uiText(language, tree.description, tree.descriptionEn)}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.treeDiagram}>
-        <TreeNode
-          node={tree.root}
-          language={language}
-          root
-          onPress={() => onNode(tree.root)}
-        />
-        {tree.preview.length ? (
-          <>
-            <View style={styles.connector} pointerEvents="none">
-              <Svg
-                width="100%"
-                height="32"
-                viewBox="0 0 360 32"
-                preserveAspectRatio="none"
-              >
-                <Path
-                  d={
-                    tree.preview.length === 1
-                      ? "M180 0 V32"
-                      : "M180 0 V12 M90 32 V12 H270 V32"
-                  }
-                  stroke="#637B93"
-                  strokeWidth="1"
-                  fill="none"
-                />
-              </Svg>
-            </View>
-            <View style={styles.branches}>
-              {tree.preview.map((node) => (
-                <View key={node.id} style={styles.branch}>
-                  <TreeNode
-                    node={node}
-                    language={language}
-                    onPress={() => onNode(node)}
-                  />
-                </View>
-              ))}
-            </View>
-          </>
-        ) : (
-          <Text style={styles.emptyTree}>
-            {uiText(
-              language,
-              "Adiciona o primeiro certificado desta profissão.",
-              "Add the first certificate for this profession.",
-            )}
-          </Text>
-        )}
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${uiText(language, "Ver árvore", "View tree")} · ${uiText(language, tree.title, tree.titleEn)}`}
-        onPress={onExpand}
-        style={({ pressed }) => [
-          styles.cardFooter,
-          pressed ? styles.pressed : null,
-        ]}
-      >
-        <Text style={styles.footerCount}>
-          {confirmed}/{tree.nodes.length}{" "}
-          {uiText(language, "registados", "recorded")}
-        </Text>
-        <View style={styles.footerAction}>
-          <Text style={styles.footerLabel}>
-            {uiText(language, "Ver árvore", "View tree")}
-          </Text>
-          <Ionicons
-            name="arrow-forward-outline"
-            size={16}
-            color={workspaceColors.blueSoft}
-          />
-        </View>
-      </Pressable>
-    </View>
-  );
-}
+
 function CertificateDetails({
   node,
   byId,
   language,
+  workerId,
+  proofEvidence,
+  projects,
+  attendance,
+  companies,
   onClose,
   onAssociate,
 }: {
   node: AchievementNode;
   byId: Map<string, AchievementNode>;
   language: LanguageCode;
+  workerId: string;
+  proofEvidence?: Certificate[];
+  projects: Project[];
+  attendance: Attendance[];
+  companies: Company[];
   onClose: () => void;
   onAssociate: () => void;
 }) {
   const { notify } = useWorklyData();
   const fileId = node.certificate?.file_id || node.evidence?.file_id;
-  const text = (pt: string, en: string) => uiText(language, pt, en);
+  const text = (pt: string, en: string) => professionalText(language, pt, en);
+  const specialtyDefinition = specialtyCatalog.find((item) => item.id === node.id);
+  const complianceDefinition = complianceCatalog.find((item) => item.id === node.id);
+  const displayTitle = specialtyDefinition
+    ? specialtyCopy(
+        language,
+        node.id,
+        specialtyDefinition.title,
+        specialtyDefinition.titleEn,
+      )
+    : complianceDefinition
+      ? complianceTitle(
+          language,
+          node.id,
+          complianceDefinition.title,
+          complianceDefinition.titleEn,
+        )
+      : localizeDemoText(language, node.title);
+  const displaySubtitle = specialtyDefinition
+    ? specialtyCopy(
+        language,
+        node.id,
+        specialtyDefinition.description,
+        specialtyDefinition.descriptionEn,
+        true,
+      )
+    : complianceDefinition
+      ? text(
+          "Requisito de conformidade contextual",
+          "Contextual compliance requirement",
+        )
+      : localizeDemoText(language, node.subtitle);
   const openFile = async () => {
     try {
       await openWorklyFile(fileId!);
@@ -749,8 +618,8 @@ function CertificateDetails({
     <ModalPanel
       visible
       onClose={onClose}
-      title={localizeDemoText(language, node.title)}
-      subtitle={localizeDemoText(language, node.subtitle)}
+      title={displayTitle}
+      subtitle={displaySubtitle}
       footer={
         <>
           {fileId ? (
@@ -761,7 +630,7 @@ function CertificateDetails({
             />
           ) : null}
           <Button
-            label={text("Associar certificado", "Associate certificate")}
+            label={text("Associar evidência", "Associate evidence")}
             icon="attach-outline"
             variant="secondary"
             onPress={onAssociate}
@@ -771,18 +640,63 @@ function CertificateDetails({
     >
       <View style={styles.detailContent}>
         <View style={styles.detailSymbol}>
-          <Diamond node={node} />
-          <NodeStatus node={node} language={language} />
+          <JourneySymbol node={node} large />
+          <JourneyStatus node={node} language={language} />
         </View>
+        {proofEvidence !== undefined ? (
+          <View style={styles.proofSection}>
+            <View style={styles.proofHeading}>
+              <View style={styles.proofHeadingIcon}>
+                <Ionicons name="link-outline" size={14} color="#91C9DD" />
+              </View>
+              <View style={styles.proofHeadingCopy}>
+                <Text style={styles.sectionLabel}>PROOF OF WORK</Text>
+                <Text style={styles.detailNote}>
+                  {text(
+                    "Prova rastreável da competência em contexto real.",
+                    "Traceable proof of the competence in real work.",
+                  )}
+                </Text>
+              </View>
+            </View>
+            <WorkerProofOfWork
+              workerId={workerId}
+              evidence={proofEvidence}
+              projects={projects}
+              attendance={attendance}
+              companies={companies}
+              language={language}
+            />
+          </View>
+        ) : null}
         <Text style={styles.sectionLabel}>{text("Âmbito", "Scope")}</Text>
         <Text style={styles.detailText}>
-          {localizeDemoText(language, node.scope)}
+          {scopeText(language, localizeDemoText(language, node.scope))}
         </Text>
         {node.certificate ? (
           <View style={styles.detailsGrid}>
             <DetailRow
+              label={text("Tipo de evidência", "Evidence type")}
+              value={
+                node.certificate.evidence_type
+                  ? text(
+                      evidenceTypeDefinition(node.certificate.evidence_type)?.label || node.certificate.evidence_type,
+                      evidenceTypeDefinition(node.certificate.evidence_type)?.labelEn || node.certificate.evidence_type,
+                    )
+                  : text("Registo legado", "Legacy record")
+              }
+            />
+            <DetailRow
               label={text("Entidade", "Issuer")}
               value={node.certificate.issuer || "—"}
+            />
+            <DetailRow
+              label={text("Contexto", "Context")}
+              value={node.certificate.context || "—"}
+            />
+            <DetailRow
+              label={text("Horas", "Hours")}
+              value={node.certificate.hours ? String(node.certificate.hours) : "—"}
             />
             <DetailRow
               label={text("Emissão", "Issued")}
@@ -798,12 +712,19 @@ function CertificateDetails({
             />
           </View>
         ) : null}
-        {!node.certificate &&
-          node.meta?.map((item) => (
-            <Text key={item} style={styles.detailText}>
-              {localizeDemoText(language, item)}
-            </Text>
-          ))}
+        {node.meta?.length ? (
+          <View style={styles.criteriaBlock}>
+            <Text style={styles.sectionLabel}>{text("Critérios de progressão", "Progression criteria")}</Text>
+            {node.meta.map((item) => (
+              <Text key={item} style={styles.detailText}>
+                {professionalMetaText(
+                  language,
+                  localizeDemoText(language, item),
+                )}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         {node.verificationNote ? (
           <Text style={styles.detailNote}>
             {localizeDemoText(language, node.verificationNote)}
@@ -837,288 +758,161 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, backgroundColor: "#080E15" },
+  professionalHeadline: { fontSize: 12, lineHeight: 17, fontWeight: "600", color: "#607986", flexShrink: 1 },
+  professionalOverview: { borderWidth: 1, borderColor: "#DDE7EA", borderRadius: 15, backgroundColor: "#FFFFFF", padding: 14, gap: 12, marginTop: 12 },
+  overviewHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  overviewTitle: { flex: 1, color: "#233844", fontSize: 13, fontWeight: "800" },
+  overviewCount: { fontSize: 11, color: "#607986", fontWeight: "800" },
+  overviewDescription: { fontSize: 11, lineHeight: 18, color: "#536D78" },
+  specialtyTags: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  specialtyTag: { borderWidth: 1, borderColor: "#C8DCE3", backgroundColor: "#EDF4F6", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7 },
+  specialtyTagText: { color: "#416E80", fontSize: 10, fontWeight: "700" },
+  certificationRow: { minHeight: 51, flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: 1, borderTopColor: "#EDF1F2", paddingVertical: 10 },
+  certificationSymbol: { width: 34, height: 34, backgroundColor: "#EDF4F6", borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  certificationCopy: { flex: 1, gap: 4 },
+  certificationName: { color: "#233844", fontSize: 11, lineHeight: 15, fontWeight: "700" },
+  certificationStatus: { color: "#728791", fontSize: 10 },
+
+  root: { flex: 1, minHeight: 0, backgroundColor: "#080C14" },
+  journeyRoot: { backgroundColor: "#F4F7F8" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { padding: 26, paddingBottom: 30 },
-  contentCompact: { padding: 16 },
-  layout: {
-    width: "100%",
-    maxWidth: 1680,
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 24,
-  },
-  layoutCompact: { flexDirection: "column", gap: 20 },
-  identity: {
-    width: 286,
-    flexShrink: 0,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "#2A3C50",
-    backgroundColor: "#0B131DEB",
-    borderRadius: 8,
-  },
-  identityCompact: { width: "100%", padding: 20 },
-  identityHero: { alignItems: "center", gap: 18 },
-  heroCompact: { flexDirection: "row", alignItems: "flex-start", gap: 18 },
-  identityHeading: { width: "100%", alignItems: "center", gap: 8 },
+  content: { padding: 32, paddingBottom: 54 },
+  contentCompact: { padding: 16, paddingBottom: 38 },
+  layout: { width: "100%", maxWidth: 1400, alignSelf: "center", flexDirection: "row", alignItems: "flex-start", gap: 24 },
+  layoutCompact: { flexDirection: "column", gap: 24 },
+  layoutJourney: { maxWidth: 1180 },
+  identityProfile: { width: "100%", maxWidth: 1040, alignSelf: "center" },
+  profileOverview: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
+  profileActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  profileActionButton: { minWidth: 170, flexGrow: 1 },
+  identity: { width: 330, flexShrink: 0, padding: 26, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#172736", borderRadius: 24, shadowColor: "#24353E", shadowOpacity: .18, shadowRadius: 30, shadowOffset: { width: 0, height: 11 } },
+  identityCompact: { width: "100%", padding: 18, borderRadius: 18 },
+  identityHero: { flexDirection: "row", alignItems: "center", gap: 26, paddingVertical: 30, flexWrap: "wrap" },
+  heroCompact: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 20, flexWrap: "nowrap" },
+  identityHeading: { flex: 1, minWidth: 150, alignItems: "flex-start", gap: 6 },
+  professionLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", gap: 7, maxWidth: "100%" },
   headingCompact: { flex: 1, minWidth: 0, alignItems: "flex-start" },
-  eyebrow: {
-    color: workspaceColors.blueSoft,
-    fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-    fontWeight: "600",
-  },
-  name: {
-    color: "#F0ECE5",
-    fontFamily: serif,
-    fontSize: 27,
-    lineHeight: 34,
-    textAlign: "center",
-  },
-  nameCompact: { fontSize: 24, lineHeight: 30, textAlign: "left" },
-  profession: {
-    color: workspaceColors.textSoft,
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: "center",
-    flexShrink: 1,
-  },
-  editButton: { marginTop: 20, borderRadius: 6, borderColor: "#355875" },
-  divider: {
-    marginVertical: 22,
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#293B4C" },
-  dividerDiamond: {
-    width: 6,
-    height: 6,
-    borderWidth: 1,
-    borderColor: "#8AA8BF",
-    transform: [{ rotate: "45deg" }],
-  },
-  sectionLabel: {
-    color: "#C8D4DF",
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "700",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-  },
-  identityRows: { gap: 15, marginTop: 17 },
-  identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  identityLabel: { color: "#8AA5BF", width: 67, fontSize: 11, lineHeight: 18 },
-  identityValue: {
-    color: workspaceColors.textSoft,
-    flex: 1,
-    minWidth: 0,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  bio: { color: "#90A0B1", fontSize: 12, lineHeight: 20, marginTop: 12 },
-  education: { flexDirection: "row", gap: 10, marginTop: 18 },
-  educationTitle: {
-    color: workspaceColors.textSoft,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  muted: { color: workspaceColors.muted, fontSize: 12, lineHeight: 18 },
+  eyebrow: { color: "#AEC2CB", fontSize: 10, lineHeight: 16, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "800" },
+  name: { color: "#EDF5F7", fontFamily: serif, fontSize: 32, lineHeight: 41, textAlign: "left", fontWeight: "700" },
+  nameCompact: { fontSize: 22, lineHeight: 29, textAlign: "left" },
+  profession: { color: "#EDF5F7", fontSize: 14, lineHeight: 21, textAlign: "left", flexShrink: 1, fontWeight: "700" },
+  professionCompact: { textAlign: "left" },
+  identityBadges: { marginTop: 0, flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  worklyBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
+  fitBadge: { flex: 1, minWidth: 188, minHeight: 65, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11 },
+  fitBadgePositive: { borderColor: "#40596A", backgroundColor: "#223747" },
+  fitBadgePending: { borderColor: "#40596A", backgroundColor: "#223747" },
+  fitBadgeNegative: { borderColor: "#40596A", backgroundColor: "#223747" },
+  badgeCopy: { flex: 1, minWidth: 0, gap: 2 },
+  badgeLabel: { color: "#AEC2CB", fontSize: 9, lineHeight: 13, letterSpacing: .7, textTransform: "uppercase", fontWeight: "800" },
+  badgeValue: { color: "#EDF5F7", fontSize: 12, lineHeight: 18, fontWeight: "800", flexShrink: 1 },
+  fitTextPositive: { color: "#91C9DD" },
+  fitTextPending: { color: "#C0C9CE" },
+  fitTextNegative: { color: "#E2A5A5" },
+  divider: { marginVertical: 18, flexDirection: "row", gap: 8, alignItems: "center" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#223747" },
+  dividerDiamond: { width: 5, height: 5, borderWidth: 1, borderColor: "#40596A", transform: [{ rotate: "45deg" }] },
+  identityFacts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  identityFact: { flex: 1, minWidth: 175, flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", borderRadius: 12, padding: 13 },
+  identityRows: { gap: 18 },
+  identityRowsCompact: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 16 },
+  identityRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flexShrink: 1, minWidth: 100 },
+  identityField: { flex: 1, minWidth: 0, gap: 4 },
+  identityLabel: { color: "#AEC2CB", fontSize: 10, lineHeight: 15, minWidth: 60 },
+  identityValue: { color: "#EDF5F7", fontSize: 12, lineHeight: 19, flexShrink: 1, fontWeight: "700" },
+  identityCode: { color: "#AEC2CB", fontSize: 10, lineHeight: 17, textAlign: "center", marginTop: 12, letterSpacing: .5 },
+  editButton: { marginTop: 18, borderRadius: 11, borderColor: "#40596A", minHeight: 44 },
+  aboutButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, minHeight: 42, marginTop: 4 },
+  aboutLabel: { color: "#AEC2CB", fontSize: 11 },
   main: { flex: 1, minWidth: 0, width: "100%", gap: 18 },
-  mainHeader: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  headingWrap: { flexGrow: 1, flexShrink: 1, gap: 5 },
-  title: { color: "#F0ECE5", fontFamily: serif, fontSize: 33, lineHeight: 42 },
-  titleCompact: { fontSize: 28, lineHeight: 36 },
-  subtitle: { color: "#91A8BC", fontSize: 13, lineHeight: 20 },
-  addButton: { borderRadius: 6, minHeight: 44 },
-  overview: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 18,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#233446",
-  },
-  stat: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  statValue: { color: workspaceColors.text, fontSize: 18, fontWeight: "600" },
-  statLabel: { color: "#8AA0B5", fontSize: 11, flexShrink: 1 },
-  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  filter: {
-    minHeight: 42,
-    borderBottomWidth: 1,
-    borderColor: "#314256",
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    justifyContent: "center",
-  },
-  filterActive: { borderColor: accent, backgroundColor: "#2388FF10" },
-  filterText: { color: "#92A3B6", fontSize: 12 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  professionCard: {
-    width: "48%",
-    flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 280,
-    borderWidth: 1,
-    borderColor: "#2A3C50",
-    backgroundColor: "#0A131DEB",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  cardSingle: { width: "100%", minWidth: 0 },
-  cardHeader: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-    padding: 18,
-    borderBottomWidth: 1,
-    borderColor: "#213142",
-  },
-  cardIcon: {
-    width: 40,
-    height: 42,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#416383",
-    borderRadius: 5,
-    backgroundColor: "#102033",
-  },
-  cardHeading: { flex: 1, minWidth: 0, gap: 4 },
-  cardTitle: {
-    color: "#E8E5DE",
-    fontFamily: serif,
-    fontSize: 21,
-    lineHeight: 26,
-  },
-  cardDescription: { color: "#8FA4B8", fontSize: 11, lineHeight: 17 },
-  treeDiagram: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
-    minHeight: 182,
-  },
-  treeNode: {
-    minWidth: 0,
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 3,
-    paddingVertical: 4,
-  },
-  diamond: {
-    width: 32,
-    height: 32,
-    borderWidth: 1.5,
-    transform: [{ rotate: "45deg" }],
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 5,
-  },
-  diamondInner: { transform: [{ rotate: "-45deg" }] },
-  treeRoot: { flexDirection: "row", justifyContent: "center", gap: 16 },
-  nodeCaption: { minWidth: 0, alignItems: "center", gap: 5 },
-  nodeTitle: {
-    color: "#DDE4EC",
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    flexShrink: 1,
-  },
-  nodeSubtitle: { color: "#8FA4B8", fontSize: 12, lineHeight: 18 },
-  nodeStatus: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  nodeStatusText: {
-    fontSize: 9,
-    lineHeight: 14,
-    letterSpacing: 0.5,
-    fontWeight: "600",
-  },
-  connector: { width: "100%", height: 24 },
-  branches: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  branch: { flex: 1, minWidth: 0 },
-  emptyTree: {
-    textAlign: "center",
-    fontSize: 12,
-    lineHeight: 18,
-    color: workspaceColors.muted,
-    marginTop: 18,
-  },
-  cardFooter: {
-    borderTopWidth: 1,
-    borderColor: "#243649",
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 10,
-    minHeight: 44,
-  },
-  footerCount: { fontSize: 11, color: "#7892AA" },
-  footerAction: { flexDirection: "row", alignItems: "center", gap: 9 },
-  footerLabel: { color: workspaceColors.blueSoft, fontSize: 12 },
-  pressed: { opacity: 0.72 },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    paddingVertical: 5,
-  },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendDot: { width: 5, height: 5, transform: [{ rotate: "45deg" }] },
-  legendLabel: { color: "#7D92A7", fontSize: 11 },
-  fullTreeRow: { flexDirection: "row", gap: 20, minHeight: 108 },
-  fullTreeRail: { width: 62, alignItems: "center", justifyContent: "center" },
-  fullTreeLine: {
-    position: "absolute",
-    width: 1,
-    top: 0,
-    bottom: 0,
-    backgroundColor: "#425A70",
-  },
-  fullTreeContent: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: "flex-start",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderColor: "#1D2A38",
-  },
-  detailContent: { gap: 16 },
+  mainHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  mainHeaderNarrow: { flexWrap: "nowrap", gap: 10 },
+  headingWrap: { flexGrow: 1, flexShrink: 1, gap: 4 },
+  title: { color: "#EDF5F7", fontFamily: serif, fontSize: 34, lineHeight: 44 },
+  titleCompact: { fontSize: 27, lineHeight: 35 },
+  scoreBadge: { alignItems: "flex-end", gap: 3, paddingVertical: 6, paddingLeft: 16, borderLeftWidth: 1, borderColor: "#40596A" },
+  scoreValue: { color: "#91C9DD", fontSize: 30, lineHeight: 36, fontWeight: "600" },
+  scoreMaximum: { color: "#AEC2CB", fontSize: 15 },
+  scoreLabel: { color: "#AEC2CB", fontSize: 10, lineHeight: 15 },
+  tabs: { flexDirection: "row", flexWrap: "wrap", gap: 20, borderBottomWidth: 1, borderColor: "#40596A" },
+  tab: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48, paddingHorizontal: 2, borderBottomWidth: 2, borderColor: "transparent" },
+  tabActive: { borderColor: "#91C9DD" },
+  tabText: { color: "#AEC2CB", fontSize: 12 },
+  tabTextActive: { color: "#AEC2CB" },
+  journey: { gap: 15 },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 14 },
+  journeyHint: { color: "#AEC2CB", fontSize: 12, lineHeight: 19, flexShrink: 1 },
+  addButton: { minHeight: 40, borderRadius: 6 },
+  portfolio: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  portfolioItem: { width: "100%", flexGrow: 1, minWidth: 0, padding: 22, gap: 12, borderRadius: 18, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#172736" },
+  projectHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  portfolioTitle: { flex: 1, minWidth: 0, color: "#EDF5F7", fontFamily: serif, fontSize: 22, lineHeight: 29 },
+  projectYear: { color: "#AEC2CB", fontSize: 13 },
+  projectLocation: { color: "#AEC2CB", fontSize: 12, lineHeight: 19 },
+  projectSummary: { color: "#EDF5F7", fontSize: 13, lineHeight: 22 },
+  projectStatus: { flexDirection: "row", alignItems: "center", gap: 7, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 12 },
+  muted: { color: workspaceColors.muted, fontSize: 12, lineHeight: 19 },
+  pressed: { opacity: .72 },
+  ruleList: { gap: 16 },
+  ruleItem: { padding: 14, gap: 9, borderWidth: 1, borderColor: "#DAE6E9", borderRadius: 13, backgroundColor: "#F7FAFB" },
+  ruleHead: { flexDirection: "row", gap: 8, justifyContent: "space-between", alignItems: "center" },
+  ruleTrack: { height: 6, backgroundColor: "#DDE8EC", borderRadius: 5, overflow: "hidden" },
+  ruleFill: { height: 6, backgroundColor: "#4B7E91", borderRadius: 5 },
+  ruleTitle: { color: "#253D48", flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "700" },
+  ruleValue: { color: "#4B7E91", fontSize: 19, fontWeight: "800" },
+  ruleDescription: { fontSize: 10, color: "#5B747F", lineHeight: 16 },
+  detailContent: { gap: 18 },
+  proofSection: { gap: 10, borderWidth: 1, borderColor: "#40596A", borderRadius: 16, backgroundColor: "#172736", padding: 12 },
+  proofHeading: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
+  proofHeadingIcon: { width: 28, height: 28, borderRadius: 9, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#223747", alignItems: "center", justifyContent: "center" },
+  proofHeadingCopy: { flex: 1, minWidth: 0, gap: 2 },
   detailSymbol: { alignItems: "center", gap: 8, paddingBottom: 12 },
-  detailText: { color: workspaceColors.textSoft, fontSize: 13, lineHeight: 20 },
-  detailNote: { color: "#8FA3B8", fontSize: 12, lineHeight: 19 },
-  detailsGrid: {
-    gap: 13,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#2A3C50",
-    borderRadius: 7,
-  },
-  detailRow: { flexDirection: "row", gap: 12 },
-  related: {
-    gap: 9,
-    borderTopWidth: 1,
-    borderColor: "#2A3C50",
-    paddingTop: 18,
-  },
+  sectionLabel: { color: "#EDF5F7", fontSize: 11, lineHeight: 17, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
+  detailText: { color: "#EDF5F7", fontSize: 13, lineHeight: 22 },
+  detailNote: { color: "#AEC2CB", fontSize: 12, lineHeight: 20 },
+  detailsGrid: { gap: 14, padding: 16, borderWidth: 1, borderColor: "#40596A", borderRadius: 7 },
+  detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  criteriaBlock: { gap: 8, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 16 },
+  related: { gap: 10, borderTopWidth: 1, borderColor: "#40596A", paddingTop: 18 },
+  education: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 46, paddingVertical: 10, flexWrap: "wrap" },
+  emptyProfile: { borderWidth: 1, borderColor: "#40596A", borderRadius: 18, backgroundColor: "#172736", padding: 22, gap: 20 },
+  emptyCore: { alignItems: "center", gap: 8, paddingVertical: 8 },
+  emptyCoreRing: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyEyebrow: { color: "#AEC2CB", fontSize: 9, lineHeight: 14, fontWeight: "700", letterSpacing: 1.8 },
+  emptyTitle: { color: "#EDF5F7", fontSize: 24, lineHeight: 31, fontWeight: "700", textAlign: "center" },
+  emptyDescription: { maxWidth: 620, color: "#AEC2CB", fontSize: 12, lineHeight: 20, textAlign: "center" },
+  emptySteps: { gap: 4 },
+  emptyStep: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: "#40596A", paddingVertical: 10 },
+  emptyStepIndex: { width: 30 },
+  emptyStepNumber: { color: "#91C9DD", fontSize: 9, letterSpacing: 1.2, fontWeight: "700" },
+  emptyStepCopy: { flex: 1, minWidth: 0, gap: 2 },
+  emptyStepTitle: { color: "#EDF5F7", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  emptyStepDescription: { color: "#AEC2CB", fontSize: 10, lineHeight: 16 },
+  passportTop: { marginHorizontal: -26, marginTop: -26, paddingHorizontal: 26, paddingVertical: 16, minHeight: 71, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#1C2D3B", borderTopLeftRadius: 23, borderTopRightRadius: 23, borderBottomWidth: 1, borderBottomColor: "#40596A" },
+  passportTopCompact: { marginHorizontal: -18, marginTop: -18, borderTopLeftRadius: 17, borderTopRightRadius: 17, paddingHorizontal: 18 },
+  passportEmblem: { width: 37, height: 37, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  passportEmblemText: { color: "#91C9DD", fontSize: 22, fontWeight: "900" },
+  passportTopCopy: { flex: 1, minWidth: 0, gap: 2 },
+  passportKicker: { color: "#91C9DD", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  passportSub: { color: "#EDF5F7", fontSize: 14, fontWeight: "700" },
+  photoFrame: { padding: 5, borderRadius: 90, borderWidth: 2, borderColor: "#40596A", backgroundColor: "#223747" },
+  locationLine: { flexDirection: "row", alignItems: "center", gap: 5 },
+  locationText: { color: "#AEC2CB", fontSize: 12 },
+  snapshot: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 18 },
+  snapshotMain: { flex: 1, minWidth: 120, backgroundColor: "#284354", padding: 15, borderRadius: 15, gap: 2 },
+  snapshotMetric: { flex: 1, minWidth: 120, backgroundColor: "#223747", borderWidth: 1, borderColor: "#40596A", padding: 15, borderRadius: 15, gap: 3 },
+  snapshotEyebrow: { color: "#91C9DD", letterSpacing: 1.1, fontSize: 9, fontWeight: "800" },
+  snapshotLevel: { color: "#91C9DD", fontSize: 30, fontWeight: "900", lineHeight: 37 },
+  snapshotCaption: { color: "#AEC2CB", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  snapshotNumber: { color: "#EDF5F7", fontSize: 27, fontWeight: "800" },
+  snapshotSuffix: { color: "#AEC2CB", fontSize: 12 },
+  snapshotTrack: { height: 4, borderRadius: 4, backgroundColor: "#223747", marginTop: 6, overflow: "hidden" },
+  snapshotFill: { height: "100%", backgroundColor: "#91C9DD" },
+  nextChapter: { marginTop: 14, borderWidth: 1, borderColor: "#40596A", backgroundColor: "#284354", borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", gap: 12 },
+  nextChapterIcon: { width: 38, height: 38, backgroundColor: "#284354", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  nextChapterCopy: { flex: 1, gap: 2 },
+  nextChapterEyebrow: { color: "#91C9DD", fontSize: 9, fontWeight: "800", letterSpacing: 1.1 },
+  nextChapterTitle: { color: "#EDF5F7", fontSize: 12, fontWeight: "800" },
+  nextChapterDetail: { color: "#AEC2CB", fontSize: 10 },
+  emptyStart: { alignSelf: "center", minWidth: 220 },
 });

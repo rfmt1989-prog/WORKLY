@@ -1,4 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Ionicons from "@/src/components/workspace/WorklyIcon";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -17,15 +17,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  roleAccent,
-  workspaceColors,
-} from "@/src/components/workspace/primitives";
+
 import { LanguageSelector } from "@/src/components/LanguageSelector";
+import { api } from "@/src/api/client";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
 import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
+import type { IdentityDocumentType } from "@/src/demo/types";
 
+const workspaceColors = {
+  background: "#F5F7F8", panel: "#F8FAFB", panelSoft: "#F1F5F6", panelStrong: "#E4EFF2",
+  line: "#DEE8EB", lineStrong: "#C7D9DF", text: "#233944", textSoft: "#506D79", muted: "#697F89",
+  blue: "#4B7E91", blueSoft: "#4B7E91", red: "#A36363", redSoft: "#A36363", green: "#558777",
+};
+const roleAccent = (role: UserRole) => role === "worker" ? workspaceColors.blue : workspaceColors.red;
 type ScreenMode = "login" | "register";
 
 const DEMO_PASSWORD = "WorklyDemo!";
@@ -44,6 +49,72 @@ const INVITE_CODE_LABEL = {
   nl: "Uitnodigingscode (optioneel)",
 } as const;
 
+const WORKER_IDENTITY_COPY = {
+  pt: {
+    title: "Identificação oficial",
+    nationality: "Nacionalidade",
+    document: "Documento de identificação",
+    citizenCard: "Cartão de Cidadão",
+    passport: "Passaporte",
+    number: "Número do documento",
+    privacy: "O número do documento é usado para criar a identidade WORKLY. A verificação depende da análise posterior do documento e o número não aparece no perfil.",
+  },
+  en: {
+    title: "Official identification",
+    nationality: "Nationality",
+    document: "Identity document",
+    citizenCard: "Citizen card",
+    passport: "Passport",
+    number: "Document number",
+    privacy: "The document number creates your WORKLY identity. Verification requires a later review, and the number is never displayed on your profile.",
+  },
+  fr: {
+    title: "Identification officielle",
+    nationality: "Nationalité",
+    document: "Pièce d’identité",
+    citizenCard: "Carte d’identité",
+    passport: "Passeport",
+    number: "Numéro du document",
+    privacy: "Le numéro du document sert uniquement à créer/vérifier une identité WORKLY unique et n’apparaît jamais sur le profil.",
+  },
+  es: {
+    title: "Identificación oficial",
+    nationality: "Nacionalidad",
+    document: "Documento de identidad",
+    citizenCard: "Documento de identidad",
+    passport: "Pasaporte",
+    number: "Número del documento",
+    privacy: "El número del documento solo se usa para crear/verificar una única identidad WORKLY y nunca aparece en el perfil.",
+  },
+  ro: {
+    title: "Identificare oficială",
+    nationality: "Naționalitate",
+    document: "Document de identitate",
+    citizenCard: "Carte de identitate",
+    passport: "Pașaport",
+    number: "Numărul documentului",
+    privacy: "Numărul documentului este folosit doar pentru crearea/verificarea unei singure identități WORKLY și nu apare niciodată în profil.",
+  },
+  de: {
+    title: "Amtliche Identifikation",
+    nationality: "Staatsangehörigkeit",
+    document: "Ausweisdokument",
+    citizenCard: "Personalausweis",
+    passport: "Reisepass",
+    number: "Dokumentnummer",
+    privacy: "Die Dokumentnummer wird nur zur Erstellung/Prüfung einer eindeutigen WORKLY-Identität verwendet und niemals im Profil angezeigt.",
+  },
+  nl: {
+    title: "Officiële identificatie",
+    nationality: "Nationaliteit",
+    document: "Identiteitsdocument",
+    citizenCard: "Identiteitskaart",
+    passport: "Paspoort",
+    number: "Documentnummer",
+    privacy: "Het documentnummer wordt alleen gebruikt om één WORKLY-identiteit aan te maken/te verifiëren en wordt nooit op het profiel getoond.",
+  },
+} as const;
+
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,6 +123,7 @@ export default function Login() {
   const { user, loading: sessionLoading, login, register } = useAuth();
   const { language, setLanguage } = useWorklyData();
   const text = loginCopy[language];
+  const identityText = WORKER_IDENTITY_COPY[language];
 
   const [mode, setMode] = useState<ScreenMode>("login");
   const [role, setRole] = useState<UserRole>("worker");
@@ -59,6 +131,11 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteToken, setInviteToken] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [documentType, setDocumentType] = useState<IdentityDocumentType>("citizen_card");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [identityConsent, setIdentityConsent] = useState(false);
+  const [registrationReady, setRegistrationReady] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -67,6 +144,16 @@ export default function Login() {
     () => (mode === "login" ? text.login : text.register),
     [mode, text.login, text.register],
   );
+
+  useEffect(() => {
+    if (mode !== "register" || __DEV__) return;
+    let active = true;
+    setRegistrationReady(null);
+    void api.get<{ persistence: { connected: boolean; mode: string } }>("/health")
+      .then(result => { if (active) setRegistrationReady(result.persistence?.connected === true && result.persistence?.mode === "postgres"); })
+      .catch(() => { if (active) setRegistrationReady(false); });
+    return () => { active = false; };
+  }, [mode]);
 
   useEffect(() => {
     if (!sessionLoading && user) {
@@ -87,9 +174,25 @@ export default function Login() {
     if (
       !cleanEmail ||
       !cleanPassword ||
-      (mode === "register" && !demoRole && !cleanName)
+      (mode === "register" && !demoRole && !cleanName) ||
+      (mode === "register" &&
+        !demoRole &&
+        selectedRole === "worker" &&
+        (!nationality.trim() || !documentNumber.trim()))
     ) {
       setError(text.required);
+      return;
+    }
+    if (mode === "register" && !demoRole && !__DEV__ && registrationReady !== true) {
+      setError(language === "pt" ? "O registo real está indisponível neste ambiente. Não introduzas documentos pessoais na pré-visualização." : "Real registration is unavailable here. Do not submit personal identity documents in this preview.");
+      return;
+    }
+    if (mode === "register" && !demoRole && cleanPassword.length < 10) {
+      setError(language === "pt" ? "A palavra-passe deve ter pelo menos 10 caracteres." : "Password must be at least 10 characters.");
+      return;
+    }
+    if (mode === "register" && !demoRole && selectedRole === "worker" && !identityConsent) {
+      setError(language === "pt" ? "Confirma que estás a registar os teus próprios dados de identificação." : "Confirm that you are registering your own identity details.");
       return;
     }
 
@@ -102,6 +205,13 @@ export default function Login() {
           cleanPassword,
           selectedRole,
           selectedRole === "company" ? inviteToken : undefined,
+          selectedRole === "worker"
+            ? {
+                nationality: nationality.trim(),
+                documentType,
+                documentNumber: documentNumber.trim(),
+              }
+            : undefined,
         );
       } else {
         await login(cleanEmail, cleanPassword, selectedRole);
@@ -131,7 +241,7 @@ export default function Login() {
       style={styles.root}
     >
       <LinearGradient
-        colors={["#07090E", "#0A0D15", "#080A10"]}
+        colors={["#F8FAFB", "#EDF3F5", "#F5F7F8"]}
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.glow, styles.blueGlow]} />
@@ -180,7 +290,7 @@ export default function Login() {
               ].map((feature) => (
                 <View key={feature.label} style={styles.feature}>
                   <Ionicons
-                    name={feature.icon as keyof typeof Ionicons.glyphMap}
+                    name={feature.icon as React.ComponentProps<typeof Ionicons>["name"]}
                     color={workspaceColors.blueSoft}
                     size={17}
                   />
@@ -188,7 +298,7 @@ export default function Login() {
                 </View>
               ))}
             </View>
-            {!compact ? (
+            {!compact && mode === "login" ? (
               <View style={styles.signal}>
                 <View style={[styles.signalLine, { backgroundColor: workspaceColors.blue }]} />
                 <View style={styles.signalContent}>
@@ -320,11 +430,91 @@ export default function Login() {
                       value={name}
                       onChangeText={setName}
                       placeholder={
-                        role === "company" ? "Atlas Estruturas" : "Rodolfo Maia"
+                        role === "company" ? "Nome da empresa" : "Nome conforme documento"
                       }
                       placeholderTextColor={workspaceColors.muted}
                       style={styles.input}
                     />
+                  </View>
+                </View>
+              ) : null}
+              {mode === "register" && role === "worker" ? (
+                <View style={styles.identityBlock}>
+                  <Text style={styles.identityBlockTitle}>{identityText.title}</Text>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.nationality}</Text>
+                    <View style={styles.inputShell}>
+                      <Ionicons name="flag-outline" color={workspaceColors.muted} size={18} />
+                      <TextInput
+                        accessibilityLabel={identityText.nationality}
+                        value={nationality}
+                        onChangeText={setNationality}
+                        placeholder={language === "pt" ? "Ex.: Portuguesa" : "e.g. Portuguese"}
+                        placeholderTextColor={workspaceColors.muted}
+                        style={styles.input}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.document}</Text>
+                    <View style={styles.documentTypeGrid}>
+                      {([
+                        ["citizen_card", identityText.citizenCard],
+                        ["passport", identityText.passport],
+                      ] as [IdentityDocumentType, string][]).map(([value, label]) => {
+                        const selected = documentType === value;
+                        return (
+                          <Pressable
+                            key={value}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected }}
+                            onPress={() => setDocumentType(value)}
+                            style={[
+                              styles.documentTypeButton,
+                              selected && styles.documentTypeButtonActive,
+                            ]}
+                          >
+                            <Ionicons
+                              name={value === "passport" ? "book-outline" : "card-outline"}
+                              color={selected ? workspaceColors.blueSoft : workspaceColors.muted}
+                              size={17}
+                            />
+                            <Text
+                              style={[
+                                styles.documentTypeText,
+                                selected && styles.documentTypeTextActive,
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                  <View style={styles.inputWrap}>
+                    <Text style={styles.inputLabel}>{identityText.number}</Text>
+                    <View style={styles.inputShell}>
+                      <Ionicons name="finger-print-outline" color={workspaceColors.muted} size={18} />
+                      <TextInput
+                        accessibilityLabel={identityText.number}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        value={documentNumber}
+                        onChangeText={setDocumentNumber}
+                        placeholder="••••••••"
+                        placeholderTextColor={workspaceColors.muted}
+                        style={styles.input}
+                      />
+                    </View>
+                  </View>
+                  <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: identityConsent }} onPress={() => setIdentityConsent(value => !value)} style={styles.identityConsent}>
+                    <Ionicons name={identityConsent ? "checkbox" : "square-outline"} size={21} color={workspaceColors.blue} />
+                    <Text style={styles.identityConsentText}>{language === "pt" ? "Confirmo que são os meus dados e que irei apresentar um documento para análise. O envio não garante verificação automática." : "I confirm these are my details and will submit an ID for review. Uploading does not automatically verify my identity."}</Text>
+                  </Pressable>
+                  <View style={styles.identityPrivacy}>
+                    <Ionicons name="shield-checkmark-outline" size={14} color={workspaceColors.blueSoft} />
+                    <Text style={styles.identityPrivacyText}>{identityText.privacy}</Text>
                   </View>
                 </View>
               ) : null}
@@ -344,7 +534,7 @@ export default function Login() {
                     textContentType="emailAddress"
                     value={email}
                     onChangeText={setEmail}
-                    placeholder={DEMO_ACCOUNTS[role]}
+                    placeholder={role === "worker" ? "email@exemplo.pt" : "empresa@exemplo.pt"}
                     placeholderTextColor={workspaceColors.muted}
                     style={styles.input}
                   />
@@ -391,6 +581,9 @@ export default function Login() {
               </View>
             </View>
 
+            {mode === "register" && !__DEV__ && registrationReady !== true ? (
+              <View style={styles.errorBox} accessibilityRole="alert"><Ionicons name="information-circle-outline" color={workspaceColors.red} size={18}/><Text style={styles.errorText}>{registrationReady === null ? (language === "pt" ? "A confirmar a disponibilidade do registo seguro..." : "Checking secure registration availability...") : (language === "pt" ? "Pré-visualização sem armazenamento de registos. Testa com uma conta de demonstração; não envies dados pessoais reais." : "Preview has no persistent registration storage. Use the demo account; do not upload real personal details.")}</Text></View>
+            ) : null}
             {error ? (
               <View accessibilityRole="alert" style={styles.errorBox}>
                 <Ionicons
@@ -407,23 +600,23 @@ export default function Login() {
               accessibilityLabel={
                 mode === "login" ? text.submitLogin : text.submitRegister
               }
-              disabled={submitting !== null}
+              disabled={submitting !== null || (mode === "register" && !__DEV__ && registrationReady !== true)}
               onPress={() => void authenticate()}
               style={({ pressed }) => [
                 styles.submit,
-                { backgroundColor: accent, shadowColor: accent },
+                { backgroundColor: `${accent}15`, borderColor: `${accent}75`, shadowColor: accent },
                 pressed ? { opacity: 0.8 } : null,
                 submitting ? { opacity: 0.65 } : null,
               ]}
             >
               {submitting === "form" ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={accent} />
               ) : (
                 <>
                   <Text style={styles.submitText}>
                     {mode === "login" ? text.submitLogin : text.submitRegister}
                   </Text>
-                  <Ionicons name="arrow-forward" color="#FFFFFF" size={18} />
+                  <Ionicons name="arrow-forward" color={accent} size={18} />
                 </>
               )}
             </Pressable>
@@ -745,12 +938,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: workspaceColors.lineStrong,
-    backgroundColor: "rgba(16,20,29,0.96)",
+    backgroundColor: "#F9FBFC",
     padding: 24,
     gap: 18,
     shadowColor: "#000000",
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 18 },
   },
   modeTabs: {
@@ -841,6 +1034,62 @@ const styles = StyleSheet.create({
   fields: {
     gap: 13,
   },
+  identityBlock: {
+    gap: 12,
+    borderWidth: 1,
+    borderColor: workspaceColors.line,
+    backgroundColor: "#F0F5F7",
+    borderRadius: 14,
+    padding: 12,
+  },
+  identityBlockTitle: {
+    color: workspaceColors.text,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+  },
+  documentTypeGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  documentTypeButton: {
+    flex: 1,
+    minHeight: 43,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: workspaceColors.lineStrong,
+    backgroundColor: workspaceColors.panelSoft,
+    paddingHorizontal: 9,
+  },
+  documentTypeButtonActive: {
+    borderColor: workspaceColors.blue,
+    backgroundColor: "#E7F0F3",
+  },
+  documentTypeText: {
+    color: workspaceColors.muted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  documentTypeTextActive: {
+    color: workspaceColors.text,
+  },
+  identityConsent: { flexDirection: "row", alignItems: "flex-start", gap: 9, padding: 11, borderRadius: 10, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#D2E1E6" },
+  identityConsentText: { flex: 1, fontSize: 10, color: "#536E7A", lineHeight: 16 },
+  identityPrivacy: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+  },
+  identityPrivacyText: {
+    flex: 1,
+    color: workspaceColors.muted,
+    fontSize: 9,
+    lineHeight: 14,
+  },
   inputWrap: {
     gap: 6,
   },
@@ -886,17 +1135,18 @@ const styles = StyleSheet.create({
   },
   submit: {
     minHeight: 48,
+    borderWidth: 1,
     borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 5 },
   },
   submitText: {
-    color: "#FFFFFF",
+    color: workspaceColors.blue,
     fontSize: 13,
     fontWeight: "800",
   },
