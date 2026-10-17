@@ -78,7 +78,7 @@ jobs:
           };
           fs.writeFileSync("eas.json", JSON.stringify(config, null, 2) + "\n");
           NODE
-      - name: Create or link WORKLY project in Expo
-        run: npx --yes eas-cli@16.28.0 init --account maia239 --non-interactive
+      - name: Create or link WORKLY under configured Expo owner
+        run: npx --yes eas-cli@16.28.0 init --non-interactive
       - name: Build Android APK
         run: npx --yes eas-cli@16.28.0 build --platform android --profile preview --non-interactive --wait
