@@ -49,6 +49,11 @@
     "experiments": {
       "typedRoutes": true
     },
-    "owner": "maia239"
+    "owner": "maia239",
+    "extra": {
+      "eas": {
+        "projectId": "00e6fda1-e9f7-4f62-bfac-8ed7273592c7"
+      }
+    }
   }
 }
