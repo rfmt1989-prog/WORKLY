@@ -39,7 +39,7 @@ type AuthState = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<User>;
+  login: (identifier: string, password: string, role?: UserRole) => Promise<User>;
   register: (
     name: string,
     email: string,
@@ -136,9 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string, role: UserRole): Promise<User> => {
+    async (identifier: string, password: string, role?: UserRole): Promise<User> => {
       const response = await requestLogin({
-        email: email.trim().toLowerCase(),
+        identifier: identifier.trim().toLowerCase(),
         password,
         user_type: role,
       });

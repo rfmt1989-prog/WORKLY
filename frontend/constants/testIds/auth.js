@@ -16,6 +16,7 @@
 // Why kebab-case values: required by qabot's CSS-attribute-style selector
 // matcher and the lint rule for kebab-case test IDs.
 export const LOGIN = {
+	identifierInput: 'login-identifier-input',
 	emailInput: 'login-email-input',
 	passwordInput: 'login-password-input',
 	submitButton: 'login-submit-button',

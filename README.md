@@ -7,16 +7,26 @@ mesmo domínio.
 
 ## Contas de demonstração
 
-| Perfil | Email | Password |
-| --- | --- | --- |
-| Worker | `worker.demo@workly.app` | `WorklyDemo!` |
-| Company | `company.demo@workly.app` | `WorklyDemo!` |
+| Perfil | WORKLY ID | Email | Password |
+| --- | --- | --- | --- |
+| Worker | `worker-1` | `worker.demo@workly.app` | `WorklyDemo!` |
+| Company | `company-1` | `company.demo@workly.app` | `WorklyDemo!` |
 
-A página de login inclui botões diretos para os dois perfis.
+A entrada apresenta apenas o monograma W e um formulário comum aos dois
+perfis. Use o WORKLY ID (consultável no próprio perfil) ou o email, juntamente
+com a password; a conta autenticada determina a área de destino. A escolha
+Worker/Company existe apenas no registo. Os atalhos demo estão em
+«Experimentar demonstração».
+
+`POST /api/auth/login` aceita `identifier` e `password`, sem exigir o tipo de
+perfil. O campo legado `email` continua disponível em alternativa a
+`identifier`; quando um cliente envia `user_type`/`role`, esse perfil continua
+a ser validado. Colaboradores Company utilizam o seu ID individual, conservando
+as permissões atribuídas pela empresa.
 
 ## O que está incluído
 
-- Registo, login por perfil, sessão persistente e logout.
+- Registo por perfil, login unificado por ID ou email, sessão persistente e logout.
 - Perfis Worker e Company completos e editáveis.
 - Perfil Worker com identificação, foto editável e árvores de certificados
   independentes por profissão, com detalhes e associação de comprovativos.

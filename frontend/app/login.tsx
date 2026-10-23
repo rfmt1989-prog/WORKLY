@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -12,26 +12,24 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 
-import {
-  roleAccent,
-  workspaceColors,
-} from "@/src/components/workspace/primitives";
 import { LanguageSelector } from "@/src/components/LanguageSelector";
+import { workspaceColors } from "@/src/components/workspace/primitives";
+import { ApiError } from "@/src/api/client";
 import { type UserRole, useAuth } from "@/src/context/AuthContext";
-import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
+import { loginCopy, readableAuthError } from "@/src/demo/loginI18n";
 
 type ScreenMode = "login" | "register";
 
 const DEMO_PASSWORD = "WorklyDemo!";
-const DEMO_ACCOUNTS: Record<UserRole, string> = {
-  worker: "worker.demo@workly.app",
-  company: "company.demo@workly.app",
+const DEMO_IDS: Record<UserRole, string> = {
+  worker: "worker-1",
+  company: "company-1",
 };
 
 const INVITE_CODE_LABEL = {
@@ -44,74 +42,98 @@ const INVITE_CODE_LABEL = {
   nl: "Uitnodigingscode (optioneel)",
 } as const;
 
+function WorklyMark() {
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Workly"
+      testID="login-workly-mark"
+      style={styles.mark}
+    >
+      <Svg width={112} height={96} viewBox="0 0 128 108" accessible={false}>
+        <Path
+          d="M9 18H28L41 69L57 28H71L87 69L100 18H119L99 90H81L64 50L47 90H29Z"
+          fill={workspaceColors.blue}
+        />
+      </Svg>
+    </View>
+  );
+}
+
 export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const compact = width < 860;
   const { user, loading: sessionLoading, login, register } = useAuth();
   const { language, setLanguage } = useWorklyData();
   const text = loginCopy[language];
+  const passwordInput = useRef<TextInput>(null);
+  const identifierInput = useRef<TextInput>(null);
+  const requestInFlight = useRef(false);
 
   const [mode, setMode] = useState<ScreenMode>("login");
   const [role, setRole] = useState<UserRole>("worker");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [inviteToken, setInviteToken] = useState("");
+  const [demoOpen, setDemoOpen] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState("");
-
-  const accent = roleAccent(role);
-  const formTitle = useMemo(
-    () => (mode === "login" ? text.login : text.register),
-    [mode, text.login, text.register],
-  );
+  const registering = mode === "register";
+  const busy = submitting !== null;
 
   useEffect(() => {
-    if (!sessionLoading && user) {
-      router.replace("/workspace");
-    }
+    if (!sessionLoading && user) router.replace("/workspace");
   }, [router, sessionLoading, user]);
 
+  const changeMode = () => {
+    if (requestInFlight.current) return;
+    setMode(registering ? "login" : "register");
+    setIdentifier((value) => (value.includes("@") ? value : ""));
+    setPassword("");
+    setPasswordVisible(false);
+    setDemoOpen(false);
+    setError("");
+  };
+
   const authenticate = async (demoRole?: UserRole) => {
+    if (requestInFlight.current) return;
     Keyboard.dismiss();
     setError("");
-    const selectedRole = demoRole ?? role;
-    const cleanEmail = demoRole
-      ? DEMO_ACCOUNTS[demoRole]
-      : email.trim().toLowerCase();
+    const cleanIdentifier = demoRole ? DEMO_IDS[demoRole] : identifier.trim();
     const cleanPassword = demoRole ? DEMO_PASSWORD : password;
     const cleanName = name.trim();
 
-    if (
-      !cleanEmail ||
-      !cleanPassword ||
-      (mode === "register" && !demoRole && !cleanName)
-    ) {
+    if (!cleanIdentifier || !cleanPassword || (registering && !demoRole && !cleanName)) {
       setError(text.required);
       return;
     }
 
+    requestInFlight.current = true;
+    setSubmitting(demoRole ? `demo-${demoRole}` : "form");
     try {
-      setSubmitting(demoRole ? `demo-${demoRole}` : "form");
-      if (mode === "register" && !demoRole) {
+      if (registering && !demoRole) {
         await register(
           cleanName,
-          cleanEmail,
+          cleanIdentifier,
           cleanPassword,
-          selectedRole,
-          selectedRole === "company" ? inviteToken : undefined,
+          role,
+          role === "company" ? inviteToken : undefined,
         );
       } else {
-        await login(cleanEmail, cleanPassword, selectedRole);
+        // The authenticated account determines its workspace, never a UI role switch.
+        await login(cleanIdentifier, cleanPassword);
       }
       router.replace("/workspace");
     } catch (caughtError) {
-      const message =
-        caughtError instanceof Error ? caughtError.message : text.genericError;
+      const message = caughtError instanceof ApiError
+        ? String(caughtError.status)
+        : caughtError instanceof Error ? caughtError.message : text.genericError;
       setError(readableAuthError(message, language));
     } finally {
+      requestInFlight.current = false;
       setSubmitting(null);
     }
   };
@@ -119,8 +141,9 @@ export default function Login() {
   if (sessionLoading) {
     return (
       <View style={styles.sessionLoading}>
-        <ActivityIndicator size="large" color={workspaceColors.blue} />
-        <Text style={styles.sessionLoadingText}>{text.loading}</Text>
+        <WorklyMark />
+        <ActivityIndicator size="small" color={workspaceColors.blue} />
+        <Text style={styles.hint}>{text.loading}</Text>
       </View>
     );
   }
@@ -134,223 +157,139 @@ export default function Login() {
         colors={["#07090E", "#0A0D15", "#080A10"]}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.glow, styles.blueGlow]} />
-      <View style={[styles.glow, styles.redGlow]} />
-
+      <View pointerEvents="none" style={[styles.glow, styles.blueGlow]} />
+      <View pointerEvents="none" style={[styles.glow, styles.redGlow]} />
       <ScrollView
         contentContainerStyle={[
           styles.page,
-          compact ? styles.pageCompact : null,
-          {
-            paddingTop: Math.max(insets.top, 24),
-            paddingBottom: Math.max(insets.bottom, 24),
-          },
+          { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 24) },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.topbar, compact ? styles.topbarCompact : null]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>W</Text>
-            </View>
-            <Text style={styles.brand}>WORKLY</Text>
-            <View style={styles.demoBadge}>
-              <Text style={styles.demoBadgeText}>{text.demoBadge}</Text>
-            </View>
-          </View>
-          <LanguageSelector language={language} onChange={setLanguage} accent={workspaceColors.blue} />
+        <View style={styles.topbar}>
+          <LanguageSelector language={language} onChange={setLanguage} />
         </View>
-
-        <View style={[styles.main, compact ? styles.mainCompact : null]}>
-          <View style={[styles.hero, compact ? styles.heroCompact : null]}>
-            <View style={styles.eyebrow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.eyebrowText}>{text.eyebrow}</Text>
-            </View>
-            <Text style={[styles.heroTitle, compact ? styles.heroTitleCompact : null]}>
-              {text.title}
-            </Text>
-            <Text style={styles.heroDescription}>{text.description}</Text>
-            <View style={styles.features}>
-              {[
-                { icon: "shield-checkmark-outline", label: text.secure },
-                { icon: "phone-portrait-outline", label: text.responsive },
-                { icon: "location-outline", label: text.gps },
-              ].map((feature) => (
-                <View key={feature.label} style={styles.feature}>
-                  <Ionicons
-                    name={feature.icon as keyof typeof Ionicons.glyphMap}
-                    color={workspaceColors.blueSoft}
-                    size={17}
-                  />
-                  <Text style={styles.featureText}>{feature.label}</Text>
-                </View>
-              ))}
-            </View>
-            {!compact ? (
-              <View style={styles.signal}>
-                <View style={[styles.signalLine, { backgroundColor: workspaceColors.blue }]} />
-                <View style={styles.signalContent}>
-                  <Text style={styles.signalValue}>8</Text>
-                  <Text style={styles.signalLabel}>WORKERS</Text>
-                </View>
-                <View style={styles.signalContent}>
-                  <Text style={styles.signalValue}>3</Text>
-                  <Text style={styles.signalLabel}>OBRAS</Text>
-                </View>
-                <View style={styles.signalContent}>
-                  <Text style={styles.signalValue}>2</Text>
-                  <Text style={styles.signalLabel}>EQUIPAS</Text>
-                </View>
-                <View style={[styles.signalLine, { backgroundColor: workspaceColors.red }]} />
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.authCard}>
-            <View style={styles.modeTabs}>
-              {(["login", "register"] as ScreenMode[]).map((item) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={item}
-                  onPress={() => {
-                    setMode(item);
-                    setError("");
-                  }}
-                  style={[
-                    styles.modeTab,
-                    mode === item ? styles.modeTabActive : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.modeTabText,
-                      mode === item ? styles.modeTabTextActive : null,
-                    ]}
-                  >
-                    {item === "login" ? text.login : text.register}
-                  </Text>
-                </Pressable>
-              ))}
+        <View style={styles.main}>
+          <View style={styles.authContent} testID="login-unified-form">
+            <WorklyMark />
+            <View style={styles.heading}>
+              <Text accessibilityRole="header" style={styles.formTitle}>
+                {registering ? text.register : text.login}
+              </Text>
+              <Text style={styles.subtitle}>
+                {registering ? text.selectRole : text.unifiedHint}
+              </Text>
             </View>
 
-            <Text style={styles.formTitle}>{formTitle}</Text>
-            <View style={styles.roleGrid}>
-              {(["worker", "company"] as UserRole[]).map((item) => {
-                const itemAccent = roleAccent(item);
-                const selected = role === item;
-                return (
+            {registering ? (
+              <View accessibilityRole="radiogroup" style={styles.roleGrid}>
+                {(["worker", "company"] as UserRole[]).map((item) => (
                   <Pressable
-                    accessibilityRole="button"
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: role === item, disabled: busy }}
+                    disabled={busy}
                     key={item}
-                    onPress={() => {
-                      setRole(item);
-                      setError("");
-                    }}
-                    style={[
-                      styles.roleCard,
-                      selected
-                        ? {
-                            borderColor: itemAccent,
-                            backgroundColor: `${itemAccent}12`,
-                            shadowColor: itemAccent,
-                          }
-                        : null,
-                    ]}
+                    testID={`register-role-${item}`}
+                    onPress={() => { setRole(item); setError(""); }}
+                    style={[styles.roleOption, role === item ? styles.roleSelected : null]}
                   >
-                    <View
-                      style={[
-                        styles.roleIcon,
-                        { backgroundColor: `${itemAccent}18` },
-                      ]}
-                    >
-                      <Ionicons
-                        name={item === "worker" ? "person-outline" : "business-outline"}
-                        color={itemAccent}
-                        size={20}
-                      />
-                    </View>
-                    <View style={styles.roleCopy}>
-                      <Text style={styles.roleName}>
-                        {item === "worker" ? text.worker : text.company}
-                      </Text>
-                      <Text style={styles.roleDescription}>
-                        {item === "worker"
-                          ? text.workerDescription
-                          : text.companyDescription}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.roleRadio,
-                        selected ? { borderColor: itemAccent } : null,
-                      ]}
-                    >
-                      {selected ? (
-                        <View
-                          style={[
-                            styles.roleRadioInner,
-                            { backgroundColor: itemAccent },
-                          ]}
-                        />
-                      ) : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.fields}>
-              {mode === "register" ? (
-                <View style={styles.inputWrap}>
-                  <Text style={styles.inputLabel}>
-                    {role === "company" ? text.companyName : text.name}
-                  </Text>
-                  <View style={styles.inputShell}>
                     <Ionicons
-                      name={role === "company" ? "business-outline" : "person-outline"}
-                      color={workspaceColors.muted}
+                      name={item === "worker" ? "person-outline" : "business-outline"}
+                      color={role === item ? workspaceColors.blueSoft : workspaceColors.muted}
                       size={18}
                     />
+                    <Text style={[styles.roleName, role === item ? styles.roleNameSelected : null]}>
+                      {item === "worker" ? text.worker : text.company}
+                    </Text>
+                    {role === item ? <Ionicons name="checkmark" size={16} color={workspaceColors.blueSoft} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.fields}>
+              {registering ? (
+                <View style={styles.inputWrap}>
+                  <Text style={styles.inputLabel}>{role === "company" ? text.companyName : text.name}</Text>
+                  <View style={styles.inputShell}>
+                    <Ionicons name={role === "company" ? "business-outline" : "person-outline"} color={workspaceColors.muted} size={18} />
                     <TextInput
-                      accessibilityLabel={
-                        role === "company" ? text.companyName : text.name
-                      }
+                      accessibilityLabel={role === "company" ? text.companyName : text.name}
+                      testID="register-name-input"
+                      autoComplete={role === "worker" ? "name" : "off"}
+                      editable={!busy}
                       value={name}
                       onChangeText={setName}
-                      placeholder={
-                        role === "company" ? "Atlas Estruturas" : "Rodolfo Maia"
-                      }
+                      placeholder={role === "company" ? text.companyName : text.name}
                       placeholderTextColor={workspaceColors.muted}
                       style={styles.input}
+                      returnKeyType="next"
+                      onSubmitEditing={() => identifierInput.current?.focus()}
                     />
                   </View>
                 </View>
               ) : null}
               <View style={styles.inputWrap}>
-                <Text style={styles.inputLabel}>{text.email}</Text>
+                <Text style={styles.inputLabel}>{registering ? text.email : text.identifier}</Text>
                 <View style={styles.inputShell}>
-                  <Ionicons
-                    name="mail-outline"
-                    color={workspaceColors.muted}
-                    size={18}
-                  />
+                  <Ionicons name={registering ? "mail-outline" : "finger-print-outline"} color={workspaceColors.muted} size={19} />
                   <TextInput
-                    accessibilityLabel={text.email}
+                    ref={identifierInput}
+                    accessibilityLabel={registering ? text.email : text.identifier}
+                    testID={registering ? "register-email-input" : "login-identifier-input"}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    keyboardType="email-address"
-                    textContentType="emailAddress"
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder={DEMO_ACCOUNTS[role]}
+                    autoComplete={registering ? "email" : "username"}
+                    keyboardType={registering ? "email-address" : "default"}
+                    textContentType={registering ? "emailAddress" : "username"}
+                    editable={!busy}
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    placeholder={registering ? text.email : text.identifierPlaceholder}
                     placeholderTextColor={workspaceColors.muted}
                     style={styles.input}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInput.current?.focus()}
                   />
                 </View>
+                {!registering ? <Text style={styles.hint}>{text.emailHint}</Text> : null}
               </View>
-              {mode === "register" && role === "company" ? (
+              <View style={styles.inputWrap}>
+                <Text style={styles.inputLabel}>{text.password}</Text>
+                <View style={styles.inputShell}>
+                  <Ionicons name="lock-closed-outline" color={workspaceColors.muted} size={18} />
+                  <TextInput
+                    ref={passwordInput}
+                    accessibilityLabel={text.password}
+                    testID={registering ? "register-password-input" : "login-password-input"}
+                    secureTextEntry={!passwordVisible}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={registering ? "new-password" : "current-password"}
+                    textContentType={registering ? "newPassword" : "password"}
+                    editable={!busy}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor={workspaceColors.muted}
+                    style={styles.input}
+                    returnKeyType="go"
+                    onSubmitEditing={() => void authenticate()}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={passwordVisible ? text.hidePassword : text.showPassword}
+                    accessibilityState={{ disabled: busy }}
+                    disabled={busy}
+                    onPress={() => setPasswordVisible((value) => !value)}
+                    style={styles.passwordToggle}
+                  >
+                    <Ionicons name={passwordVisible ? "eye-off-outline" : "eye-outline"} size={19} color={workspaceColors.muted} />
+                  </Pressable>
+                </View>
+              </View>
+              {registering && role === "company" ? (
                 <View style={styles.inputWrap}>
                   <Text style={styles.inputLabel}>{INVITE_CODE_LABEL[language]}</Text>
                   <View style={styles.inputShell}>
@@ -359,148 +298,95 @@ export default function Login() {
                       accessibilityLabel={INVITE_CODE_LABEL[language]}
                       autoCapitalize="characters"
                       autoCorrect={false}
+                      editable={!busy}
                       value={inviteToken}
                       onChangeText={setInviteToken}
                       placeholder="WLY-XXXXXXXXXXXX"
                       placeholderTextColor={workspaceColors.muted}
                       style={styles.input}
+                      onSubmitEditing={() => void authenticate()}
                     />
                   </View>
                 </View>
               ) : null}
-              <View style={styles.inputWrap}>
-                <Text style={styles.inputLabel}>{text.password}</Text>
-                <View style={styles.inputShell}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    color={workspaceColors.muted}
-                    size={18}
-                  />
-                  <TextInput
-                    accessibilityLabel={text.password}
-                    secureTextEntry
-                    textContentType="password"
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="••••••••••"
-                    placeholderTextColor={workspaceColors.muted}
-                    style={styles.input}
-                    onSubmitEditing={() => void authenticate()}
-                  />
-                </View>
-              </View>
             </View>
 
             {error ? (
-              <View accessibilityRole="alert" style={styles.errorBox}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  color={workspaceColors.redSoft}
-                  size={18}
-                />
+              <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.errorBox}>
+                <Ionicons name="alert-circle-outline" color={workspaceColors.redSoft} size={18} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={
-                mode === "login" ? text.submitLogin : text.submitRegister
-              }
-              disabled={submitting !== null}
+              accessibilityLabel={registering ? text.submitRegister : text.submitLogin}
+              accessibilityState={{ disabled: busy, busy }}
+              testID={registering ? "register-submit-button" : "login-submit-button"}
+              disabled={busy}
               onPress={() => void authenticate()}
-              style={({ pressed }) => [
-                styles.submit,
-                { backgroundColor: accent, shadowColor: accent },
-                pressed ? { opacity: 0.8 } : null,
-                submitting ? { opacity: 0.65 } : null,
-              ]}
+              style={({ pressed }) => [styles.submit, pressed ? styles.pressed : null, busy ? styles.disabled : null]}
             >
-              {submitting === "form" ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
+              {submitting === "form" ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
-                  <Text style={styles.submitText}>
-                    {mode === "login" ? text.submitLogin : text.submitRegister}
-                  </Text>
+                  <Text style={styles.submitText}>{registering ? text.submitRegister : text.login}</Text>
                   <Ionicons name="arrow-forward" color="#FFFFFF" size={18} />
                 </>
               )}
             </Pressable>
 
-            {mode === "login" ? (
-              <>
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>{text.divider}</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-                <View style={styles.demoButtons}>
-                  {(["worker", "company"] as UserRole[]).map((demoRole) => {
-                    const demoAccent = roleAccent(demoRole);
-                    const isLoading = submitting === `demo-${demoRole}`;
-                    return (
+            <View style={styles.modeRow}>
+              <Text style={styles.hint}>{registering ? text.hasAccount : text.noAccount}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                testID={registering ? "register-login-link" : "login-register-link"}
+                onPress={changeMode}
+                style={styles.textButton}
+              >
+                <Text style={styles.link}>{registering ? text.login : text.register}</Text>
+              </Pressable>
+            </View>
+
+            {!registering ? (
+              <View style={styles.demoSection}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: demoOpen, disabled: busy }}
+                  testID="login-demo-toggle"
+                  disabled={busy}
+                  onPress={() => setDemoOpen((value) => !value)}
+                  style={styles.demoToggle}
+                >
+                  <Text style={styles.hint}>{text.tryDemo}</Text>
+                  <Ionicons name={demoOpen ? "chevron-up" : "chevron-down"} color={workspaceColors.muted} size={13} />
+                </Pressable>
+                {demoOpen ? (
+                  <View style={styles.demoPanel}>
+                    {(["worker", "company"] as UserRole[]).map((demoRole) => (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={
-                          demoRole === "worker"
-                            ? text.workerDemo
-                            : text.companyDemo
-                        }
+                        accessibilityLabel={demoRole === "worker" ? text.workerDemo : text.companyDemo}
+                        accessibilityState={{ disabled: busy }}
                         testID={`demo-login-${demoRole}`}
                         key={demoRole}
-                        disabled={submitting !== null}
+                        disabled={busy}
                         onPress={() => void authenticate(demoRole)}
-                        style={({ pressed }) => [
-                          styles.demoButton,
-                          {
-                            borderColor: `${demoAccent}88`,
-                            backgroundColor: `${demoAccent}0D`,
-                          },
-                          pressed ? { opacity: 0.72 } : null,
-                        ]}
+                        style={({ pressed }) => [styles.demoButton, pressed ? styles.pressed : null]}
                       >
-                        {isLoading ? (
-                          <ActivityIndicator color={demoAccent} size="small" />
-                        ) : (
-                          <>
-                            <Ionicons
-                              name={
-                                demoRole === "worker"
-                                  ? "flash-outline"
-                                  : "business-outline"
-                              }
-                              color={demoAccent}
-                              size={18}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.demoButtonText}>
-                                {demoRole === "worker"
-                                  ? text.workerDemo
-                                  : text.companyDemo}
-                              </Text>
-                              <Text style={styles.demoEmail}>
-                                {DEMO_ACCOUNTS[demoRole]}
-                              </Text>
-                            </View>
-                          </>
-                        )}
+                        <Ionicons name={demoRole === "worker" ? "person-outline" : "business-outline"} size={18} color={workspaceColors.blueSoft} />
+                        <View style={styles.demoCopy}>
+                          <Text style={styles.demoName}>{demoRole === "worker" ? text.workerDemo : text.companyDemo}</Text>
+                          <Text style={styles.hint}>{DEMO_IDS[demoRole]}</Text>
+                        </View>
+                        {submitting === `demo-${demoRole}` ? <ActivityIndicator color={workspaceColors.blue} size="small" /> : null}
                       </Pressable>
-                    );
-                  })}
-                </View>
-                <View style={styles.passwordHint}>
-                  <Ionicons
-                    name="key-outline"
-                    size={14}
-                    color={workspaceColors.muted}
-                  />
-                  <Text style={styles.passwordHintText}>
-                    {text.demoPassword}:{" "}
-                    <Text style={styles.passwordValue}>{DEMO_PASSWORD}</Text>
-                  </Text>
-                </View>
-              </>
+                    ))}
+                    <Text style={styles.hint}>{text.demoPassword}: {DEMO_PASSWORD}</Text>
+                  </View>
+                ) : null}
+              </View>
             ) : null}
           </View>
         </View>
@@ -510,446 +396,44 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: workspaceColors.background,
-  },
-  sessionLoading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    backgroundColor: workspaceColors.background,
-  },
-  sessionLoadingText: {
-    color: workspaceColors.muted,
-    fontSize: 13,
-  },
-  glow: {
-    position: "absolute",
-    width: 520,
-    height: 520,
-    borderRadius: 260,
-    opacity: 0.12,
-  },
-  blueGlow: {
-    top: -340,
-    left: -180,
-    backgroundColor: workspaceColors.blue,
-  },
-  redGlow: {
-    bottom: -390,
-    right: -220,
-    backgroundColor: workspaceColors.red,
-  },
-  page: {
-    flexGrow: 1,
-    width: "100%",
-    maxWidth: 1280,
-    alignSelf: "center",
-    paddingHorizontal: 44,
-    gap: 36,
-  },
-  pageCompact: {
-    paddingHorizontal: 18,
-    gap: 22,
-  },
-  topbar: {
-    minHeight: 54,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  topbarCompact: {
-    minHeight: 44,
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  brandMark: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${workspaceColors.blue}88`,
-    backgroundColor: `${workspaceColors.blue}18`,
-    shadowColor: workspaceColors.blue,
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-  },
-  brandMarkText: {
-    color: workspaceColors.text,
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  brand: {
-    color: workspaceColors.text,
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: 2.4,
-  },
-  demoBadge: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: workspaceColors.lineStrong,
-    backgroundColor: workspaceColors.panel,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  demoBadgeText: {
-    color: workspaceColors.muted,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  languageSwitch: {
-    flexDirection: "row",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: workspaceColors.line,
-    backgroundColor: workspaceColors.panelSoft,
-    padding: 3,
-  },
-  languageButton: {
-    minWidth: 38,
-    minHeight: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 7,
-  },
-  languageButtonActive: {
-    backgroundColor: workspaceColors.panelStrong,
-  },
-  languageText: {
-    color: workspaceColors.muted,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  languageTextActive: {
-    color: workspaceColors.text,
-  },
-  main: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 64,
-    paddingBottom: 30,
-  },
-  mainCompact: {
-    flexDirection: "column",
-    justifyContent: "flex-start",
-    alignItems: "stretch",
-    gap: 24,
-  },
-  hero: {
-    flex: 1,
-    maxWidth: 580,
-    gap: 22,
-  },
-  heroCompact: {
-    maxWidth: 700,
-    gap: 14,
-  },
-  eyebrow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: workspaceColors.green,
-    shadowColor: workspaceColors.green,
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-  },
-  eyebrowText: {
-    color: workspaceColors.blueSoft,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.8,
-  },
-  heroTitle: {
-    color: workspaceColors.text,
-    fontSize: 58,
-    lineHeight: 62,
-    fontWeight: "900",
-    letterSpacing: -2.4,
-  },
-  heroTitleCompact: {
-    fontSize: 36,
-    lineHeight: 40,
-    letterSpacing: -1.3,
-  },
-  heroDescription: {
-    maxWidth: 500,
-    color: workspaceColors.textSoft,
-    fontSize: 16,
-    lineHeight: 25,
-  },
-  features: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  feature: {
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: workspaceColors.line,
-    backgroundColor: workspaceColors.panelSoft,
-    paddingHorizontal: 11,
-  },
-  featureText: {
-    color: workspaceColors.textSoft,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  signal: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 24,
-  },
-  signalLine: {
-    width: 54,
-    height: 1,
-    opacity: 0.65,
-  },
-  signalContent: {
-    alignItems: "center",
-  },
-  signalValue: {
-    color: workspaceColors.text,
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  signalLabel: {
-    color: workspaceColors.muted,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  authCard: {
-    width: "100%",
-    maxWidth: 470,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: workspaceColors.lineStrong,
-    backgroundColor: "rgba(16,20,29,0.96)",
-    padding: 24,
-    gap: 18,
-    shadowColor: "#000000",
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 18 },
-  },
-  modeTabs: {
-    flexDirection: "row",
-    borderRadius: 11,
-    backgroundColor: workspaceColors.panelSoft,
-    borderWidth: 1,
-    borderColor: workspaceColors.line,
-    padding: 3,
-  },
-  modeTab: {
-    flex: 1,
-    minHeight: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-  },
-  modeTabActive: {
-    backgroundColor: workspaceColors.panelStrong,
-  },
-  modeTabText: {
-    color: workspaceColors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  modeTabTextActive: {
-    color: workspaceColors.text,
-  },
-  formTitle: {
-    color: workspaceColors.text,
-    fontSize: 23,
-    fontWeight: "900",
-    letterSpacing: -0.6,
-  },
-  roleGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  roleCard: {
-    flex: 1,
-    minHeight: 76,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    padding: 10,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: workspaceColors.line,
-    backgroundColor: workspaceColors.panelSoft,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-  },
-  roleIcon: {
-    width: 37,
-    height: 37,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roleCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  roleName: {
-    color: workspaceColors.text,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  roleDescription: {
-    color: workspaceColors.muted,
-    fontSize: 9,
-    lineHeight: 13,
-  },
-  roleRadio: {
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: workspaceColors.lineStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roleRadioInner: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  fields: {
-    gap: 13,
-  },
-  inputWrap: {
-    gap: 6,
-  },
-  inputLabel: {
-    color: workspaceColors.textSoft,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  inputShell: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: workspaceColors.lineStrong,
-    backgroundColor: workspaceColors.panelSoft,
-    paddingHorizontal: 12,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    color: workspaceColors.text,
-    fontSize: 13,
-    paddingVertical: 9,
-  },
-  errorBox: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: `${workspaceColors.red}55`,
-    backgroundColor: `${workspaceColors.red}10`,
-    paddingHorizontal: 12,
-  },
-  errorText: {
-    flex: 1,
-    color: workspaceColors.redSoft,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  submit: {
-    minHeight: 48,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
-  },
-  submitText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: workspaceColors.line,
-  },
-  dividerText: {
-    color: workspaceColors.muted,
-    fontSize: 9,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  demoButtons: {
-    gap: 9,
-  },
-  demoButton: {
-    minHeight: 53,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-  },
-  demoButtonText: {
-    color: workspaceColors.text,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  demoEmail: {
-    color: workspaceColors.muted,
-    fontSize: 9,
-    marginTop: 2,
-  },
-  passwordHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  passwordHintText: {
-    color: workspaceColors.muted,
-    fontSize: 10,
-  },
-  passwordValue: {
-    color: workspaceColors.textSoft,
-    fontWeight: "800",
-  },
+  root: { flex: 1, backgroundColor: "#07090E" },
+  sessionLoading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, backgroundColor: "#07090E" },
+  glow: { position: "absolute", width: 380, height: 380, borderRadius: 190, opacity: 0.055 },
+  blueGlow: { top: "12%", left: "-20%", backgroundColor: workspaceColors.blue },
+  redGlow: { right: "-25%", bottom: "2%", backgroundColor: workspaceColors.red },
+  page: { flexGrow: 1, paddingHorizontal: 24 },
+  topbar: { alignItems: "flex-end", minHeight: 44, zIndex: 100 },
+  main: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 36 },
+  authContent: { width: "100%", maxWidth: 400, gap: 22 },
+  mark: { alignSelf: "center", alignItems: "center", justifyContent: "center", marginBottom: 6 },
+  heading: { alignItems: "center", gap: 8 },
+  formTitle: { color: workspaceColors.text, fontSize: 25, fontWeight: "700", letterSpacing: -0.7 },
+  subtitle: { color: workspaceColors.muted, fontSize: 13, lineHeight: 20, textAlign: "center" },
+  fields: { gap: 18 },
+  inputWrap: { gap: 8 },
+  inputLabel: { color: workspaceColors.textSoft, fontSize: 12, fontWeight: "600" },
+  inputShell: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, borderRadius: 13, borderWidth: 1, borderColor: workspaceColors.lineStrong, backgroundColor: "#0D1420", paddingLeft: 15, paddingRight: 6 },
+  input: { flex: 1, minWidth: 0, minHeight: 52, color: workspaceColors.text, fontSize: 15, paddingVertical: 12 },
+  passwordToggle: { minWidth: 44, minHeight: 48, alignItems: "center", justifyContent: "center" },
+  hint: { color: workspaceColors.muted, fontSize: 12, lineHeight: 18 },
+  roleGrid: { flexDirection: "row", gap: 10 },
+  roleOption: { flex: 1, minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, borderWidth: 1, borderColor: workspaceColors.lineStrong, paddingHorizontal: 12 },
+  roleSelected: { borderColor: workspaceColors.blue, backgroundColor: "#102239" },
+  roleName: { color: workspaceColors.muted, fontSize: 13, fontWeight: "600", flexShrink: 1 },
+  roleNameSelected: { color: workspaceColors.blueSoft },
+  submit: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 13, backgroundColor: "#1466CE" },
+  submitText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  pressed: { opacity: 0.8 },
+  disabled: { opacity: 0.65 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 9, borderRadius: 12, borderWidth: 1, borderColor: "#733542", backgroundColor: "#26131D", padding: 13 },
+  errorText: { flex: 1, color: workspaceColors.redSoft, fontSize: 12, lineHeight: 18 },
+  modeRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", columnGap: 6 },
+  textButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
+  link: { color: workspaceColors.blueSoft, fontSize: 13, fontWeight: "600" },
+  demoSection: { gap: 10 },
+  demoToggle: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  demoPanel: { gap: 10, borderTopWidth: 1, borderTopColor: workspaceColors.line, paddingTop: 18 },
+  demoButton: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, borderColor: workspaceColors.lineStrong, padding: 13 },
+  demoCopy: { flex: 1, gap: 3 },
+  demoName: { color: workspaceColors.textSoft, fontSize: 12, fontWeight: "600" },
 });

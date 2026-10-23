@@ -3,13 +3,16 @@ import type { AuthUser, UserRole } from "@/src/demo/types";
 import { api } from "./client";
 
 export type LoginPayload = {
+  identifier: string;
+  password: string;
+  user_type?: UserRole;
+};
+
+export type RegisterPayload = {
+  name: string;
   email: string;
   password: string;
   user_type: UserRole;
-};
-
-export type RegisterPayload = LoginPayload & {
-  name: string;
   invite_token?: string;
 };
 

@@ -12,9 +12,11 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { openWorklyFile } from "@/src/api/documentFiles";
+import { AccountId } from "@/src/components/AccountId";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { loginCopy } from "@/src/demo/loginI18n";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText } from "@/src/demo/localizedData";
 import type { LanguageCode } from "@/src/demo/types";
@@ -164,6 +166,7 @@ export function WorkerProfileView() {
               {text("Identificação", "Identity")}
             </Text>
             <View style={styles.identityRows}>
+              <AccountId value={user?.id ?? worker.id} hint={loginCopy[language].accountIdHint} />
               <IdentityRow
                 icon="flag-outline"
                 label={text("País", "Country")}
