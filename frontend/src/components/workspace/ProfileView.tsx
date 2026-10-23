@@ -10,8 +10,10 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { useAuth } from "@/src/context/AuthContext";
+import { AccountId } from "@/src/components/AccountId";
 import { useWorklyData } from "@/src/context/WorklyDataContext";
 import { copy } from "@/src/demo/i18n";
+import { loginCopy } from "@/src/demo/loginI18n";
 import { uiText } from "@/src/demo/fullUi";
 import { localizeDemoText, localizeSkillsText } from "@/src/demo/localizedData";
 import type { Company, Worker, WorkerStatus } from "@/src/demo/types";
@@ -236,6 +238,7 @@ export function ProfileView() {
             </Text>
             <Text style={styles.entityName}>{entityName ?? user.name}</Text>
             <Text style={styles.entitySubtitle}>{localizeDemoText(language, entitySubtitle)}</Text>
+            <AccountId value={user.id} hint={loginCopy[language].accountIdHint} />
             {worker ? (
               <StatusPill
                 status={worker.status}

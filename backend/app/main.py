@@ -25,7 +25,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from .demo_data import (
     COMPANY_DEMO_EMAIL,
@@ -137,10 +137,19 @@ async def enforce_company_permissions(request, call_next):
 
 
 class LoginInput(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None
+    identifier: str | None = Field(default=None, min_length=1, max_length=320)
     password: str = Field(min_length=6)
     user_type: str | None = None
     role: str | None = None
+
+    @model_validator(mode="after")
+    def require_one_identifier(self) -> LoginInput:
+        if (self.email is None) == (self.identifier is None):
+            raise ValueError("Indique o ID da conta ou o email.")
+        if self.identifier is not None and not self.identifier.strip():
+            raise ValueError("Indique o ID da conta ou o email.")
+        return self
 
 
 class RegisterInput(BaseModel):
@@ -640,20 +649,36 @@ def health() -> dict[str, Any]:
 
 @app.post(f"{API_PREFIX}/auth/login", tags=["Authentication"])
 def login(data: LoginInput) -> dict[str, Any]:
-    email = str(data.email).strip().lower()
-    requested_role = _role_from_input(data.user_type, data.role)
-    demo_user = _demo_auth_user(email)
+    identifier = str(data.identifier if data.identifier is not None else data.email).strip().lower()
+    requested_role = (
+        _role_from_input(data.user_type, data.role)
+        if data.user_type is not None or data.role is not None
+        else None
+    )
+    demo_email = {
+        "worker-1": WORKER_DEMO_EMAIL,
+        "company-1": COMPANY_DEMO_EMAIL,
+    }.get(identifier, identifier)
+    demo_user = _demo_auth_user(demo_email)
     if demo_user:
         if data.password != DEMO_PASSWORD:
-            raise HTTPException(status_code=401, detail="Email ou password incorretos.")
-        if demo_user["role"] != requested_role:
+            raise HTTPException(status_code=401, detail="ID, email ou password incorretos.")
+        if requested_role is not None and demo_user["role"] != requested_role:
             raise HTTPException(status_code=403, detail="A conta não pertence a esse perfil.")
         return _login_response(demo_user)
 
-    registered = _registered_users.get(email)
+    registered = _registered_users.get(identifier)
+    if registered is None:
+        registered = next(
+            (
+                user for user in tuple(_registered_users.values())
+                if str(user["id"]).lower() == identifier
+            ),
+            None,
+        )
     if not registered or not _password_matches(data.password, registered["password_record"]):
-        raise HTTPException(status_code=401, detail="Email ou password incorretos.")
-    if registered["role"] != requested_role:
+        raise HTTPException(status_code=401, detail="ID, email ou password incorretos.")
+    if requested_role is not None and registered["role"] != requested_role:
         raise HTTPException(status_code=403, detail="A conta não pertence a esse perfil.")
     return _login_response(registered)
 
