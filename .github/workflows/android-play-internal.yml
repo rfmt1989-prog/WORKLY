@@ -1,0 +1,87 @@
+name: Android Play Internal AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Reviewed HTTPS test API URL ending in /api
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workly-play-internal-aab
+  cancel-in-progress: false
+
+jobs:
+  play-internal:
+    name: Build AAB for Google Play internal testing
+    runs-on: ubuntu-latest
+    environment: android-beta
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      CI: "1"
+      APP_VARIANT: production
+      EAS_BUILD_PROFILE: play-internal
+      EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate test API and Play configuration
+        run: |
+          npx expo config --type public --json > "$RUNNER_TEMP/workly-play-config.json"
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const app = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/workly-play-config.json`, "utf8"));
+          const eas = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+          const profile = eas.build["play-internal"];
+          if (app.android?.package !== "pt.workly.app" || !app.extra?.eas?.projectId ||
+              profile.distribution !== "store" || profile.android.buildType !== "app-bundle" ||
+              eas.submit["play-internal"].android.track !== "internal" ||
+              eas.submit["play-internal"].android.releaseStatus !== "draft") {
+            throw new Error("Unexpected Play identity, build type or release track.");
+          }
+          NODE
+      - name: Verify TypeScript
+        run: npx tsc --noEmit
+      - name: Verify lint
+        run: npm run lint
+      - name: Pass public test API to the remote build
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const config = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+          config.build["play-internal"].env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL;
+          fs.writeFileSync("eas.json", JSON.stringify(config, null, 2) + "\n");
+          NODE
+      - name: Verify Expo account and existing project
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Configure EXPO_TOKEN in the existing android-beta environment."
+            exit 1
+          fi
+          npx --yes eas-cli@16.28.0 whoami
+          npx --yes eas-cli@16.28.0 project:info
+      - name: Build signed Android App Bundle
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@16.28.0 build --platform android --profile play-internal --non-interactive --wait
+      - name: Report next step
+        run: |
+          printf '%s\n' '### Workly AAB ready' 'Download the AAB from the Expo build linked above.' 'This workflow builds only; it does not upload or publish to Google Play.' >> "$GITHUB_STEP_SUMMARY"
