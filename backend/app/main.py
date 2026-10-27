@@ -29,7 +29,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .demo_data import (
     COMPANY_DEMO_EMAIL,
-    DEMO_GENERATION,
     DEMO_PASSWORD,
     WORKER_DEMO_EMAIL,
     fresh_demo_state,
@@ -43,6 +42,7 @@ from .access_control import (
 )
 from .compliance import evaluate_worker_compliance
 from .persistence import PersistenceStore
+from .runtime_security import token_signing_secret
 from .professional_identity import professional_identity, profession_id
 
 
@@ -59,13 +59,7 @@ ALLOWED_DOCUMENT_CATEGORIES = {
     "identity", "insurance", "medical", "safety", "technical",
     "planning", "legal", "license", "other"
 }
-_configured_token_secret = os.getenv("WORKLY_TOKEN_SECRET", "").strip()
-if os.getenv("VERCEL_ENV") == "production" and len(_configured_token_secret) < 32:
-    raise RuntimeError("WORKLY_TOKEN_SECRET must be configured in production")
-TOKEN_SECRET = (
-    _configured_token_secret
-    or "workly-local-demo-signing-key-not-for-production"
-).encode("utf-8")
+TOKEN_SECRET = token_signing_secret()
 
 app = FastAPI(
     title="WORKLY API",
@@ -95,10 +89,8 @@ app.add_middleware(
 _state_lock = threading.RLock()
 _persistence = PersistenceStore()
 _state, _registered_users = _persistence.load(fresh_demo_state())
-if _state.get("demo_generation") != DEMO_GENERATION:
-    _state = fresh_demo_state()
-    _registered_users = {}
-    _persistence.save(_state, _registered_users)
+# Seed revisions apply only to a new store. Never discard persisted profiles or
+# registered accounts during startup; data migrations must be explicit.
 for _project in _state.get("projects", []):
     _project.setdefault("tasks", [])
     _project.setdefault("safety_items", [])
